@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatórios Avançados - Sistema de Caixa</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --cor-principal: #1a73e8; --bg-body: #f4f4f4; --text-color: #333; --bg-card: white; }
+        body.dark-mode { --bg-body: #121212; --text-color: #f1f1f1; --bg-card: #1e1e1e; }
+        
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg-body); color: var(--text-color); margin: 0; padding: 0; transition: 0.3s; }
+        
+        .navbar { background: var(--cor-principal); padding: 10px; display: flex; justify-content: center; gap: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); flex-wrap: wrap; }
+        .navbar a { color: white; text-decoration: none; font-weight: bold; padding: 10px 15px; border-radius: 5px; font-size: 13px; }
+        .navbar a:hover { background: rgba(255,255,255,0.1); }
+
+        .container { max-width: 1100px; margin: 20px auto; padding: 0 20px; }
+        .card { background: var(--bg-card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 25px; }
+        
+        h2, h3 { margin-top: 0; color: var(--cor-principal); border-bottom: 2px solid var(--cor-principal); padding-bottom: 8px; }
+
+        .filtros { display: flex; gap: 10px; align-items: center; margin-bottom: 20px; background: rgba(0,0,0,0.03); padding: 15px; border-radius: 8px; }
+        select { padding: 8px; border-radius: 5px; border: 1px solid #ccc; font-size: 14px; cursor: pointer; }
+
+        .grid-graficos { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .full-width { grid-column: 1 / -1; }
+        canvas { max-height: 280px; width: 100% !important; }
+
+        .resumo-caixa { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .resumo-item { background: rgba(0,0,0,0.03); padding: 15px; border-radius: 8px; border-left: 5px solid var(--cor-principal); text-align: center; }
+        .resumo-item span { font-size: 11px; font-weight: bold; color: #666; display: block; text-transform: uppercase; }
+        .resumo-item b { font-size: 22px; color: var(--text-color); }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border-bottom: 1px solid rgba(0,0,0,0.05); padding: 10px; text-align: left; font-size: 14px; }
+        th { background: rgba(0,0,0,0.03); color: #666; }
+
+        .btn-acoes { display: flex; gap: 10px; margin-top: 20px; }
+        .btn { padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; flex: 1; color: white; transition: 0.2s; }
+        .btn-limpar { background: #dc3545; max-width: 250px; }
+        .btn-imprimir { background: #6c757d; }
+        .btn:hover { opacity: 0.8; transform: translateY(-1px); }
+
+        @media print { .navbar, .btn-acoes, .filtros, .grid-graficos { display: none; } .container { max-width: 100%; } }
+        @media (max-width: 768px) { .grid-graficos { grid-template-columns: 1fr; } .filtros { flex-direction: column; align-items: stretch; } }
+    </style>
+</head>
+<body>
+
+    <div class="navbar" id="navPrincipal">
+        <a href="index.html">🛒 CAIXA</a>
+        <a href="cadastro.html">📝 PRODUTOS</a>
+        <a href="clientes.html">👤 CLIENTES</a>
+        <a href="ficha_clientes.html">📒 FICHA</a>
+        <a href="relatorio.html" style="background: rgba(0,0,0,0.3);">📊 RELATÓRIOS</a>
+        <a href="configuracoes.html">⚙️ CONFIG</a>
+        <a href="avisos.html" style="background: rgba(0,0,0,0.3);">🔔 AVISOS</a>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2>🔎 Filtro de Visualização</h2>
+            <div class="filtros">
+                <span>Exibir movimentação de:</span>
+                <select id="filtroMes" onchange="processarTudo()">
+                    <option value="0">Janeiro</option><option value="1">Fevereiro</option>
+                    <option value="2">Março</option><option value="3">Abril</option>
+                    <option value="4">Maio</option><option value="5">Junho</option>
+                    <option value="6">Julho</option><option value="7">Agosto</option>
+                    <option value="8">Setembro</option><option value="9">Outubro</option>
+                    <option value="10">Novembro</option><option value="11">Dezembro</option>
+                </select>
+                <select id="filtroAno" onchange="processarTudo()"></select>
+                <small style="color: #666; margin-left: 10px;">* Altere o filtro para ver vendas de outros períodos.</small>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 id="tituloRelatorio">📊 Resumo do Período</h2>
+            <div class="resumo-caixa">
+                <div class="resumo-item"><span>Vendas Diretas</span><b id="resVendas">R$ 0,00</b></div>
+                <div class="resumo-item"><span>Recebimentos (Fichas)</span><b id="resRec">R$ 0,00</b></div>
+                <div class="resumo-item" style="border-color:#28a745;"><span>Total Recebido</span><b id="resTotal" style="color:#28a745;">R$ 0,00</b></div>
+            </div>
+
+            <table id="tabelaRelatorio">
+                <thead>
+                    <tr>
+                        <th>Data/Hora</th>
+                        <th>Cliente</th>
+                        <th>Método</th>
+                        <th>Valor</th>
+                    </tr>
+                </thead>
+                <tbody id="corpoTabela"></tbody>
+            </table>
+
+            <div class="btn-acoes">
+                <button class="btn btn-imprimir" onclick="window.print()">🖨️ Imprimir Este Relatório</button>
+                <button class="btn btn-limpar" onclick="limparHistoricoGeral()">⚠️ Limpar Tudo (Reset Geral)</button>
+            </div>
+        </div>
+
+        <div class="grid-graficos">
+            <div class="card full-width"><h3>📅 Movimentação Recente (7 dias)</h3><canvas id="chartSemana"></canvas></div>
+            <div class="card"><h3>🗓️ Faturamento Mensal</h3><canvas id="chartMes"></canvas></div>
+            <div class="card"><h3>📈 Evolução Anual</h3><canvas id="chartAno"></canvas></div>
+        </div>
+    </div>
+
+    <script>
+        let charts = {};
+
+        window.onload = () => {
+            if (localStorage.getItem('logado') !== 'true') { window.location.href = "login.html"; return; }
+            
+            const agora = new Date();
+            const anoAtual = agora.getFullYear();
+            const mesAtual = agora.getMonth();
+
+            const selectAno = document.getElementById('filtroAno');
+            for(let i = anoAtual; i >= anoAtual - 2; i--) {
+                let opt = document.createElement('option');
+                opt.value = i; opt.innerText = i;
+                selectAno.appendChild(opt);
+            }
+            
+            document.getElementById('filtroMes').value = mesAtual;
+            document.getElementById('filtroAno').value = anoAtual;
+            
+            aplicarPreferencias();
+            processarTudo();
+        };
+
+        function aplicarPreferencias() {
+            const tema = localStorage.getItem('tema');
+            const cor = localStorage.getItem('corPrincipal') || '#1a73e8';
+            if (tema === 'dark') document.body.classList.add('dark-mode');
+            document.getElementById('navPrincipal').style.backgroundColor = cor;
+            document.documentElement.style.setProperty('--cor-principal', cor);
+        }
+
+        function processarTudo() {
+            const historico = JSON.parse(localStorage.getItem('historicoVendas')) || [];
+            const mesSel = parseInt(document.getElementById('filtroMes').value);
+            const anoSel = parseInt(document.getElementById('filtroAno').value);
+            const hojeTotal = new Date();
+
+            let vDiretas = 0, vRec = 0;
+            const corpoTabela = document.getElementById('corpoTabela');
+            corpoTabela.innerHTML = "";
+
+            let dadosSemana = {}, dadosMes = Array(12).fill(0), dadosAno = {};
+
+            // Ordenar por data (mais recente primeiro)
+            const historicoOrdenado = [...historico].reverse();
+
+            historicoOrdenado.forEach(v => {
+                const valor = parseFloat(v.valor) || 0;
+                const partesData = v.data.split(',')[0].split('/');
+                const dataObj = new Date(partesData[2], partesData[1] - 1, partesData[0]);
+                
+                const vMes = dataObj.getMonth();
+                const vAno = dataObj.getFullYear();
+                const vDataStr = dataObj.toLocaleDateString('pt-br');
+
+                // LÓGICA DE GRÁFICOS (Processa todo o ano selecionado para os gráficos)
+                if(v.metodo !== "Fiado") {
+                    const diffDias = Math.floor((hojeTotal - dataObj) / (1000 * 60 * 60 * 24));
+                    if(diffDias >= 0 && diffDias < 7) dadosSemana[vDataStr] = (dadosSemana[vDataStr] || 0) + valor;
+                    if(vAno === anoSel) dadosMes[vMes] += valor;
+                    dadosAno[vAno] = (dadosAno[vAno] || 0) + valor;
+                }
+
+                // LÓGICA DA TABELA (Rígida: Só mostra o que está no FILTRO)
+                if(vMes === mesSel && vAno === anoSel) {
+                    if(v.metodo !== "Fiado") {
+                        corpoTabela.innerHTML += `<tr>
+                            <td>${v.data}</td>
+                            <td>${v.cliente}</td>
+                            <td>${v.metodo === "Pagamento Parcial" ? "RECEBIMENTO" : v.metodo}</td>
+                            <td>R$ ${valor.toFixed(2)}</td>
+                        </tr>`;
+
+                        if(v.metodo === "Pagamento Parcial") vRec += valor;
+                        else vDiretas += valor;
+                    }
+                }
+            });
+
+            document.getElementById('resVendas').innerText = `R$ ${vDiretas.toFixed(2)}`;
+            document.getElementById('resRec').innerText = `R$ ${vRec.toFixed(2)}`;
+            document.getElementById('resTotal').innerText = `R$ ${(vDiretas + vRec).toFixed(2)}`;
+            
+            const nomeMes = document.getElementById('filtroMes').options[mesSel].text;
+            document.getElementById('tituloRelatorio').innerText = `📊 Movimentação: ${nomeMes} / ${anoSel}`;
+
+            renderizarGraficos(dadosSemana, dadosMes, dadosAno);
+        }
+
+        function renderizarGraficos(semana, mes, ano) {
+            const corP = getComputedStyle(document.documentElement).getPropertyValue('--cor-principal').trim();
+            if(charts.s) charts.s.destroy();
+            if(charts.m) charts.m.destroy();
+            if(charts.a) charts.a.destroy();
+
+            charts.s = new Chart(document.getElementById('chartSemana'), {
+                type: 'line',
+                data: { labels: Object.keys(semana).reverse(), datasets: [{ label: 'Vendas R$', data: Object.values(semana).reverse(), borderColor: corP, backgroundColor: corP+'22', fill: true }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            charts.m = new Chart(document.getElementById('chartMes'), {
+                type: 'bar',
+                data: { labels: ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'], datasets: [{ label: 'Faturamento R$', data: mes, backgroundColor: corP }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            charts.a = new Chart(document.getElementById('chartAno'), {
+                type: 'doughnut',
+                data: { labels: Object.keys(ano), datasets: [{ data: Object.values(ano), backgroundColor: [corP, '#28a745', '#ffc107', '#dc3545'] }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function limparHistoricoGeral() {
+            if(confirm("⚠️ PERIGO: Isso apagará permanentemente TODO o histórico do sistema (todos os meses). Deseja continuar?")) {
+                localStorage.setItem('historicoVendas', JSON.stringify([]));
+                processarTudo();
+            }
+        }
+    </script>
+</body>
+</html>
