@@ -13,7 +13,6 @@
 
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg-body); color: var(--text-color); margin: 0; padding: 0; transition: 0.3s; }
         
-        /* Navbar unificada */
         .navbar { background: var(--cor-principal); padding: 10px; display: flex; justify-content: center; gap: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); flex-wrap: wrap; }
         .navbar a { color: white; text-decoration: none; font-weight: bold; padding: 10px 15px; border-radius: 5px; font-size: 13px; }
         .navbar a:hover { background: rgba(255,255,255,0.2); }
@@ -38,7 +37,6 @@
         
         #buscaCliente { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 2px solid var(--cor-principal); box-sizing: border-box; background: white; color: black; }
 
-        /* Modo Escuro */
         body.dark-mode { 
             --bg-body: #121212; 
             --text-color: #f1f1f1; 
@@ -51,139 +49,171 @@
 </head>
 <body>
 
-    <div class="navbar" id="navPrincipal">
-        <a href="index.html">🛒 CAIXA</a>
-        <a href="cadastro.html">📝 PRODUTOS</a>
-        <a href="clientes.html" style="background: rgba(0,0,0,0.3);">👤 CLIENTES</a>
-        <a href="ficha_clientes.html">📒 FICHA</a>
-        <a href="relatorio.html">📊 RELATÓRIOS</a>
-        <a href="configuracoes.html">⚙️ CONFIG</a>
-        <a href="avisos.html" style="background: rgba(0,0,0,0.3);">🔔 AVISOS</a>
-    </div>
+<div class="navbar" id="navPrincipal">
+    <a href="index.html">🛒 CAIXA</a>
+    <a href="cadastro.html">📝 PRODUTOS</a>
+    <a href="clientes.html" style="background: rgba(0,0,0,0.3);">👤 CLIENTES</a>
+    <a href="ficha_clientes.html">📒 FICHA</a>
+    <a href="relatorio.html">📊 RELATÓRIOS</a>
+    <a href="configuracoes.html">⚙️ CONFIG</a>
+    <a href="avisos.html" style="background: rgba(0,0,0,0.3);">🔔 AVISOS</a>
+</div>
 
-    <div class="container">
-        <h2>👤 Cadastro de Clientes (Fiado)</h2>
-        
-        <div class="form-cliente">
-            <div class="campo">
-                <label>Nome Completo do Cliente:</label>
-                <input type="text" id="nomeCliente" placeholder="Ex: João da Silva">
-            </div>
-            <div class="campo">
-                <label>Telefone / Contato (Opcional):</label>
-                <input type="text" id="telCliente" placeholder="(00) 00000-0000">
-            </div>
-            <button class="btn-salvar" onclick="salvarCliente()">CADASTRAR CLIENTE</button>
-        </div>
+<div class="container">
+<h2>👤 Cadastro de Clientes (Fiado)</h2>
 
-        <h3>👥 Clientes Cadastrados</h3>
-        <input type="text" id="buscaCliente" placeholder="🔍 Pesquisar cliente..." oninput="filtrarClientes()">
-        <table>
-            <thead>
-                <tr>
-                    <th>Nome</th>
-                    <th>Telefone</th>
-                    <th>Ação</th>
-                </tr>
-            </thead>
-            <tbody id="listaClientes"></tbody>
-        </table>
-    </div>
+<div class="form-cliente">
+<div class="campo">
+<label>Nome Completo do Cliente:</label>
+<input type="text" id="nomeCliente" placeholder="Ex: João da Silva">
+</div>
 
-    <script>
-        // --- BLOCO ADICIONADO: TRAVA DE SEGURANÇA E 7 DIAS GRÁTIS ---
-        (function validarAcesso() {
-            let dataExp = localStorage.getItem('dataExpiracao');
-            const hoje = new Date();
-            const hojeStr = hoje.toISOString().split('T')[0];
+<div class="campo">
+<label>Telefone / Contato (Opcional):</label>
+<input type="text" id="telCliente" placeholder="(00) 00000-0000">
+</div>
 
-            if (!dataExp) {
-                const seteDias = new Date();
-                seteDias.setDate(hoje.getDate() + 7);
-                dataExp = seteDias.toISOString().split('T')[0];
-                localStorage.setItem('dataExpiracao', dataExp);
-                return;
-            }
+<button class="btn-salvar" onclick="salvarCliente()">CADASTRAR CLIENTE</button>
+</div>
 
-            if (hojeStr > dataExp) {
-                window.location.href = "pagamento.html";
-            }
-        })();
-        // --- FIM DO BLOCO ADICIONADO ---
+<h3>👥 Clientes Cadastrados</h3>
 
-        // --- BLOCO DE PREFERÊNCIAS E SEGURANÇA ---
-        window.onload = function() {
-            if (localStorage.getItem('logado') !== 'true') {
-                window.location.href = "login.html";
-                return;
-            }
-            aplicarPreferencias();
-            renderizar(clientesBD);
-        };
+<input type="text" id="buscaCliente" placeholder="🔍 Pesquisar cliente..." oninput="filtrarClientes()">
 
-        function aplicarPreferencias() {
-            const tema = localStorage.getItem('tema') || 'light';
-            const cor = localStorage.getItem('corPrincipal') || '#1a73e8';
-            if (tema === 'dark') document.body.classList.add('dark-mode');
-            document.getElementById('navPrincipal').style.backgroundColor = cor;
-        }
+<table>
+<thead>
+<tr>
+<th>Nome</th>
+<th>Telefone</th>
+<th>Ação</th>
+</tr>
+</thead>
 
-        // --- LÓGICA DE CLIENTES ---
-        let clientesBD = JSON.parse(localStorage.getItem('meusClientes')) || [];
+<tbody id="listaClientes"></tbody>
+</table>
+</div>
 
-        function salvarCliente() {
-            const nome = document.getElementById('nomeCliente').value.trim();
-            const tel = document.getElementById('telCliente').value.trim();
+<script>
 
-            if (!nome) return alert("O nome do cliente é obrigatório!");
+let clientesBD = [];
 
-            const existe = clientesBD.some(c => c.nome.toLowerCase() === nome.toLowerCase());
-            if (existe) return alert("Este cliente já está cadastrado!");
+(function validarAcesso() {
+let dataExp = localStorage.getItem('dataExpiracao');
+const hoje = new Date();
+const hojeStr = hoje.toISOString().split('T')[0];
 
-            const novoCliente = {
-                nome: nome,
-                telefone: tel,
-                dataCadastro: new Date().toLocaleDateString('pt-br')
-            };
+if (!dataExp) {
+const seteDias = new Date();
+seteDias.setDate(hoje.getDate() + 7);
+dataExp = seteDias.toISOString().split('T')[0];
+localStorage.setItem('dataExpiracao', dataExp);
+return;
+}
 
-            clientesBD.push(novoCliente);
-            localStorage.setItem('meusClientes', JSON.stringify(clientesBD));
-            
-            alert("Cliente cadastrado com sucesso!");
-            document.getElementById('nomeCliente').value = "";
-            document.getElementById('telCliente').value = "";
-            renderizar(clientesBD);
-        }
+if (hojeStr > dataExp) {
+window.location.href = "pagamento.html";
+}
+})();
 
-        function renderizar(dados) {
-            const tbody = document.getElementById('listaClientes');
-            tbody.innerHTML = "";
-            dados.forEach((c, index) => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td><b>${c.nome}</b></td>
-                        <td>${c.telefone || '---'}</td>
-                        <td><button class="btn-excluir" onclick="excluirCliente(${index})">🗑️</button></td>
-                    </tr>`;
-            });
-            if(dados.length === 0) {
-                tbody.innerHTML = "<tr><td colspan='3' style='text-align:center;'>Nenhum cliente cadastrado.</td></tr>";
-            }
-        }
+window.onload = function() {
+if (localStorage.getItem('logado') !== 'true') {
+window.location.href = "login.html";
+return;
+}
 
-        function filtrarClientes() {
-            const termo = document.getElementById('buscaCliente').value.toLowerCase();
-            const filtrados = clientesBD.filter(c => c.nome.toLowerCase().includes(termo));
-            renderizar(filtrados);
-        }
+aplicarPreferencias();
+carregarClientes();
+};
 
-        function excluirCliente(index) {
-            if(confirm("Deseja remover este cliente?")) {
-                clientesBD.splice(index, 1);
-                localStorage.setItem('meusClientes', JSON.stringify(clientesBD));
-                renderizar(clientesBD);
-            }
-        }
-    </script>
+function aplicarPreferencias() {
+const tema = localStorage.getItem('tema') || 'light';
+const cor = localStorage.getItem('corPrincipal') || '#1a73e8';
+
+if (tema === 'dark') document.body.classList.add('dark-mode');
+
+document.getElementById('navPrincipal').style.backgroundColor = cor;
+}
+
+async function carregarClientes() {
+const resposta = await fetch("/clientes");
+clientesBD = await resposta.json();
+renderizar(clientesBD);
+}
+
+async function salvarCliente() {
+
+const nome = document.getElementById('nomeCliente').value.trim();
+const tel = document.getElementById('telCliente').value.trim();
+
+if (!nome) return alert("O nome do cliente é obrigatório!");
+
+const existe = clientesBD.some(c => c.nome.toLowerCase() === nome.toLowerCase());
+if (existe) return alert("Este cliente já está cadastrado!");
+
+await fetch("/clientes", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({
+nome: nome,
+telefone: tel,
+fiado: 0
+})
+});
+
+document.getElementById('nomeCliente').value = "";
+document.getElementById('telCliente').value = "";
+
+carregarClientes();
+}
+
+function renderizar(dados) {
+
+const tbody = document.getElementById('listaClientes');
+tbody.innerHTML = "";
+
+dados.forEach((c) => {
+
+tbody.innerHTML += `
+<tr>
+<td><b>${c.nome}</b></td>
+<td>${c.telefone || '---'}</td>
+<td>
+<button class="btn-excluir" onclick="excluirCliente('${c._id}')">🗑️</button>
+</td>
+</tr>
+`;
+
+});
+
+if(dados.length === 0) {
+tbody.innerHTML = "<tr><td colspan='3' style='text-align:center;'>Nenhum cliente cadastrado.</td></tr>";
+}
+}
+
+function filtrarClientes() {
+
+const termo = document.getElementById('buscaCliente').value.toLowerCase();
+
+const filtrados = clientesBD.filter(c =>
+c.nome.toLowerCase().includes(termo)
+);
+
+renderizar(filtrados);
+}
+
+async function excluirCliente(id) {
+
+if(confirm("Deseja remover este cliente?")) {
+
+await fetch(`/clientes/${id}`, {
+method: "DELETE"
+});
+
+carregarClientes();
+}
+}
+
+</script>
+
 </body>
 </html>

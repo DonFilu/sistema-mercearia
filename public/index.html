@@ -160,11 +160,19 @@
         let produtoPendente = null;
         let multiplicadorPendente = 1;
         let codigoNaoCadastrado = "";
+        let produtosLista = [];
+        let clientesLista = [];
 
-        window.onload = () => {
-            if (localStorage.getItem('logado') !== 'true') { window.location.href = "login.html"; return; }
+        window.onload = async () => {
+            if (localStorage.getItem('logado') !== 'true') { 
+                window.location.href = "login.html"; 
+                return; 
+            }
+
             aplicarPreferencias();
-            carregarClientes();
+            await sincronizarClientes();
+            await sincronizarProdutos();
+
             document.getElementById('data-atual').innerText = new Date().toLocaleDateString();
             document.getElementById('campoLeitor').focus();
         };
@@ -177,14 +185,64 @@
             document.documentElement.style.setProperty('--cor-principal', cor);
         }
 
-        function carregarClientes() {
-            let clientes = JSON.parse(localStorage.getItem('meusClientes')) || [];
-            const select = document.getElementById('selecionarCliente');
-            clientes.forEach(c => {
-                let opt = document.createElement('option');
-                opt.value = c.nome; opt.text = c.nome;
-                select.appendChild(opt);
-            });
+        async function sincronizarClientes() {
+            try {
+                const resposta = await fetch("/clientes");
+                clientesLista = await resposta.json();
+
+                localStorage.setItem("meusClientes", JSON.stringify(clientesLista));
+
+                const select = document.getElementById('selecionarCliente');
+                select.innerHTML = `<option value="Consumidor Final">Consumidor Final</option>`;
+
+                clientesLista.forEach(c => {
+                    let opt = document.createElement('option');
+                    opt.value = c.nome;
+                    opt.text = c.nome;
+                    select.appendChild(opt);
+                });
+            } catch (err) {
+                console.error("Erro ao carregar clientes:", err);
+                let clientes = JSON.parse(localStorage.getItem('meusClientes')) || [];
+                const select = document.getElementById('selecionarCliente');
+                select.innerHTML = `<option value="Consumidor Final">Consumidor Final</option>`;
+                clientes.forEach(c => {
+                    let opt = document.createElement('option');
+                    opt.value = c.nome;
+                    opt.text = c.nome;
+                    select.appendChild(opt);
+                });
+            }
+        }
+
+        async function sincronizarProdutos() {
+            try {
+                const resposta = await fetch("/produtos");
+                produtosLista = await resposta.json();
+
+                const produtosObj = {};
+                produtosLista.forEach(p => {
+                    produtosObj[p.codigo] = {
+                        _id: p._id,
+                        nome: p.nome,
+                        preco: p.preco,
+                        tipo: p.tipo || "un",
+                        estoque: p.estoque
+                    };
+                });
+
+                localStorage.setItem("meusProdutos", JSON.stringify(produtosObj));
+            } catch (err) {
+                console.error("Erro ao carregar produtos:", err);
+                produtosLista = Object.entries(JSON.parse(localStorage.getItem('meusProdutos')) || {}).map(([codigo, p]) => ({
+                    _id: p._id || null,
+                    codigo,
+                    nome: p.nome,
+                    preco: p.preco,
+                    tipo: p.tipo || "un",
+                    estoque: p.estoque
+                }));
+            }
         }
 
         function avisar(titulo, texto, recarregar = false) {
@@ -224,7 +282,13 @@
             let pago = obterSomaEscrita();
             let status = document.getElementById('statusPagamento');
             let btn = document.getElementById('btnFinalizar');
-            if (totalGeral === 0) { status.innerText = "Aguardando itens..."; btn.disabled = true; return; }
+
+            if (totalGeral === 0) { 
+                status.innerText = "Aguardando itens..."; 
+                btn.disabled = true; 
+                return; 
+            }
+
             if (pago < totalGeral - 0.01) {
                 status.innerText = `FALTAM R$ ${(totalGeral - pago).toFixed(2)}`;
                 status.className = "status-caixa status-falta";
@@ -237,7 +301,7 @@
             }
         }
 
-        document.getElementById('campoLeitor').addEventListener('keypress', function(e) {
+        document.getElementById('campoLeitor').addEventListener('keypress', async function(e) {
             if (e.key === 'Enter') {
                 let valorInput = this.value.trim();
                 if (valorInput === "") return;
@@ -245,7 +309,6 @@
                 let quantidade = 1;
                 let codigo = valorInput;
 
-                // FUNÇÃO DE MULTIPLICAR ADICIONADA AQUI
                 if (valorInput.toLowerCase().includes('x')) {
                     let partes = valorInput.toLowerCase().split('x');
                     quantidade = parseFloat(partes[0]) || 1;
@@ -286,15 +349,37 @@
             }
         });
 
-        function salvarNovoProduto() {
+        async function salvarNovoProduto() {
             let nome = document.getElementById('novoNome').value.trim();
             let preco = parseFloat(document.getElementById('novoPreco').value);
-            if(nome === "" || isNaN(preco)) { alert("Preencha nome e preço!"); return; }
-            let produtos = JSON.parse(localStorage.getItem('meusProdutos')) || {};
-            produtos[codigoNaoCadastrado] = { nome: nome, preco: preco, tipo: 'un', estoque: 1000 }; 
-            localStorage.setItem('meusProdutos', JSON.stringify(produtos));
-            adicionarItem(nome, multiplicadorPendente, preco * multiplicadorPendente, codigoNaoCadastrado);
-            cancelarCadastroRapido();
+
+            if(nome === "" || isNaN(preco)) { 
+                alert("Preencha nome e preço!"); 
+                return; 
+            }
+
+            try {
+                await fetch("/produtos", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        codigo: codigoNaoCadastrado,
+                        nome: nome,
+                        preco: preco,
+                        tipo: "un",
+                        estoque: 1000
+                    })
+                });
+
+                await sincronizarProdutos();
+                adicionarItem(nome, multiplicadorPendente, preco * multiplicadorPendente, codigoNaoCadastrado);
+                cancelarCadastroRapido();
+            } catch (err) {
+                console.error(err);
+                alert("Erro ao cadastrar produto no servidor.");
+            }
         }
 
         function cancelarCadastroRapido() {
@@ -321,6 +406,7 @@
             const tipoDesc = document.getElementById('tipoDesconto').value;
             lista.innerHTML = "";
             let somaItens = 0;
+
             itensCarrinho.forEach((item, index) => {
                 somaItens += item.valor;
                 let div = document.createElement('div');
@@ -328,6 +414,7 @@
                 div.innerHTML = `<span><button class="btn-remover" onclick="removerItem(${index})">X</button>${item.nome} (${item.qtd.toFixed(2)})</span> <span>R$ ${item.valor.toFixed(2)}</span>`;
                 lista.appendChild(div);
             });
+
             let valorCalculadoDesconto = (tipoDesc === 'real') ? descInput : somaItens * (descInput / 100);
             totalGeral = Math.max(0, somaItens - valorCalculadoDesconto); 
             document.getElementById('valorTotal').innerText = "R$ " + totalGeral.toFixed(2);
@@ -354,37 +441,115 @@
             }
         }
 
-        function finalizarCompra() {
+        async function atualizarEstoqueNoServidor() {
+            const estoqueAtivado = localStorage.getItem('estoqueAtivado') === 'true';
+            if (!estoqueAtivado) return;
+
+            let produtos = JSON.parse(localStorage.getItem('meusProdutos')) || {};
+
+            for (const item of itensCarrinho) {
+                if (produtos[item.cod]) {
+                    produtos[item.cod].estoque = (parseFloat(produtos[item.cod].estoque) || 0) - item.qtd;
+
+                    const produtoServidor = produtosLista.find(p => String(p.codigo) === String(item.cod));
+
+                    if (produtoServidor && produtoServidor._id) {
+                        try {
+                            await fetch(`/produtos/${produtoServidor._id}`, { method: "DELETE" });
+
+                            await fetch("/produtos", {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json"
+                                },
+                                body: JSON.stringify({
+                                    codigo: item.cod,
+                                    nome: produtos[item.cod].nome,
+                                    preco: produtos[item.cod].preco,
+                                    tipo: produtos[item.cod].tipo,
+                                    estoque: produtos[item.cod].estoque
+                                })
+                            });
+                        } catch (err) {
+                            console.error("Erro ao atualizar estoque no servidor:", err);
+                        }
+                    }
+                }
+            }
+
+            localStorage.setItem('meusProdutos', JSON.stringify(produtos));
+            await sincronizarProdutos();
+        }
+
+        async function finalizarCompra() {
             const cliente = document.getElementById('selecionarCliente').value;
             const fiadoVal = parseFloat(document.getElementById('p_fiado').value) || 0;
-            if (fiadoVal > 0 && cliente === "Consumidor Final") return avisar("Erro no Fiado", "Selecione um cliente.");
+
+            if (fiadoVal > 0 && cliente === "Consumidor Final") {
+                return avisar("Erro no Fiado", "Selecione um cliente.");
+            }
 
             const agora = new Date().toLocaleString('pt-br');
-            const estoqueAtivado = localStorage.getItem('estoqueAtivado') === 'true';
 
             let historico = JSON.parse(localStorage.getItem('historicoVendas')) || [];
-            let formas = [{id:'p_dinheiro', n:'Dinheiro'}, {id:'p_pix', n:'Pix'}, {id:'p_cartao', n:'Cartão'}, {id:'p_fiado', n:'Fiado'}];
+            let formas = [
+                {id:'p_dinheiro', n:'Dinheiro'}, 
+                {id:'p_pix', n:'Pix'}, 
+                {id:'p_cartao', n:'Cartão'}, 
+                {id:'p_fiado', n:'Fiado'}
+            ];
+
             formas.forEach(f => {
                 let v = parseFloat(document.getElementById(f.id).value) || 0;
                 if (v > 0) historico.push({ data: agora, cliente: cliente, valor: v, metodo: f.n });
             });
             localStorage.setItem('historicoVendas', JSON.stringify(historico));
 
-            if (fiadoVal > 0) {
-                let fichas = JSON.parse(localStorage.getItem('fichasAtivas')) || [];
-                fichas.push({ data: agora, cliente: cliente, valor: fiadoVal, metodo: 'Fiado' });
-                localStorage.setItem('fichasAtivas', JSON.stringify(fichas));
+            try {
+                await fetch("/vendas", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        data: agora,
+                        cliente: cliente,
+                        itens: itensCarrinho,
+                        total: totalGeral,
+                        desconto: parseFloat(document.getElementById('valorDesconto').value) || 0,
+                        pagamentos: formas.map(f => ({
+                            metodo: f.n,
+                            valor: parseFloat(document.getElementById(f.id).value) || 0
+                        })).filter(p => p.valor > 0)
+                    })
+                });
+            } catch (err) {
+                console.warn("Rota /vendas ainda não disponível. Mantido histórico local.");
             }
 
-            if (estoqueAtivado) {
-                let produtos = JSON.parse(localStorage.getItem('meusProdutos')) || {};
-                itensCarrinho.forEach(item => {
-                    if (produtos[item.cod]) {
-                        produtos[item.cod].estoque = (parseFloat(produtos[item.cod].estoque) || 0) - item.qtd;
-                    }
-                });
-                localStorage.setItem('meusProdutos', JSON.stringify(produtos));
+            if (fiadoVal > 0) {
+                try {
+                    await fetch("/fiados/compra", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            data: agora,
+                            cliente: cliente,
+                            valor: fiadoVal,
+                            metodo: "Fiado"
+                        })
+                    });
+                } catch (err) {
+                    console.warn("Rota /fiados/compra ainda não disponível. Mantido fiado local.");
+                    let fichas = JSON.parse(localStorage.getItem('fichasAtivas')) || [];
+                    fichas.push({ data: agora, cliente: cliente, valor: fiadoVal, metodo: 'Fiado' });
+                    localStorage.setItem('fichasAtivas', JSON.stringify(fichas));
+                }
             }
+
+            await atualizarEstoqueNoServidor();
 
             avisar("✅ Venda Finalizada", "Sucesso!", true);
         }

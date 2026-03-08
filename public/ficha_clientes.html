@@ -51,7 +51,6 @@
         td { padding: 10px; border-bottom: 1px solid var(--border-color); font-size: 14px; }
         .pagamento-registro { color: #28a745; font-weight: bold; }
 
-        /* Modal */
         #modalOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; }
         .modal { background: var(--bg-card); padding: 30px; border-radius: 12px; width: 350px; text-align: center; border: 1px solid var(--border-color); }
         .btn-modal { padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 20px; background: var(--cor-principal); color: white; width: 100%; }
@@ -88,6 +87,8 @@
     </div>
 
     <script>
+        let fichasCache = [];
+
         window.onload = function() {
             if (localStorage.getItem('logado') !== 'true') {
                 window.location.href = "login.html";
@@ -125,64 +126,72 @@
             }
         }
 
-        function carregarFichas() {
-            const fichas = JSON.parse(localStorage.getItem('fichasAtivas')) || [];
+        async function carregarFichas() {
             const listaContainer = document.getElementById('listaFiados');
-            
-            if (fichas.length === 0) {
-                listaContainer.innerHTML = '<div style="text-align:center; padding:50px; opacity:0.5;">Não há contas pendentes registradas.</div>';
-                return;
-            }
 
-            // Agrupar dados por cliente
-            const porCliente = {};
-            fichas.forEach(v => {
-                if (!porCliente[v.cliente]) porCliente[v.cliente] = { saldo: 0, historico: [] };
-                if (v.metodo === "Fiado") porCliente[v.cliente].saldo += v.valor;
-                else porCliente[v.cliente].saldo -= v.valor;
-                porCliente[v.cliente].historico.push(v);
-            });
+            try {
+                const resposta = await fetch("/fiados");
+                fichasCache = await resposta.json();
 
-            listaContainer.innerHTML = "";
-            let clientesExibidos = 0;
+                if (!Array.isArray(fichasCache) || fichasCache.length === 0) {
+                    listaContainer.innerHTML = '<div style="text-align:center; padding:50px; opacity:0.5;">Não há contas pendentes registradas.</div>';
+                    return;
+                }
 
-            for (let nome in porCliente) {
-                const ficha = porCliente[nome];
-                if (ficha.saldo <= 0.001) continue; // Pula clientes sem dívida
-                clientesExibidos++;
+                const porCliente = {};
+                fichasCache.forEach(v => {
+                    if (!porCliente[v.cliente]) porCliente[v.cliente] = { saldo: 0, historico: [] };
+                    if (v.metodo === "Fiado") porCliente[v.cliente].saldo += Number(v.valor || 0);
+                    else porCliente[v.cliente].saldo -= Number(v.valor || 0);
+                    porCliente[v.cliente].historico.push(v);
+                });
 
-                listaContainer.innerHTML += `
-                    <div class="cliente-card" data-nome="${nome}">
-                        <div class="cliente-header">
-                            <span class="cliente-nome">👤 ${nome}</span>
-                            <span class="total-divida">R$ ${ficha.saldo.toFixed(2)}</span>
-                        </div>
-                        <div class="painel-pagamento">
-                            <div class="campo-input">
-                                <label>Valor que o cliente pagou:</label>
-                                <input type="number" step="0.01" id="recebido_${nome}" placeholder="0,00" oninput="calcularTrocoInterface('${nome}', ${ficha.saldo})">
+                listaContainer.innerHTML = "";
+                let clientesExibidos = 0;
+
+                for (let nome in porCliente) {
+                    const ficha = porCliente[nome];
+                    if (ficha.saldo <= 0.001) continue;
+                    clientesExibidos++;
+
+                    const nomeSeguro = nome.replace(/'/g, "\\'");
+
+                    listaContainer.innerHTML += `
+                        <div class="cliente-card" data-nome="${nome}">
+                            <div class="cliente-header">
+                                <span class="cliente-nome">👤 ${nome}</span>
+                                <span class="total-divida">R$ ${ficha.saldo.toFixed(2)}</span>
                             </div>
-                            <div class="resultado-troco" id="troco_box_${nome}">TROCO: R$ <span id="troco_valor_${nome}">0.00</span></div>
-                            <button class="btn-confirmar" onclick="processarPagamento('${nome}', ${ficha.saldo})">CONFIRMAR PAGAMENTO</button>
-                        </div>
-                        <table>
-                            <thead><tr><th>Data</th><th>Tipo</th><th>Valor</th></tr></thead>
-                            <tbody>
-                                ${ficha.historico.slice().reverse().slice(0, 5).map(h => `
-                                    <tr>
-                                        <td>${h.data.split(',')[0]}</td>
-                                        <td class="${h.metodo === 'Pagamento Parcial' ? 'pagamento-registro' : ''}">
-                                            ${h.metodo === 'Pagamento Parcial' ? '✅ Pagamento' : '🛒 Compra'}
-                                        </td>
-                                        <td>R$ ${h.valor.toFixed(2)}</td>
-                                    </tr>`).join('')}
-                            </tbody>
-                        </table>
-                    </div>`;
-            }
+                            <div class="painel-pagamento">
+                                <div class="campo-input">
+                                    <label>Valor que o cliente pagou:</label>
+                                    <input type="number" step="0.01" id="recebido_${nomeSeguro}" placeholder="0,00" oninput="calcularTrocoInterface('${nomeSeguro}', ${ficha.saldo})">
+                                </div>
+                                <div class="resultado-troco" id="troco_box_${nomeSeguro}">TROCO: R$ <span id="troco_valor_${nomeSeguro}">0.00</span></div>
+                                <button class="btn-confirmar" onclick="processarPagamento('${nomeSeguro}', ${ficha.saldo})">CONFIRMAR PAGAMENTO</button>
+                            </div>
+                            <table>
+                                <thead><tr><th>Data</th><th>Tipo</th><th>Valor</th></tr></thead>
+                                <tbody>
+                                    ${ficha.historico.slice().reverse().slice(0, 5).map(h => `
+                                        <tr>
+                                            <td>${String(h.data || "").split(',')[0]}</td>
+                                            <td class="${h.metodo === 'Pagamento Parcial' ? 'pagamento-registro' : ''}">
+                                                ${h.metodo === 'Pagamento Parcial' ? '✅ Pagamento' : '🛒 Compra'}
+                                            </td>
+                                            <td>R$ ${Number(h.valor || 0).toFixed(2)}</td>
+                                        </tr>`).join('')}
+                                </tbody>
+                            </table>
+                        </div>`;
+                }
 
-            if (clientesExibidos === 0) {
-                listaContainer.innerHTML = '<div style="text-align:center; padding:50px; opacity:0.5;">Todas as contas estão em dia!</div>';
+                if (clientesExibidos === 0) {
+                    listaContainer.innerHTML = '<div style="text-align:center; padding:50px; opacity:0.5;">Todas as contas estão em dia!</div>';
+                }
+            } catch (err) {
+                console.error(err);
+                listaContainer.innerHTML = '<div style="text-align:center; padding:50px; opacity:0.5;">Erro ao carregar fichas.</div>';
             }
         }
 
@@ -191,6 +200,7 @@
             const box = document.getElementById(`troco_box_${nome}`);
             const span = document.getElementById(`troco_valor_${nome}`);
             const valor = parseFloat(input.value) || 0;
+
             if (valor > saldo) { 
                 span.innerText = (valor - saldo).toFixed(2); 
                 box.style.display = "block"; 
@@ -199,7 +209,7 @@
             }
         }
 
-        function processarPagamento(nome, saldo) {
+        async function processarPagamento(nome, saldo) {
             const input = document.getElementById(`recebido_${nome}`);
             const valorEntregue = parseFloat(input.value);
             
@@ -208,28 +218,29 @@
                 return;
             }
 
-            // O valor abatido nunca pode ser maior que a dívida atual (o resto vira troco no bolso do cliente)
-            let valorAbatido = valorEntregue > saldo ? saldo : valorEntregue;
-            const agora = new Date().toLocaleString('pt-br');
-            
-            const registro = { 
-                data: agora, 
-                valor: valorAbatido, 
-                metodo: "Pagamento Parcial", 
-                cliente: nome 
-            };
+            const valorAbatido = valorEntregue > saldo ? saldo : valorEntregue;
 
-            // Salva na ficha do cliente
-            let fichas = JSON.parse(localStorage.getItem('fichasAtivas')) || [];
-            fichas.push(registro);
-            localStorage.setItem('fichasAtivas', JSON.stringify(fichas));
+            try {
+                const resposta = await fetch("/fiados/pagamento", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        cliente: nome,
+                        valor: valorAbatido
+                    })
+                });
 
-            // Salva no histórico de vendas (para o relatório financeiro)
-            let historico = JSON.parse(localStorage.getItem('historicoVendas')) || [];
-            historico.push(registro);
-            localStorage.setItem('historicoVendas', JSON.stringify(historico));
+                if (!resposta.ok) {
+                    throw new Error("Falha ao registrar pagamento.");
+                }
 
-            avisar("Pagamento Registrado", `Foi dado baixa em R$ ${valorAbatido.toFixed(2)} na conta de ${nome}.`);
+                avisar("Pagamento Registrado", `Foi dado baixa em R$ ${valorAbatido.toFixed(2)} na conta de ${nome}.`);
+            } catch (err) {
+                console.error(err);
+                alert("Erro ao registrar pagamento.");
+            }
         }
     </script>
 </body>

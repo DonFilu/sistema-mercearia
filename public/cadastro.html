@@ -93,6 +93,8 @@
     </div>
 
     <script>
+        let produtosCache = [];
+
         window.onload = function() {
             if (localStorage.getItem('logado') !== 'true') { window.location.href = "login.html"; return; }
             aplicarPreferencias();
@@ -107,7 +109,7 @@
             document.documentElement.style.setProperty('--cor-principal', cor);
         }
 
-        function salvarProduto() {
+        async function salvarProduto() {
             const cod = document.getElementById('p_codigo').value.trim();
             const nome = document.getElementById('p_nome').value.trim();
             const preco = parseFloat(document.getElementById('p_preco').value);
@@ -119,36 +121,65 @@
                 return;
             }
 
-            let produtos = JSON.parse(localStorage.getItem('meusProdutos')) || {};
-            
-            // Salva os dados
-            produtos[cod] = { nome, preco, tipo, estoque };
-            localStorage.setItem('meusProdutos', JSON.stringify(produtos));
-            
-            // Limpa os campos
-            document.getElementById('p_codigo').value = "";
-            document.getElementById('p_nome').value = "";
-            document.getElementById('p_preco').value = "";
-            document.getElementById('p_estoque').value = "";
-            
-            listarProdutos();
-            document.getElementById('p_codigo').focus();
+            try {
+                const existente = produtosCache.find(p => String(p.codigo) === String(cod));
+
+                if (existente && existente._id) {
+                    await fetch(`/produtos/${existente._id}`, {
+                        method: "DELETE"
+                    });
+                }
+
+                const resposta = await fetch("/produtos", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        codigo: cod,
+                        nome: nome,
+                        preco: preco,
+                        tipo: tipo,
+                        estoque: estoque
+                    })
+                });
+
+                if (!resposta.ok) {
+                    throw new Error("Falha ao salvar produto.");
+                }
+
+                document.getElementById('p_codigo').value = "";
+                document.getElementById('p_nome').value = "";
+                document.getElementById('p_preco').value = "";
+                document.getElementById('p_estoque').value = "";
+                document.getElementById('p_tipo').value = "un";
+
+                await listarProdutos();
+                document.getElementById('p_codigo').focus();
+            } catch (erro) {
+                console.error(erro);
+                alert("Erro ao salvar produto no servidor.");
+            }
         }
 
-        function listarProdutos() {
-            const produtos = JSON.parse(localStorage.getItem('meusProdutos')) || {};
+        async function listarProdutos() {
             const tabela = document.getElementById('tabelaProdutos');
             const filtro = document.getElementById('filtroProd').value.toLowerCase();
             const estoqueAtivado = localStorage.getItem('estoqueAtivado') === 'true';
-            
+
             tabela.innerHTML = "";
 
-            // Converter objeto em array para poder ordenar (opcional, mas ajuda)
-            for (let cod in produtos) {
-                let p = produtos[cod];
-                if (p.nome.toLowerCase().includes(filtro) || cod.includes(filtro)) {
-                    
-                    // Lógica de destaque: estoque baixo (menor ou igual a 5)
+            try {
+                const resposta = await fetch("/produtos");
+                produtosCache = await resposta.json();
+
+                const produtosFiltrados = produtosCache.filter(p => {
+                    const nome = (p.nome || "").toLowerCase();
+                    const codigo = String(p.codigo || "");
+                    return nome.includes(filtro) || codigo.includes(filtro);
+                });
+
+                produtosFiltrados.forEach(p => {
                     const qtd = parseFloat(p.estoque) || 0;
                     const isBaixo = estoqueAtivado && qtd <= 5;
                     const classeLinha = isBaixo ? 'estoque-baixo' : '';
@@ -157,41 +188,55 @@
                     let tr = document.createElement('tr');
                     tr.className = classeLinha;
                     tr.innerHTML = `
-                        <td><small>${cod}</small></td>
-                        <td><strong>${p.nome}</strong></td>
-                        <td>R$ ${parseFloat(p.preco).toFixed(2)}</td>
-                        <td>${qtd.toFixed(2)} ${p.tipo.toUpperCase()} ${badgeAlerta}</td>
+                        <td><small>${p.codigo || ""}</small></td>
+                        <td><strong>${p.nome || ""}</strong></td>
+                        <td>R$ ${parseFloat(p.preco || 0).toFixed(2)}</td>
+                        <td>${qtd.toFixed(2)} ${(p.tipo || "un").toUpperCase()} ${badgeAlerta}</td>
                         <td>
-                            <button class="btn-acao btn-editar" onclick="editar('${cod}')" title="Editar">✎</button>
-                            <button class="btn-acao btn-excluir" onclick="excluir('${cod}')" title="Excluir">✖</button>
+                            <button class="btn-acao btn-editar" onclick="editar('${String(p.codigo || "").replace(/'/g, "\\'")}')" title="Editar">✎</button>
+                            <button class="btn-acao btn-excluir" onclick="excluir('${p._id}')" title="Excluir">✖</button>
                         </td>
                     `;
                     tabela.appendChild(tr);
+                });
+
+                if (produtosFiltrados.length === 0) {
+                    tabela.innerHTML = "<tr><td colspan='5' style='text-align:center'>Nenhum produto cadastrado.</td></tr>";
                 }
-            }
-            
-            if (Object.keys(produtos).length === 0) {
-                tabela.innerHTML = "<tr><td colspan='5' style='text-align:center'>Nenhum produto cadastrado.</td></tr>";
+            } catch (erro) {
+                console.error(erro);
+                tabela.innerHTML = "<tr><td colspan='5' style='text-align:center'>Erro ao carregar produtos.</td></tr>";
             }
         }
 
         function editar(cod) {
-            const produtos = JSON.parse(localStorage.getItem('meusProdutos'));
-            const p = produtos[cod];
-            document.getElementById('p_codigo').value = cod;
-            document.getElementById('p_nome').value = p.nome;
-            document.getElementById('p_preco').value = p.preco;
-            document.getElementById('p_tipo').value = p.tipo;
-            document.getElementById('p_estoque').value = p.estoque;
+            const p = produtosCache.find(prod => String(prod.codigo) === String(cod));
+            if (!p) return;
+
+            document.getElementById('p_codigo').value = p.codigo || "";
+            document.getElementById('p_nome').value = p.nome || "";
+            document.getElementById('p_preco').value = p.preco || "";
+            document.getElementById('p_tipo').value = p.tipo || "un";
+            document.getElementById('p_estoque').value = p.estoque || 0;
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        function excluir(cod) {
+        async function excluir(id) {
             if(confirm("Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita.")) {
-                let produtos = JSON.parse(localStorage.getItem('meusProdutos'));
-                delete produtos[cod];
-                localStorage.setItem('meusProdutos', JSON.stringify(produtos));
-                listarProdutos();
+                try {
+                    const resposta = await fetch(`/produtos/${id}`, {
+                        method: "DELETE"
+                    });
+
+                    if (!resposta.ok) {
+                        throw new Error("Falha ao excluir produto.");
+                    }
+
+                    await listarProdutos();
+                } catch (erro) {
+                    console.error(erro);
+                    alert("Erro ao excluir produto.");
+                }
             }
         }
     </script>

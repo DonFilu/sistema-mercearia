@@ -101,7 +101,6 @@
             const tema = localStorage.getItem('tema');
             const cor = localStorage.getItem('corPrincipal') || '#1a73e8';
             const estoque = localStorage.getItem('estoqueAtivado') === 'true';
-            // Carrega a preferência de impressão
             const impressao = localStorage.getItem('impressaoAtivada') === 'true';
 
             if (tema === 'dark') {
@@ -117,7 +116,6 @@
 
         function salvarConfiguracoes() {
             localStorage.setItem('estoqueAtivado', document.getElementById('configEstoque').checked);
-            // Salva a preferência de impressão
             localStorage.setItem('impressaoAtivada', document.getElementById('configImpressao').checked);
             localStorage.setItem('corPrincipal', document.getElementById('corSistema').value);
             localStorage.setItem('tema', document.getElementById('modoEscuro').checked ? 'dark' : 'light');

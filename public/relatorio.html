@@ -110,8 +110,9 @@
 
     <script>
         let charts = {};
+        let historicoCompleto = [];
 
-        window.onload = () => {
+        window.onload = async () => {
             if (localStorage.getItem('logado') !== 'true') { window.location.href = "login.html"; return; }
             
             const agora = new Date();
@@ -129,6 +130,7 @@
             document.getElementById('filtroAno').value = anoAtual;
             
             aplicarPreferencias();
+            await carregarHistorico();
             processarTudo();
         };
 
@@ -140,8 +142,49 @@
             document.documentElement.style.setProperty('--cor-principal', cor);
         }
 
+        async function carregarHistorico() {
+            try {
+                const [resVendas, resFiados] = await Promise.all([
+                    fetch("/vendas"),
+                    fetch("/fiados")
+                ]);
+
+                const vendas = resVendas.ok ? await resVendas.json() : [];
+                const fiados = resFiados.ok ? await resFiados.json() : [];
+
+                const historicoVendas = [];
+
+                vendas.forEach(venda => {
+                    if (Array.isArray(venda.pagamentos)) {
+                        venda.pagamentos.forEach(pg => {
+                            historicoVendas.push({
+                                data: venda.data,
+                                cliente: venda.cliente,
+                                valor: Number(pg.valor || 0),
+                                metodo: pg.metodo
+                            });
+                        });
+                    }
+                });
+
+                historicoCompleto = [...historicoVendas, ...fiados];
+                localStorage.setItem('historicoVendas', JSON.stringify(historicoCompleto));
+            } catch (err) {
+                console.error("Erro ao carregar histórico do servidor:", err);
+                historicoCompleto = JSON.parse(localStorage.getItem('historicoVendas')) || [];
+            }
+        }
+
+        function extrairDataObj(dataTexto) {
+            if (!dataTexto) return null;
+            const parteData = String(dataTexto).split(',')[0];
+            const partes = parteData.split('/');
+            if (partes.length !== 3) return null;
+            return new Date(Number(partes[2]), Number(partes[1]) - 1, Number(partes[0]));
+        }
+
         function processarTudo() {
-            const historico = JSON.parse(localStorage.getItem('historicoVendas')) || [];
+            const historico = historicoCompleto || [];
             const mesSel = parseInt(document.getElementById('filtroMes').value);
             const anoSel = parseInt(document.getElementById('filtroAno').value);
             const hojeTotal = new Date();
@@ -152,19 +195,17 @@
 
             let dadosSemana = {}, dadosMes = Array(12).fill(0), dadosAno = {};
 
-            // Ordenar por data (mais recente primeiro)
             const historicoOrdenado = [...historico].reverse();
 
             historicoOrdenado.forEach(v => {
                 const valor = parseFloat(v.valor) || 0;
-                const partesData = v.data.split(',')[0].split('/');
-                const dataObj = new Date(partesData[2], partesData[1] - 1, partesData[0]);
+                const dataObj = extrairDataObj(v.data);
+                if (!dataObj || isNaN(dataObj.getTime())) return;
                 
                 const vMes = dataObj.getMonth();
                 const vAno = dataObj.getFullYear();
                 const vDataStr = dataObj.toLocaleDateString('pt-br');
 
-                // LÓGICA DE GRÁFICOS (Processa todo o ano selecionado para os gráficos)
                 if(v.metodo !== "Fiado") {
                     const diffDias = Math.floor((hojeTotal - dataObj) / (1000 * 60 * 60 * 24));
                     if(diffDias >= 0 && diffDias < 7) dadosSemana[vDataStr] = (dadosSemana[vDataStr] || 0) + valor;
@@ -172,7 +213,6 @@
                     dadosAno[vAno] = (dadosAno[vAno] || 0) + valor;
                 }
 
-                // LÓGICA DA TABELA (Rígida: Só mostra o que está no FILTRO)
                 if(vMes === mesSel && vAno === anoSel) {
                     if(v.metodo !== "Fiado") {
                         corpoTabela.innerHTML += `<tr>
@@ -223,10 +263,18 @@
             });
         }
 
-        function limparHistoricoGeral() {
+        async function limparHistoricoGeral() {
             if(confirm("⚠️ PERIGO: Isso apagará permanentemente TODO o histórico do sistema (todos os meses). Deseja continuar?")) {
-                localStorage.setItem('historicoVendas', JSON.stringify([]));
-                processarTudo();
+                try {
+                    await fetch("/vendas", { method: "DELETE" });
+                    await fetch("/fiados", { method: "DELETE" });
+                    historicoCompleto = [];
+                    localStorage.setItem('historicoVendas', JSON.stringify([]));
+                    processarTudo();
+                } catch (err) {
+                    console.error(err);
+                    alert("Erro ao limpar histórico no servidor.");
+                }
             }
         }
     </script>
