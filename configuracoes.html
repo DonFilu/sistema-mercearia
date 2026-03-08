@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Configurações e Segurança - Sistema de Caixa</title>
+    <style>
+        :root { --cor-principal: #1a73e8; --bg-body: #f0f2f5; --text-color: #333; --bg-card: white; }
+        body.dark-mode { --bg-body: #121212; --text-color: #f1f1f1; --bg-card: #1e1e1e; }
+        
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg-body); color: var(--text-color); margin: 0; transition: 0.3s; }
+        
+        .navbar { background: var(--cor-principal); padding: 10px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+        .navbar a { color: white; text-decoration: none; font-weight: bold; padding: 10px 15px; border-radius: 5px; font-size: 13px; }
+        
+        .container { max-width: 600px; margin: 30px auto; background: var(--bg-card); padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .secao { margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; color: var(--cor-principal); border-bottom: 2px solid var(--cor-principal); padding-bottom: 10px; }
+        
+        .item-config { display: flex; justify-content: space-between; align-items: center; margin: 15px 0; }
+        
+        /* Botões de Backup */
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .btn-backup { padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: white; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .exportar { background: #007bff; }
+        .importar { background: #6f42c1; }
+        
+        .btn-salvar { width: 100%; background: #28a745; color: white; border: none; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 20px; }
+        
+        /* Switch */
+        .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--cor-principal); }
+        input:checked + .slider:before { transform: translateX(26px); }
+    </style>
+</head>
+<body>
+
+    <div class="navbar" id="navPrincipal">
+        <a href="index.html">🛒 CAIXA</a>
+        <a href="cadastro.html">📝 PRODUTOS</a>
+        <a href="clientes.html">👤 CLIENTES</a>
+        <a href="ficha_clientes.html">📒 FICHA</a>
+        <a href="relatorio.html">📊 RELATÓRIOS</a>
+        <a href="configuracoes.html" style="background: rgba(0,0,0,0.3);">⚙️ CONFIG</a>
+        <a href="avisos.html" style="background: rgba(0,0,0,0.3);">🔔 AVISOS</a>
+    </div>
+
+    <div class="container">
+        <h2>Configurações do Sistema</h2>
+
+        <div class="secao">
+            <h3>🎨 Personalização</h3>
+            <div class="item-config">
+                <span>Cor do Sistema</span>
+                <input type="color" id="corSistema" value="#1a73e8">
+            </div>
+            <div class="item-config">
+                <span>Modo Escuro</span>
+                <label class="switch">
+                    <input type="checkbox" id="modoEscuro">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="secao">
+            <h3>📦 Estoque e Impressão</h3>
+            <div class="item-config">
+                <span>Baixa Automática de Estoque</span>
+                <label class="switch">
+                    <input type="checkbox" id="configEstoque">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="item-config">
+                <span>Imprimir Comanda Automaticamente</span>
+                <label class="switch">
+                    <input type="checkbox" id="configImpressao">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="secao">
+            <h3>💾 Segurança (Backup)</h3>
+            <p style="font-size: 12px; color: #666;">Sempre baixe um backup após grandes cadastros.</p>
+            <div class="btn-group">
+                <button class="btn-backup exportar" onclick="exportarDados()">📤 SALVAR BACKUP</button>
+                <button class="btn-backup importar" onclick="document.getElementById('inputBackup').click()">📥 ABRIR BACKUP</button>
+            </div>
+            <input type="file" id="inputBackup" style="display: none;" accept=".json" onchange="importarDados(event)">
+        </div>
+
+        <button class="btn-salvar" onclick="salvarConfiguracoes()">SALVAR PREFERÊNCIAS</button>
+    </div>
+
+    <script>
+        window.onload = () => {
+            const tema = localStorage.getItem('tema');
+            const cor = localStorage.getItem('corPrincipal') || '#1a73e8';
+            const estoque = localStorage.getItem('estoqueAtivado') === 'true';
+            const impressao = localStorage.getItem('impressaoAtivada') === 'true';
+
+            if (tema === 'dark') {
+                document.body.classList.add('dark-mode');
+                document.getElementById('modoEscuro').checked = true;
+            }
+            
+            document.getElementById('navPrincipal').style.backgroundColor = cor;
+            document.getElementById('corSistema').value = cor;
+            document.getElementById('configEstoque').checked = estoque;
+            document.getElementById('configImpressao').checked = impressao;
+        };
+
+        function salvarConfiguracoes() {
+            localStorage.setItem('estoqueAtivado', document.getElementById('configEstoque').checked);
+            localStorage.setItem('impressaoAtivada', document.getElementById('configImpressao').checked);
+            localStorage.setItem('corPrincipal', document.getElementById('corSistema').value);
+            localStorage.setItem('tema', document.getElementById('modoEscuro').checked ? 'dark' : 'light');
+            
+            alert("Configurações salvas!");
+            location.reload();
+        }
+
+        function exportarDados() {
+            const dados = {
+                meusProdutos: JSON.parse(localStorage.getItem('meusProdutos')) || {},
+                meusClientes: JSON.parse(localStorage.getItem('meusClientes')) || {},
+                historicoVendas: JSON.parse(localStorage.getItem('historicoVendas')) || [],
+                fichasClientes: JSON.parse(localStorage.getItem('fichasClientes')) || {}
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dados));
+            const downloadAnchorNode = document.createElement('a');
+            const dataHoje = new Date().toLocaleDateString('pt-br').replace(/\//g, '-');
+            
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `backup_caixa_${dataHoje}.json`);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function importarDados(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const dados = JSON.parse(e.target.result);
+                    
+                    if(confirm("Isso substituirá todos os dados atuais pelos dados do arquivo. Deseja continuar?")) {
+                        if(dados.meusProdutos) localStorage.setItem('meusProdutos', JSON.stringify(dados.meusProdutos));
+                        if(dados.meusClientes) localStorage.setItem('meusClientes', JSON.stringify(dados.meusClientes));
+                        if(dados.historicoVendas) localStorage.setItem('historicoVendas', JSON.stringify(dados.historicoVendas));
+                        if(dados.fichasClientes) localStorage.setItem('fichasClientes', JSON.stringify(dados.fichasClientes));
+                        
+                        alert("Backup restaurado com sucesso!");
+                        location.reload();
+                    }
+                } catch (err) {
+                    alert("Erro ao ler o arquivo de backup.");
+                }
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+</html>

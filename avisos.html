@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Avisos do Sistema</title>
+    <style>
+        /* Aqui o estilo segue o que você já usa nas outras telas */
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; }
+        .navbar { background: #1a73e8; padding: 10px; display: flex; justify-content: center; gap: 10px; }
+        .navbar a { color: white; text-decoration: none; font-weight: bold; padding: 10px 15px; border-radius: 5px; font-size: 13px; }
+        
+        .container { max-width: 800px; margin: 20px auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { color: #1a73e8; border-bottom: 2px solid #1a73e8; padding-bottom: 10px; }
+        
+        .caixa-aviso { 
+            background: #fff3cd; 
+            border-left: 5px solid #ffc107; 
+            padding: 15px; 
+            margin-bottom: 15px; 
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="navbar">
+        <a href="index.html" style="background: rgba(0,0,0,0.3);">🛒 CAIXA</a>
+        <a href="cadastro.html">📝 PRODUTOS</a>
+        <a href="clientes.html">👤 CLIENTES</a>
+        <a href="ficha_clientes.html">📒 FICHA</a>
+        <a href="relatorio.html">📊 RELATÓRIOS</a>
+        <a href="configuracoes.html">⚙️ CONFIG</a>
+        <a href="avisos.html" style="background: rgba(0,0,0,0.3);">🔔 AVISOS</a>
+    </div>
+
+    <div class="container">
+        <h2>Mural de Avisos</h2>
+
+        <div class="caixa-aviso">
+            <strong>📢 NOVIDADE:</strong> 
+            Agora voce pode multiplicar suas vendas digitando 5x mais o codigo do produto!
+        </div>
+
+        <div class="caixa-aviso">
+            <strong>📢 ATENÇÃO:</strong> 
+            Lembre-se de fazer o backup dos seus produtos toda semana!
+        </div>
+
+        <div class="caixa-aviso" style="border-left-color: #1a73e8; background: #e7f1ff;">
+            <strong>🚀 NOVIDADE:</strong> 
+            Sistema em periodo de teste, anote tudo em papel para não perder dados durante esse periodo, mais em breve estara tudo certo!.
+        </div>
+
+        </div>
+
+</body>
+</html>

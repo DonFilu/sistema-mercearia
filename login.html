@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Acesso ao Sistema</title>
+    <style>
+        :root {
+            --cor-principal: #1a73e8;
+            --bg-body: var(--cor-principal);
+            --bg-card: white;
+            --text-color: #333;
+        }
+
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background: var(--bg-body); 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+            transition: 0.3s;
+        }
+
+        .box { 
+            background: var(--bg-card); 
+            padding: 40px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
+            text-align: center; 
+            width: 320px;
+        }
+
+        .titulo-sistema {
+            color: var(--cor-principal);
+            font-size: 24px;
+            font-weight: bold;
+            margin: 0;
+            display: block;
+        }
+
+        .subtitulo-sistema {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 25px;
+            display: block;
+        }
+
+        h2 { 
+            color: var(--text-color); 
+            margin-bottom: 20px; 
+            border-top: 1px solid #eee; 
+            padding-top: 15px; 
+            font-size: 18px;
+        }
+
+        input { 
+            width: 100%; 
+            padding: 12px; 
+            margin: 10px 0; 
+            border: 2px solid #eee; 
+            border-radius: 8px; 
+            box-sizing: border-box; 
+            font-size: 16px;
+            outline: none;
+        }
+
+        input:focus { border-color: var(--cor-principal); }
+
+        button { 
+            width: 100%; 
+            padding: 12px; 
+            background: #28a745; 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            font-size: 16px;
+            margin-top: 10px;
+            transition: 0.2s;
+        }
+
+        button:hover { background: #218838; transform: translateY(-1px); }
+
+        /* Estilos para o Modo Escuro */
+        body.dark-mode {
+            --bg-body: #121212;
+            --bg-card: #1e1e1e;
+            --text-color: #ffffff;
+        }
+        body.dark-mode input {
+            background: #333;
+            border-color: #444;
+            color: white;
+        }
+        body.dark-mode .subtitulo-sistema { color: #aaa; }
+        body.dark-mode h2 { border-color: #333; }
+    </style>
+</head>
+<body>
+
+    <div class="box">
+        <span class="titulo-sistema">Sistema de Mercearias</span>
+        <span class="subtitulo-sistema">Desenvolvido por Grupo Don</span>
+
+        <h2>🔒 Acesso</h2>
+        
+        <input type="text" id="user" placeholder="Usuário" autofocus>
+        <input type="password" id="pass" placeholder="Senha">
+        
+        <button onclick="entrar()">ENTRAR NO SISTEMA</button>
+    </div>
+
+    <script>
+        window.onload = function() {
+            const tema = localStorage.getItem('tema');
+            const cor = localStorage.getItem('corPrincipal') || '#1a73e8';
+            
+            if (tema === 'dark') {
+                document.body.classList.add('dark-mode');
+            } else {
+                document.body.style.backgroundColor = cor;
+            }
+            document.documentElement.style.setProperty('--cor-principal', cor);
+        };
+
+        function entrar() {
+            const u = document.getElementById('user').value;
+            const p = document.getElementById('pass').value;
+            let autorizado = false;
+
+            if (u === "mwvariedades" && p === "960080") { autorizado = true; }
+            else if (u === "adminim1" && p === "5050") { autorizado = true; }
+            else if (u === "adminim2" && p === "5051") { autorizado = true; }
+            else if (u === "adminim3" && p === "5052") { autorizado = true; }
+            else if (u === "adminim4" && p === "5052") { autorizado = true; }
+
+            if (autorizado) {
+                localStorage.setItem('logado', 'true');
+                localStorage.setItem('usuarioAtivo', u);
+                window.location.href = "index.html"; 
+            } else {
+                alert("Usuário ou senha incorretos!");
+            }
+        }
+
+        document.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') entrar();
+        });
+    </script>
+</body>
+</html>
