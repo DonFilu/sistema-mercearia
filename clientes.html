@@ -97,23 +97,6 @@
 
 let clientesBD = [];
 
-(function validarAcesso() {
-let dataExp = localStorage.getItem('dataExpiracao');
-const hoje = new Date();
-const hojeStr = hoje.toISOString().split('T')[0];
-
-if (!dataExp) {
-const seteDias = new Date();
-seteDias.setDate(hoje.getDate() + 7);
-dataExp = seteDias.toISOString().split('T')[0];
-localStorage.setItem('dataExpiracao', dataExp);
-return;
-}
-
-if (hojeStr > dataExp) {
-window.location.href = "pagamento.html";
-}
-})();
 
 window.onload = function() {
 if (localStorage.getItem('logado') !== 'true') {
