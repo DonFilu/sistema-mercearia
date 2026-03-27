@@ -19,14 +19,12 @@ mongoose.connect(MONGO_URI)
 ============================= */
 
 app.use((req, res, next) => {
-  // POR ENQUANTO: todos usam "default"
-  // depois vamos trocar por login real
-  req.tenantId = "default";
+  req.tenantId = "default"; // depois vamos trocar por login real
   next();
 });
 
 /* =============================
-   MODELS (AGORA COM tenantId)
+   MODELS
 ============================= */
 
 const Produto = mongoose.model(
@@ -74,6 +72,45 @@ const Venda = mongoose.model(
     pagamentos: Array
   })
 );
+
+/* =============================
+   MIGRAÇÃO (APAGAR DEPOIS)
+============================= */
+
+/*
+⚠️ APAGUE TUDO ENTRE ESSE BLOCO DEPOIS QUE RODAR UMA VEZ ⚠️
+Serve apenas pra recuperar os dados antigos
+*/
+
+mongoose.connection.once("open", async () => {
+  console.log("⚙️ Migrando dados antigos...");
+
+  await Produto.updateMany(
+    { tenantId: { $exists: false } },
+    { $set: { tenantId: "default" } }
+  );
+
+  await Cliente.updateMany(
+    { tenantId: { $exists: false } },
+    { $set: { tenantId: "default" } }
+  );
+
+  await Fiado.updateMany(
+    { tenantId: { $exists: false } },
+    { $set: { tenantId: "default" } }
+  );
+
+  await Venda.updateMany(
+    { tenantId: { $exists: false } },
+    { $set: { tenantId: "default" } }
+  );
+
+  console.log("✅ Migração concluída!");
+});
+
+/*
+⚠️ APAGUE TUDO ENTRE ESSE BLOCO DEPOIS QUE RODAR UMA VEZ ⚠️
+*/
 
 /* =============================
    ROTAS PRODUTOS
