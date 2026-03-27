@@ -31,17 +31,20 @@ const User = mongoose.models.User || mongoose.model(
 ============================= */
 
 app.use((req, res, next) => {
+  // libera login e registro
+  if (req.path === "/login" || req.path === "/register") {
+    return next();
+  }
+
   const userId = req.headers["x-user-id"];
 
   if (!userId) {
-    console.log("❌ SEM USER ID");
     return res.status(401).json({ erro: "Usuário não identificado" });
   }
 
   req.tenantId = userId;
   next();
 });
-
 /* =============================
    MODELS (COM TENANT)
 ============================= */
