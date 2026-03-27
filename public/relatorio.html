@@ -109,6 +109,17 @@
     </div>
 
     <script>
+        function apiFetch(url, options = {}) {
+    const userId = localStorage.getItem("userId");
+
+    return fetch(url, {
+        ...options,
+        headers: {
+            "Content-Type": "application/json",
+            "x-user-id": userId
+        }
+    });
+}
         let charts = {};
         let historicoCompleto = [];
 
@@ -145,8 +156,8 @@
         async function carregarHistorico() {
             try {
                 const [resVendas, resFiados] = await Promise.all([
-                    fetch("/vendas"),
-                    fetch("/fiados")
+                    apiFetch("/vendas"),
+                    apiFetch("/fiados")
                 ]);
 
                 const vendas = resVendas.ok ? await resVendas.json() : [];
@@ -266,8 +277,8 @@
         async function limparHistoricoGeral() {
             if(confirm("⚠️ PERIGO: Isso apagará permanentemente TODO o histórico do sistema (todos os meses). Deseja continuar?")) {
                 try {
-                    await fetch("/vendas", { method: "DELETE" });
-                    await fetch("/fiados", { method: "DELETE" });
+                    await apiFetch("/vendas", { method: "DELETE" });
+                    await apiFetch("/fiados", { method: "DELETE" });
                     historicoCompleto = [];
                     localStorage.setItem('historicoVendas', JSON.stringify([]));
                     processarTudo();

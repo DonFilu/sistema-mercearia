@@ -185,6 +185,7 @@
     if (confirm("Deseja sair do sistema?")) {
         localStorage.removeItem("logado");
         localStorage.removeItem("usuarioAtivo");
+        localStorage.removeItem("userId"); // 🔥 ESSENCIAL
         localStorage.removeItem("token"); // futuro login
 
         window.location.href = "login.html";

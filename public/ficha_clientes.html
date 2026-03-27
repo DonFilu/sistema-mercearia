@@ -87,6 +87,17 @@
     </div>
 
     <script>
+        function apiFetch(url, options = {}) {
+    const userId = localStorage.getItem("userId");
+
+    return fetch(url, {
+        ...options,
+        headers: {
+            "Content-Type": "application/json",
+            "x-user-id": userId
+        }
+    });
+}
         let fichasCache = [];
 
         window.onload = function() {
@@ -130,7 +141,7 @@
             const listaContainer = document.getElementById('listaFiados');
 
             try {
-                const resposta = await fetch("/fiados");
+                const resposta = await apiFetch("/fiados");
                 fichasCache = await resposta.json();
 
                 if (!Array.isArray(fichasCache) || fichasCache.length === 0) {
@@ -221,11 +232,8 @@
             const valorAbatido = valorEntregue > saldo ? saldo : valorEntregue;
 
             try {
-                const resposta = await fetch("/fiados/pagamento", {
+                const resposta = await apiFetch("/fiados/pagamento", {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
                     body: JSON.stringify({
                         cliente: nome,
                         valor: valorAbatido

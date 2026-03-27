@@ -104,6 +104,10 @@ window.onload = function() {
     const tema = localStorage.getItem('tema');
     const cor = localStorage.getItem('corPrincipal') || '#1a73e8';
     
+    // BLOQUEIO SE JÁ ESTIVER LOGADO
+if (localStorage.getItem("logado") === "true") {
+    window.location.href = "index.html";
+}
     if (tema === 'dark') {
         document.body.classList.add('dark-mode');
     } else {

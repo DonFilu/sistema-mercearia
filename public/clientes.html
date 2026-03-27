@@ -94,6 +94,17 @@
 </div>
 
 <script>
+    function apiFetch(url, options = {}) {
+    const userId = localStorage.getItem("userId");
+
+    return fetch(url, {
+        ...options,
+        headers: {
+            "Content-Type": "application/json",
+            "x-user-id": userId
+        }
+    });
+}
 
 let clientesBD = [];
 
@@ -118,7 +129,7 @@ document.getElementById('navPrincipal').style.backgroundColor = cor;
 }
 
 async function carregarClientes() {
-const resposta = await fetch("/clientes");
+const resposta = await apiFetch("/clientes");
 clientesBD = await resposta.json();
 renderizar(clientesBD);
 }
@@ -133,9 +144,8 @@ if (!nome) return alert("O nome do cliente é obrigatório!");
 const existe = clientesBD.some(c => c.nome.toLowerCase() === nome.toLowerCase());
 if (existe) return alert("Este cliente já está cadastrado!");
 
-await fetch("/clientes", {
+await apiFetch("/clientes", {
 method: "POST",
-headers: { "Content-Type": "application/json" },
 body: JSON.stringify({
 nome: nome,
 telefone: tel,
@@ -188,7 +198,7 @@ async function excluirCliente(id) {
 
 if(confirm("Deseja remover este cliente?")) {
 
-await fetch(`/clientes/${id}`, {
+await apiFetch(`/clientes/${id}`, {
 method: "DELETE"
 });
 

@@ -93,6 +93,17 @@
     </div>
 
     <script>
+        function apiFetch(url, options = {}) {
+    const userId = localStorage.getItem("userId");
+
+    return fetch(url, {
+        ...options,
+        headers: {
+            "Content-Type": "application/json",
+            "x-user-id": userId
+        }
+    });
+}
         let produtosCache = [];
 
         window.onload = function() {
@@ -125,16 +136,13 @@
                 const existente = produtosCache.find(p => String(p.codigo) === String(cod));
 
                 if (existente && existente._id) {
-                    await fetch(`/produtos/${existente._id}`, {
+                    await apiFetch(`/produtos/${existente._id}`, {
                         method: "DELETE"
                     });
                 }
 
-                const resposta = await fetch("/produtos", {
+                const resposta = await apiFetch("/produtos", {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
                     body: JSON.stringify({
                         codigo: cod,
                         nome: nome,
@@ -170,7 +178,7 @@
             tabela.innerHTML = "";
 
             try {
-                const resposta = await fetch("/produtos");
+                const resposta = await apiFetch("/produtos");
                 produtosCache = await resposta.json();
 
                 const produtosFiltrados = produtosCache.filter(p => {
@@ -224,7 +232,7 @@
         async function excluir(id) {
             if(confirm("Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita.")) {
                 try {
-                    const resposta = await fetch(`/produtos/${id}`, {
+                    const resposta = await apiFetch(`/produtos/${id}`, {
                         method: "DELETE"
                     });
 
