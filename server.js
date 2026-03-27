@@ -74,45 +74,6 @@ const Venda = mongoose.model(
 );
 
 /* =============================
-   MIGRAÇÃO (APAGAR DEPOIS)
-============================= */
-
-/*
-⚠️ APAGUE TUDO ENTRE ESSE BLOCO DEPOIS QUE RODAR UMA VEZ ⚠️
-Serve apenas pra recuperar os dados antigos
-*/
-
-mongoose.connection.once("open", async () => {
-  console.log("⚙️ Migrando dados antigos...");
-
-  await Produto.updateMany(
-    { tenantId: { $exists: false } },
-    { $set: { tenantId: "default" } }
-  );
-
-  await Cliente.updateMany(
-    { tenantId: { $exists: false } },
-    { $set: { tenantId: "default" } }
-  );
-
-  await Fiado.updateMany(
-    { tenantId: { $exists: false } },
-    { $set: { tenantId: "default" } }
-  );
-
-  await Venda.updateMany(
-    { tenantId: { $exists: false } },
-    { $set: { tenantId: "default" } }
-  );
-
-  console.log("✅ Migração concluída!");
-});
-
-/*
-⚠️ APAGUE TUDO ENTRE ESSE BLOCO DEPOIS QUE RODAR UMA VEZ ⚠️
-*/
-
-/* =============================
    ROTAS PRODUTOS
 ============================= */
 
