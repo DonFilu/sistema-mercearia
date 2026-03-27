@@ -33,12 +33,12 @@ const User = mongoose.models.User || mongoose.model(
 app.use((req, res, next) => {
   const userId = req.headers["x-user-id"];
 
-  if (userId) {
-    req.tenantId = userId;
-  } else {
-    req.tenantId = "default"; // sistema antigo (sua mãe)
+  if (!userId) {
+    console.log("❌ SEM USER ID");
+    return res.status(401).json({ erro: "Usuário não identificado" });
   }
 
+  req.tenantId = userId;
   next();
 });
 
@@ -101,7 +101,7 @@ app.post("/login", async (req, res) => {
 
   // 🔥 LOGIN DA SUA MÃE
   if (email === "mwvariedades" && senha === "960080") {
-    return res.json({ userId: "default" });
+    return res.json({ userId: "mae" });
   }
 
   const user = await User.findOne({ email });
