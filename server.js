@@ -1,8 +1,3 @@
-const mercadopago = require("mercadopago");
-
-mercadopago.configure({
-  access_token: process.env.MP_TOKEN
-});
 const express = require("express");
 const mongoose = require("mongoose");
 const path = require("path");
@@ -36,12 +31,8 @@ const User = mongoose.models.User || mongoose.model(
 ============================= */
 
 app.use((req, res, next) => {
-  if (
-    req.path === "/login" ||
-    req.path === "/register" ||
-    req.path === "/pagar" ||
-    req.path === "/webhook"
-  ) {
+  // libera login e registro
+  if (req.path === "/login" || req.path === "/register") {
     return next();
   }
 
@@ -266,55 +257,7 @@ app.delete("/vendas", async (req, res) => {
   await Venda.deleteMany({ tenantId: req.tenantId });
   res.json({ status: "ok" });
 });
-app.post("/pagar", async (req, res) => {
-  try {
-    const { userId } = req.body;
 
-    const pagamento = await mercadopago.payment.create({
-      transaction_amount: 29.90,
-      description: "Sistema de Mercearia",
-      payment_method_id: "pix",
-      payer: {
-        email: "cliente@email.com"
-      },
-      metadata: {
-        userId: userId
-      }
-    });
-
-    const dados = pagamento.body.point_of_interaction.transaction_data;
-
-    res.json({
-      qr_code: dados.qr_code,
-      qr_code_base64: dados.qr_code_base64
-    });
-
-  } catch (err) {
-    console.log("ERRO PAGAMENTO:", err);
-    res.status(500).json({ erro: "Erro ao gerar pagamento" });
-  }
-});
-app.post("/webhook", async (req, res) => {
-  try {
-    const data = req.body;
-
-    if (data.type === "payment") {
-      const payment = await mercadopago.payment.findById(data.data.id);
-
-      if (payment.body.status === "approved") {
-        const userId = payment.body.metadata.userId;
-
-        console.log("Pagamento aprovado:", userId);
-      }
-    }
-
-    res.sendStatus(200);
-
-  } catch (err) {
-    console.log("ERRO WEBHOOK:", err);
-    res.sendStatus(500);
-  }
-});
 /* =============================
    FRONTEND
 ============================= */
