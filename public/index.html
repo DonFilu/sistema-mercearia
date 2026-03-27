@@ -155,17 +155,21 @@
     </div>
 
     <script>
-        function authFetch(url, options = {}) {
+       function authFetch(url, options = {}) {
     const token = localStorage.getItem("token");
 
     options.headers = {
         ...(options.headers || {}),
-        "Content-Type": "application/json",
-        "Authorization": token ? "Bearer " + token : ""
+        "Content-Type": "application/json"
     };
+
+    if (token) {
+        options.headers["Authorization"] = "Bearer " + token;
+    }
 
     return fetch(url, options);
 }
+
         let totalGeral = 0;
         let itensCarrinho = [];
         let produtoPendente = null;
