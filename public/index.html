@@ -490,6 +490,9 @@
         }
 
         async function finalizarCompra() {
+            const total = totalGeral;
+            const pago = obterSomaEscrita();
+            const troco = Math.max(0, pago - total);
             const cliente = document.getElementById('selecionarCliente').value;
             const fiadoVal = parseFloat(document.getElementById('p_fiado').value) || 0;
 
@@ -507,10 +510,12 @@
                 {id:'p_fiado', n:'Fiado'}
             ];
 
-            formas.forEach(f => {
-                let v = parseFloat(document.getElementById(f.id).value) || 0;
-                if (v > 0) historico.push({ data: agora, cliente: cliente, valor: v, metodo: f.n });
-            });
+           historico.push({
+    data: agora,
+    cliente: cliente,
+    valor: total,
+    metodo: "Venda"
+});
             localStorage.setItem('historicoVendas', JSON.stringify(historico));
 
             try {
@@ -522,10 +527,12 @@
                         itens: itensCarrinho,
                         total: totalGeral,
                         desconto: parseFloat(document.getElementById('valorDesconto').value) || 0,
-                        pagamentos: formas.map(f => ({
-                            metodo: f.n,
-                            valor: parseFloat(document.getElementById(f.id).value) || 0
-                        })).filter(p => p.valor > 0)
+                       pagamentos: [{
+    metodo: "Misto",
+    valor: total,
+    recebido: pago,
+    troco: troco
+}]
                     })
                 });
             } catch (err) {
