@@ -155,6 +155,17 @@
     </div>
 
     <script>
+        function authFetch(url, options = {}) {
+    const token = localStorage.getItem("token");
+
+    options.headers = {
+        ...(options.headers || {}),
+        "Content-Type": "application/json",
+        "Authorization": token ? "Bearer " + token : ""
+    };
+
+    return fetch(url, options);
+}
         let totalGeral = 0;
         let itensCarrinho = [];
         let produtoPendente = null;
@@ -187,7 +198,7 @@
 
         async function sincronizarClientes() {
             try {
-                const resposta = await fetch("/clientes");
+                const resposta = await authFetch("/clientes");
                 clientesLista = await resposta.json();
 
                 localStorage.setItem("meusClientes", JSON.stringify(clientesLista));
@@ -217,7 +228,7 @@
 
         async function sincronizarProdutos() {
             try {
-                const resposta = await fetch("/produtos");
+                const resposta = await authFetch("/produtos");
                 produtosLista = await resposta.json();
 
                 const produtosObj = {};
@@ -359,7 +370,7 @@
             }
 
             try {
-                await fetch("/produtos", {
+                await authFetch("/produtos", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
@@ -455,9 +466,9 @@
 
                     if (produtoServidor && produtoServidor._id) {
                         try {
-                            await fetch(`/produtos/${produtoServidor._id}`, { method: "DELETE" });
+                            await authFetch(`/produtos/${produtoServidor._id}`, { method: "DELETE" });
 
-                            await fetch("/produtos", {
+                            await authFetch("/produtos", {
                                 method: "POST",
                                 headers: {
                                     "Content-Type": "application/json"
@@ -506,7 +517,7 @@
             localStorage.setItem('historicoVendas', JSON.stringify(historico));
 
             try {
-                await fetch("/vendas", {
+                await authFetch("/vendas", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
@@ -529,7 +540,7 @@
 
             if (fiadoVal > 0) {
                 try {
-                    await fetch("/fiados/compra", {
+                    await authFetch("/fiados/compra", {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json"

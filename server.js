@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const path = require("path");
 require("dotenv").config();
+const jwt = require("jsonwebtoken");
 
 const app = express();
 
@@ -9,17 +10,32 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 const MONGO_URI = process.env.MONGODB_URI;
+const JWT_SECRET = "segredo_super_forte"; // depois muda isso
 
 mongoose.connect(MONGO_URI)
 .then(() => console.log("🟢 Mongo conectado"))
 .catch(err => console.log("❌ Erro Mongo:", err));
 
 /* =============================
-   MIDDLEWARE TENANT (BASE)
+   MIDDLEWARE TENANT (AGORA REAL)
 ============================= */
 
 app.use((req, res, next) => {
-  req.tenantId = "default"; // depois vamos trocar por login real
+  const auth = req.headers.authorization;
+
+  if (auth) {
+    try {
+      const token = auth.split(" ")[1];
+      const decoded = jwt.verify(token, JWT_SECRET);
+
+      req.tenantId = decoded.tenantId;
+    } catch {
+      req.tenantId = "default";
+    }
+  } else {
+    req.tenantId = "default"; // sua mãe continua aqui
+  }
+
   next();
 });
 
@@ -72,6 +88,47 @@ const Venda = mongoose.model(
     pagamentos: Array
   })
 );
+
+const User = mongoose.model(
+  "User",
+  new mongoose.Schema({
+    name: String,
+    email: String,
+    tenantId: String
+  })
+);
+
+/* =============================
+   AUTH GOOGLE (SIMPLES)
+============================= */
+
+app.post("/auth/google", async (req, res) => {
+  const { name, email } = req.body;
+
+  let user = await User.findOne({ email });
+
+  if (!user) {
+    const tenantId = "tenant_" + Date.now();
+
+    user = new User({
+      name,
+      email,
+      tenantId
+    });
+
+    await user.save();
+  }
+
+  const token = jwt.sign(
+    {
+      userId: user._id,
+      tenantId: user.tenantId
+    },
+    JWT_SECRET
+  );
+
+  res.json({ token });
+});
 
 /* =============================
    ROTAS PRODUTOS
