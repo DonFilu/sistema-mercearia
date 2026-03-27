@@ -15,12 +15,25 @@ mongoose.connect(MONGO_URI)
 .catch(err => console.log("❌ Erro Mongo:", err));
 
 /* =============================
-   MODELS
+   MIDDLEWARE TENANT (BASE)
+============================= */
+
+// ⚠️ IMPORTANTE
+// (apague daqui até aqui depois quando tiver login real)
+app.use((req, res, next) => {
+  req.tenantId = "default";
+  next();
+});
+// (apague daqui até aqui depois quando tiver login real)
+
+/* =============================
+   MODELS (COM TENANT)
 ============================= */
 
 const Produto = mongoose.model(
   "Produto",
   new mongoose.Schema({
+    tenantId: String,
     nome: String,
     preco: Number,
     estoque: Number,
@@ -32,6 +45,7 @@ const Produto = mongoose.model(
 const Cliente = mongoose.model(
   "Cliente",
   new mongoose.Schema({
+    tenantId: String,
     nome: String,
     telefone: String,
     fiado: Number
@@ -41,6 +55,7 @@ const Cliente = mongoose.model(
 const Fiado = mongoose.model(
   "Fiado",
   new mongoose.Schema({
+    tenantId: String,
     data: String,
     cliente: String,
     valor: Number,
@@ -51,6 +66,7 @@ const Fiado = mongoose.model(
 const Venda = mongoose.model(
   "Venda",
   new mongoose.Schema({
+    tenantId: String,
     data: String,
     cliente: String,
     itens: Array,
@@ -65,18 +81,26 @@ const Venda = mongoose.model(
 ============================= */
 
 app.get("/produtos", async (req, res) => {
-  const produtos = await Produto.find();
+  const produtos = await Produto.find({ tenantId: req.tenantId });
   res.json(produtos);
 });
 
 app.post("/produtos", async (req, res) => {
-  const produto = new Produto(req.body);
+  const produto = new Produto({
+    ...req.body,
+    tenantId: req.tenantId
+  });
+
   await produto.save();
   res.json(produto);
 });
 
 app.delete("/produtos/:id", async (req, res) => {
-  await Produto.findByIdAndDelete(req.params.id);
+  await Produto.deleteOne({
+    _id: req.params.id,
+    tenantId: req.tenantId
+  });
+
   res.json({ status: "ok" });
 });
 
@@ -85,18 +109,26 @@ app.delete("/produtos/:id", async (req, res) => {
 ============================= */
 
 app.get("/clientes", async (req, res) => {
-  const clientes = await Cliente.find();
+  const clientes = await Cliente.find({ tenantId: req.tenantId });
   res.json(clientes);
 });
 
 app.post("/clientes", async (req, res) => {
-  const cliente = new Cliente(req.body);
+  const cliente = new Cliente({
+    ...req.body,
+    tenantId: req.tenantId
+  });
+
   await cliente.save();
   res.json(cliente);
 });
 
 app.delete("/clientes/:id", async (req, res) => {
-  await Cliente.findByIdAndDelete(req.params.id);
+  await Cliente.deleteOne({
+    _id: req.params.id,
+    tenantId: req.tenantId
+  });
+
   res.json({ status: "ok" });
 });
 
@@ -105,12 +137,13 @@ app.delete("/clientes/:id", async (req, res) => {
 ============================= */
 
 app.get("/fiados", async (req, res) => {
-  const fichas = await Fiado.find();
+  const fichas = await Fiado.find({ tenantId: req.tenantId });
   res.json(fichas);
 });
 
 app.post("/fiados/compra", async (req, res) => {
   const registro = new Fiado({
+    tenantId: req.tenantId,
     data: req.body.data || new Date().toLocaleString("pt-br"),
     cliente: req.body.cliente,
     valor: req.body.valor,
@@ -125,6 +158,7 @@ app.post("/fiados/pagamento", async (req, res) => {
   const agora = new Date().toLocaleString("pt-br");
 
   const registro = new Fiado({
+    tenantId: req.tenantId,
     data: agora,
     cliente: req.body.cliente,
     valor: req.body.valor,
@@ -136,7 +170,7 @@ app.post("/fiados/pagamento", async (req, res) => {
 });
 
 app.delete("/fiados", async (req, res) => {
-  await Fiado.deleteMany({});
+  await Fiado.deleteMany({ tenantId: req.tenantId });
   res.json({ status: "ok" });
 });
 
@@ -145,12 +179,13 @@ app.delete("/fiados", async (req, res) => {
 ============================= */
 
 app.get("/vendas", async (req, res) => {
-  const vendas = await Venda.find();
+  const vendas = await Venda.find({ tenantId: req.tenantId });
   res.json(vendas);
 });
 
 app.post("/vendas", async (req, res) => {
   const venda = new Venda({
+    tenantId: req.tenantId,
     data: req.body.data,
     cliente: req.body.cliente,
     itens: req.body.itens || [],
@@ -164,7 +199,7 @@ app.post("/vendas", async (req, res) => {
 });
 
 app.delete("/vendas", async (req, res) => {
-  await Venda.deleteMany({});
+  await Venda.deleteMany({ tenantId: req.tenantId });
   res.json({ status: "ok" });
 });
 
