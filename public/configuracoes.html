@@ -94,6 +94,20 @@
         </div>
 
         <button class="btn-salvar" onclick="salvarConfiguracoes()">SALVAR PREFERÊNCIAS</button>
+        <button onclick="sair()" style="
+    width: 100%;
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 15px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 10px;
+">
+    🚪 SAIR DO SISTEMA
+</button>
     </div>
 
     <script>
@@ -167,6 +181,15 @@
             };
             reader.readAsText(file);
         }
+        function sair() {
+    if (confirm("Deseja sair do sistema?")) {
+        localStorage.removeItem("logado");
+        localStorage.removeItem("usuarioAtivo");
+        localStorage.removeItem("token"); // futuro login
+
+        window.location.href = "login.html";
+    }
+}
     </script>
 </body>
 </html>
