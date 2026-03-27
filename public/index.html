@@ -376,9 +376,6 @@
             try {
                 await authFetch("/produtos", {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
                     body: JSON.stringify({
                         codigo: codigoNaoCadastrado,
                         nome: nome,
@@ -474,9 +471,6 @@
 
                             await authFetch("/produtos", {
                                 method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json"
-                                },
                                 body: JSON.stringify({
                                     codigo: item.cod,
                                     nome: produtos[item.cod].nome,
@@ -523,9 +517,6 @@
             try {
                 await authFetch("/vendas", {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
                     body: JSON.stringify({
                         data: agora,
                         cliente: cliente,
@@ -546,9 +537,6 @@
                 try {
                     await authFetch("/fiados/compra", {
                         method: "POST",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
                         body: JSON.stringify({
                             data: agora,
                             cliente: cliente,
