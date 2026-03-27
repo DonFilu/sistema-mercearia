@@ -99,6 +99,11 @@ const Venda = mongoose.models.Venda || mongoose.model(
 app.post("/login", async (req, res) => {
   const { email, senha } = req.body;
 
+  // 🔥 LOGIN DA SUA MÃE
+  if (email === "mwvariedades" && senha === "960080") {
+    return res.json({ userId: "default" });
+  }
+
   const user = await User.findOne({ email });
 
   if (!user || user.senha !== senha) {
