@@ -155,21 +155,6 @@
     </div>
 
     <script>
-       function authFetch(url, options = {}) {
-    const token = localStorage.getItem("token");
-
-    options.headers = {
-        ...(options.headers || {}),
-        "Content-Type": "application/json"
-    };
-
-    if (token) {
-        options.headers["Authorization"] = "Bearer " + token;
-    }
-
-    return fetch(url, options);
-}
-
         let totalGeral = 0;
         let itensCarrinho = [];
         let produtoPendente = null;
@@ -202,7 +187,7 @@
 
         async function sincronizarClientes() {
             try {
-                const resposta = await authFetch("/clientes");
+                const resposta = await fetch("/clientes");
                 clientesLista = await resposta.json();
 
                 localStorage.setItem("meusClientes", JSON.stringify(clientesLista));
@@ -232,7 +217,7 @@
 
         async function sincronizarProdutos() {
             try {
-                const resposta = await authFetch("/produtos");
+                const resposta = await fetch("/produtos");
                 produtosLista = await resposta.json();
 
                 const produtosObj = {};
@@ -374,8 +359,11 @@
             }
 
             try {
-                await authFetch("/produtos", {
+                await fetch("/produtos", {
                     method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
                     body: JSON.stringify({
                         codigo: codigoNaoCadastrado,
                         nome: nome,
@@ -467,10 +455,13 @@
 
                     if (produtoServidor && produtoServidor._id) {
                         try {
-                            await authFetch(`/produtos/${produtoServidor._id}`, { method: "DELETE" });
+                            await fetch(`/produtos/${produtoServidor._id}`, { method: "DELETE" });
 
-                            await authFetch("/produtos", {
+                            await fetch("/produtos", {
                                 method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json"
+                                },
                                 body: JSON.stringify({
                                     codigo: item.cod,
                                     nome: produtos[item.cod].nome,
@@ -515,8 +506,11 @@
             localStorage.setItem('historicoVendas', JSON.stringify(historico));
 
             try {
-                await authFetch("/vendas", {
+                await fetch("/vendas", {
                     method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
                     body: JSON.stringify({
                         data: agora,
                         cliente: cliente,
@@ -535,8 +529,11 @@
 
             if (fiadoVal > 0) {
                 try {
-                    await authFetch("/fiados/compra", {
+                    await fetch("/fiados/compra", {
                         method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
                         body: JSON.stringify({
                             data: agora,
                             cliente: cliente,
