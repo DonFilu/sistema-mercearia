@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Acesso ao Sistema</title>
+
     <style>
         :root {
             --cor-principal: #1a73e8;
@@ -19,7 +20,6 @@
             align-items: center; 
             height: 100vh; 
             margin: 0; 
-            transition: 0.3s;
         }
 
         .box { 
@@ -31,123 +31,161 @@
             width: 320px;
         }
 
-        .titulo-sistema {
-            color: var(--cor-principal);
-            font-size: 24px;
-            font-weight: bold;
-            margin: 0;
-            display: block;
-        }
-
-        .subtitulo-sistema {
-            color: #666;
-            font-size: 13px;
-            margin-bottom: 25px;
-            display: block;
-        }
-
-        h2 { 
-            color: var(--text-color); 
-            margin-bottom: 20px; 
-            border-top: 1px solid #eee; 
-            padding-top: 15px; 
-            font-size: 18px;
-        }
-
-        input { 
-            width: 100%; 
-            padding: 12px; 
-            margin: 10px 0; 
-            border: 2px solid #eee; 
-            border-radius: 8px; 
-            box-sizing: border-box; 
-            font-size: 16px;
-            outline: none;
-        }
-
-        input:focus { border-color: var(--cor-principal); }
-
-        button { 
-            width: 100%; 
-            padding: 12px; 
-            background: #28a745; 
-            color: white; 
-            border: none; 
-            border-radius: 8px; 
-            cursor: pointer; 
-            font-weight: bold; 
-            font-size: 16px;
+        input, button {
+            width: 100%;
+            padding: 12px;
             margin-top: 10px;
-            transition: 0.2s;
+            border-radius: 8px;
+            border: none;
         }
 
-        button:hover { background: #218838; transform: translateY(-1px); }
-
-        /* Estilos para o Modo Escuro */
-        body.dark-mode {
-            --bg-body: #121212;
-            --bg-card: #1e1e1e;
-            --text-color: #ffffff;
+        input {
+            border: 2px solid #eee;
         }
-        body.dark-mode input {
-            background: #333;
-            border-color: #444;
+
+        button {
+            background: #28a745;
             color: white;
+            font-weight: bold;
+            cursor: pointer;
         }
-        body.dark-mode .subtitulo-sistema { color: #aaa; }
-        body.dark-mode h2 { border-color: #333; }
+
+        button:hover {
+            background: #218838;
+        }
     </style>
 </head>
+
 <body>
 
-    <div class="box">
-        <span class="titulo-sistema">Sistema de Mercearias</span>
-        <span class="subtitulo-sistema">Desenvolvido por Grupo Don</span>
+<div class="box">
 
-        <h2>🔒 Acesso</h2>
-        
-        <input type="text" id="user" placeholder="Usuário" autofocus>
-        <input type="password" id="pass" placeholder="Senha">
-        
-        <button onclick="entrar()">ENTRAR NO SISTEMA</button>
+    <!-- INICIAL -->
+    <div id="inicio">
+        <h2>Bem-vindo</h2>
+        <button onclick="mostrarLogin()">LOGIN</button>
+        <button onclick="mostrarCadastro()">CRIAR CONTA</button>
     </div>
 
-    <script>
-        window.onload = function() {
-            const tema = localStorage.getItem('tema');
-            const cor = localStorage.getItem('corPrincipal') || '#1a73e8';
-            
-            if (tema === 'dark') {
-                document.body.classList.add('dark-mode');
-            } else {
-                document.body.style.backgroundColor = cor;
-            }
-            document.documentElement.style.setProperty('--cor-principal', cor);
-        };
+    <!-- LOGIN -->
+    <div id="login" style="display:none;">
+        <h2>Login</h2>
+        <input type="email" id="loginEmail" placeholder="Email">
+        <input type="password" id="loginSenha" placeholder="Senha">
 
-        function entrar() {
-            const u = document.getElementById('user').value;
-            const p = document.getElementById('pass').value;
-            let autorizado = false;
+        <button onclick="entrar()">ENTRAR</button>
 
-            if (u === "mwvariedades" && p === "960080") { autorizado = true; }
-            else if (u === "adminim1" && p === "5050") { autorizado = true; }
-            else if (u === "adminim2" && p === "5051") { autorizado = true; }
-            else if (u === "adminim3" && p === "5052") { autorizado = true; }
-            else if (u === "adminim4" && p === "5052") { autorizado = true; }
+        <p>
+            <a href="https://wa.me/554899962908?text=Oi,%20esqueci%20minha%20senha" target="_blank">
+                Esqueceu sua senha?
+            </a>
+        </p>
 
-            if (autorizado) {
-                localStorage.setItem('logado', 'true');
-                localStorage.setItem('usuarioAtivo', u);
-                window.location.href = "index.html"; 
-            } else {
-                alert("Usuário ou senha incorretos!");
-            }
-        }
+        <button onclick="voltar()">Voltar</button>
+    </div>
 
-        document.addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') entrar();
-        });
-    </script>
+    <!-- CADASTRO -->
+    <div id="cadastro" style="display:none;">
+        <h2>Criar Conta</h2>
+        <input type="email" id="cadEmail" placeholder="Email">
+        <input type="password" id="cadSenha" placeholder="Senha">
+        <input type="password" id="cadConfirmar" placeholder="Confirmar Senha">
+
+        <button onclick="criarConta()">CRIAR CONTA</button>
+        <button onclick="voltar()">Voltar</button>
+    </div>
+
+</div>
+
+<script>
+
+// TEMA
+window.onload = function() {
+    const tema = localStorage.getItem('tema');
+    const cor = localStorage.getItem('corPrincipal') || '#1a73e8';
+    
+    if (tema === 'dark') {
+        document.body.classList.add('dark-mode');
+    } else {
+        document.body.style.backgroundColor = cor;
+    }
+};
+
+// TELAS
+function mostrarLogin() {
+    inicio.style.display = "none";
+    login.style.display = "block";
+}
+
+function mostrarCadastro() {
+    inicio.style.display = "none";
+    cadastro.style.display = "block";
+}
+
+function voltar() {
+    inicio.style.display = "block";
+    login.style.display = "none";
+    cadastro.style.display = "none";
+}
+
+// LOGIN
+async function entrar() {
+    const email = document.getElementById("loginEmail").value;
+    const senha = document.getElementById("loginSenha").value;
+
+    const res = await fetch("/login", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ email, senha })
+    });
+
+    if (!res.ok) {
+        alert("Email ou senha incorretos");
+        return;
+    }
+
+    const data = await res.json();
+
+    localStorage.setItem("userId", data.userId);
+    localStorage.setItem("logado", "true");
+
+    window.location.href = "index.html";
+}
+
+// CADASTRO
+async function criarConta() {
+    const email = cadEmail.value;
+    const senha = cadSenha.value;
+    const confirmar = cadConfirmar.value;
+
+    if (!email || !senha || !confirmar) {
+        alert("Preencha tudo");
+        return;
+    }
+
+    if (senha !== confirmar) {
+        alert("Senhas não coincidem");
+        return;
+    }
+
+    const res = await fetch("/register", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ email, senha })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+        alert(data.erro);
+        return;
+    }
+
+    alert("Conta criada com sucesso!");
+    voltar();
+}
+
+</script>
+
 </body>
 </html>
