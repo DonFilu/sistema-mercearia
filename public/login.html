@@ -31,6 +31,28 @@
             width: 320px;
         }
 
+        /* LOGO */
+        .logo-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            width: 90px;
+            border-radius: 12px;
+            transition: 0.3s;
+        }
+
+        .logo:hover {
+            transform: scale(1.05);
+        }
+
+        .titulo-logo {
+            margin-top: 10px;
+            font-size: 18px;
+            color: #333;
+        }
+
         input, button {
             width: 100%;
             padding: 12px;
@@ -59,6 +81,12 @@
 <body>
 
 <div class="box">
+
+    <!-- LOGO -->
+    <div class="logo-container">
+        <img src="logo.png" alt="Logo" class="logo">
+        <div class="titulo-logo">Sistema Mercearia</div>
+    </div>
 
     <!-- INICIAL -->
     <div id="inicio">
@@ -105,9 +133,10 @@ window.onload = function() {
     const cor = localStorage.getItem('corPrincipal') || '#1a73e8';
     
     // BLOQUEIO SE JÁ ESTIVER LOGADO
-if (localStorage.getItem("logado") === "true") {
-    window.location.href = "index.html";
-}
+    if (localStorage.getItem("logado") === "true") {
+        window.location.href = "index.html";
+    }
+
     if (tema === 'dark') {
         document.body.classList.add('dark-mode');
     } else {
