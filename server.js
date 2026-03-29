@@ -78,7 +78,8 @@ const Fiado = mongoose.models.Fiado || mongoose.model(
     data: String,
     cliente: String,
     valor: Number,
-    metodo: String
+    metodo: String,
+   itens: Array // 👈 ADICIONA ISSO
   })
 );
 
@@ -202,7 +203,8 @@ app.post("/fiados/compra", async (req, res) => {
     data: req.body.data || new Date().toLocaleString("pt-br"),
     cliente: req.body.cliente,
     valor: req.body.valor,
-    metodo: "Fiado"
+    metodo: "Fiado",
+    itens: req.body.itens || [] // 👈 AQUI
   });
 
   await registro.save();

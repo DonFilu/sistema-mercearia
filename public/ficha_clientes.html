@@ -184,16 +184,34 @@
                                 <button class="btn-confirmar" onclick="processarPagamento('${nomeSeguro}', ${ficha.saldo})">CONFIRMAR PAGAMENTO</button>
                             </div>
                             <table>
-                                <thead><tr><th>Data</th><th>Tipo</th><th>Valor</th></tr></thead>
+                                 <thead>
+<tr>
+    <th>Data</th>
+    <th>Tipo</th>
+    <th>Valor</th>
+    <th>Itens</th>
+</tr>
+</thead>
                                 <tbody>
-                                    ${ficha.historico.slice().reverse().slice(0, 5).map(h => `
-                                        <tr>
-                                            <td>${String(h.data || "").split(',')[0]}</td>
-                                            <td class="${h.metodo === 'Pagamento Parcial' ? 'pagamento-registro' : ''}">
-                                                ${h.metodo === 'Pagamento Parcial' ? '✅ Pagamento' : '🛒 Compra'}
-                                            </td>
-                                            <td>R$ ${Number(h.valor || 0).toFixed(2)}</td>
-                                        </tr>`).join('')}
+                                   ${ficha.historico.slice().reverse().slice(0, 5).map(h => {
+
+    let itens = "";
+
+    if (h.itens && h.itens.length > 0) {
+        itens = h.itens.map(i => `${i.nome} (${i.qtd})`).join(", ");
+    }
+
+    return `
+        <tr>
+            <td>${String(h.data || "").split(',')[0]}</td>
+            <td class="${h.metodo === 'Pagamento Parcial' ? 'pagamento-registro' : ''}">
+                ${h.metodo === 'Pagamento Parcial' ? '✅ Pagamento' : '🛒 Compra'}
+            </td>
+            <td>R$ ${Number(h.valor || 0).toFixed(2)}</td>
+            <td style="font-size:12px; opacity:0.7;">${itens || "-"}</td>
+        </tr>
+    `;
+}).join('')}
                                 </tbody>
                             </table>
                         </div>`;
