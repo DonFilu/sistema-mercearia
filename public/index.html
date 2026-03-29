@@ -270,11 +270,23 @@
         }
 
         function fecharModal() {
-            const overlay = document.getElementById('modalOverlay');
-            overlay.style.display = 'none';
-            if(overlay.dataset.reload === "true") location.reload();
-            document.getElementById('campoLeitor').focus();
-        }
+    const overlay = document.getElementById('modalOverlay');
+    overlay.style.display = 'none';
+
+    const autoPrint = localStorage.getItem('impressaoAtivada') === 'true';
+
+    if (autoPrint) {
+        setTimeout(() => {
+            window.print();
+        }, 200);
+    }
+
+    if (overlay.dataset.reload === "true") {
+        location.reload();
+    }
+
+    document.getElementById('campoLeitor').focus();
+}
 
         function preencherRestante(campo) {
             if (totalGeral === 0) return;
@@ -532,6 +544,7 @@ formas.forEach(f => {
         
             try {
                 await apiFetch("/vendas", {
+                    
                     method: "POST",
                     body: JSON.stringify({
                         data: agora,
@@ -540,6 +553,7 @@ formas.forEach(f => {
                         total: totalGeral,
                         desconto: parseFloat(document.getElementById('valorDesconto').value) || 0,
                          pagamentos: pagamentos
+                         
     })
 });
             } catch (err) {
@@ -567,8 +581,11 @@ formas.forEach(f => {
             }
 
             await atualizarEstoqueNoServidor();
+            
 
             avisar("✅ Venda Finalizada", "Sucesso!", true);
+
+            
         }
 
         document.addEventListener('keydown', (e) => {
