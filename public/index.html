@@ -504,22 +504,32 @@
 
             const agora = new Date().toLocaleString('pt-br');
 
-            let historico = JSON.parse(localStorage.getItem('historicoVendas')) || [];
-            let formas = [
-                {id:'p_dinheiro', n:'Dinheiro'}, 
-                {id:'p_pix', n:'Pix'}, 
-                {id:'p_cartao', n:'Cartão'}, 
-                {id:'p_fiado', n:'Fiado'}
-            ];
+          let formas = [
+    {id:'p_dinheiro', n:'Dinheiro'}, 
+    {id:'p_pix', n:'Pix'}, 
+    {id:'p_cartao', n:'Cartão'}, 
+    {id:'p_fiado', n:'Fiado'}
+];
 
-           historico.push({
-    data: agora,
-    cliente: cliente,
-    valor: total,
-    metodo: "Venda"
+let pagamentos = [];
+let valorFiado = 0;
+
+formas.forEach(f => {
+    let valor = parseFloat(document.getElementById(f.id).value) || 0;
+
+    if (valor > 0) {
+        if (f.n === "Fiado") {
+            valorFiado += valor;
+        } else {
+            pagamentos.push({
+                metodo: f.n,
+                valor: valor
+            });
+        }
+    }
 });
-            localStorage.setItem('historicoVendas', JSON.stringify(historico));
 
+        
             try {
                 await apiFetch("/vendas", {
                     method: "POST",
@@ -529,33 +539,28 @@
                         itens: itensCarrinho,
                         total: totalGeral,
                         desconto: parseFloat(document.getElementById('valorDesconto').value) || 0,
-                       pagamentos: [{
-    metodo: "Misto",
-    valor: total,
-    recebido: pago,
-    troco: troco
-}]
-                    })
-                });
+                         pagamentos: pagamentos
+    })
+});
             } catch (err) {
                 console.warn("Rota /vendas ainda não disponível. Mantido histórico local.");
             }
 
-            if (fiadoVal > 0) {
+            if (valorFiado > 0) {
                 try {
                     await apiFetch("/fiados/compra", {
                         method: "POST",
                         body: JSON.stringify({
                             data: agora,
                             cliente: cliente,
-                            valor: fiadoVal,
+                            valor: valorFiado,
                             metodo: "Fiado"
                         })
                     });
                 } catch (err) {
                     console.warn("Rota /fiados/compra ainda não disponível. Mantido fiado local.");
                     let fichas = JSON.parse(localStorage.getItem('fichasAtivas')) || [];
-                    fichas.push({ data: agora, cliente: cliente, valor: fiadoVal, metodo: 'Fiado' });
+                    fichas.push({ data: agora, cliente: cliente, valor: valorFiado, metodo: 'Fiado' });
                     localStorage.setItem('fichasAtivas', JSON.stringify(fichas));
                 }
             }

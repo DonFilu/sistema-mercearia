@@ -83,6 +83,9 @@
                 <div class="resumo-item"><span>Vendas Diretas</span><b id="resVendas">R$ 0,00</b></div>
                 <div class="resumo-item"><span>Recebimentos (Fichas)</span><b id="resRec">R$ 0,00</b></div>
                 <div class="resumo-item" style="border-color:#28a745;"><span>Total Recebido</span><b id="resTotal" style="color:#28a745;">R$ 0,00</b></div>
+                <div class="resumo-item"><span>Dinheiro</span><b id="resDinheiro">R$ 0,00</b></div>
+                <div class="resumo-item"><span>Pix</span><b id="resPix">R$ 0,00</b></div>
+                <div class="resumo-item"><span>Cartão</span><b id="resCartao">R$ 0,00</b></div>
             </div>
 
             <table id="tabelaRelatorio">
@@ -124,6 +127,7 @@
 }
         let charts = {};
         let historicoCompleto = [];
+      
 
         window.onload = async () => {
             if (localStorage.getItem('logado') !== 'true') { window.location.href = "login.html"; return; }
@@ -202,6 +206,10 @@
             const anoSel = parseInt(document.getElementById('filtroAno').value);
             const hojeTotal = new Date();
 
+            let totalDinheiro = 0;
+            let totalPix = 0;
+            let totalCartao = 0;
+
             let vDiretas = 0, vRec = 0;
             const corpoTabela = document.getElementById('corpoTabela');
             corpoTabela.innerHTML = "";
@@ -220,6 +228,9 @@
                 const vDataStr = dataObj.toLocaleDateString('pt-br');
 
                 if(v.metodo !== "Fiado") {
+                    if (v.metodo === "Dinheiro") totalDinheiro += valor;
+                    if (v.metodo === "Pix") totalPix += valor;
+                    if (v.metodo === "Cartão") totalCartao += valor;
                     const diffDias = Math.floor((hojeTotal - dataObj) / (1000 * 60 * 60 * 24));
                     if(diffDias >= 0 && diffDias < 7) dadosSemana[vDataStr] = (dadosSemana[vDataStr] || 0) + valor;
                     if(vAno === anoSel) dadosMes[vMes] += valor;
@@ -244,6 +255,9 @@
             document.getElementById('resVendas').innerText = `R$ ${vDiretas.toFixed(2)}`;
             document.getElementById('resRec').innerText = `R$ ${vRec.toFixed(2)}`;
             document.getElementById('resTotal').innerText = `R$ ${(vDiretas + vRec).toFixed(2)}`;
+            document.getElementById('resDinheiro').innerText = `R$ ${totalDinheiro.toFixed(2)}`;
+            document.getElementById('resPix').innerText = `R$ ${totalPix.toFixed(2)}`;
+            document.getElementById('resCartao').innerText = `R$ ${totalCartao.toFixed(2)}`;
             
             const nomeMes = document.getElementById('filtroMes').options[mesSel].text;
             document.getElementById('tituloRelatorio').innerText = `📊 Movimentação: ${nomeMes} / ${anoSel}`;
