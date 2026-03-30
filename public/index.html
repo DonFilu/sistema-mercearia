@@ -480,18 +480,12 @@
 
                     if (produtoServidor && produtoServidor._id) {
                         try {
-                            await apiFetch(`/produtos/${produtoServidor._id}`, { method: "DELETE" });
-
-                            await apiFetch("/produtos", {
-                                method: "POST",
-                                body: JSON.stringify({
-                                    codigo: item.cod,
-                                    nome: produtos[item.cod].nome,
-                                    preco: produtos[item.cod].preco,
-                                    tipo: produtos[item.cod].tipo,
-                                    estoque: produtos[item.cod].estoque
-                                })
-                            });
+                            await apiFetch(`/produtos/${produtoServidor._id}`, {
+    method: "PUT",
+    body: JSON.stringify({
+        estoque: produtos[item.cod].estoque
+    })
+});
                         } catch (err) {
                             console.error("Erro ao atualizar estoque no servidor:", err);
                         }
@@ -589,7 +583,7 @@ formas.forEach(f => {
                 }
             }
 
-            await atualizarEstoqueNoServidor();
+        
             
 
             avisar("✅ Venda Finalizada", "Sucesso!", true);

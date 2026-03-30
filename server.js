@@ -241,20 +241,54 @@ app.get("/vendas", async (req, res) => {
 });
 
 app.post("/vendas", async (req, res) => {
-  const venda = new Venda({
-    tenantId: req.tenantId,
-    data: req.body.data,
-    cliente: req.body.cliente,
-    itens: req.body.itens || [],
-    total: req.body.total || 0,
-    desconto: req.body.desconto || 0,
-    pagamentos: req.body.pagamentos || []
-  });
+  try {
+    const { itens, cliente, data, desconto, pagamentos } = req.body;
 
-  await venda.save();
-  res.json(venda);
+    let totalCalculado = 0;
+
+    for (const item of itens) {
+      const produto = await Produto.findOne({
+        codigo: item.cod,
+        tenantId: req.tenantId
+      });
+
+      if (!produto) {
+        return res.status(400).json({ erro: `Produto não encontrado: ${item.cod}` });
+      }
+
+      if (produto.estoque < item.qtd) {
+        return res.status(400).json({
+          erro: `Estoque insuficiente para ${produto.nome}`
+        });
+      }
+
+      // soma total real
+      totalCalculado += produto.preco * item.qtd;
+
+      // 🔥 baixa estoque AQUI (CORRETO)
+      produto.estoque -= item.qtd;
+      await produto.save();
+    }
+
+    const venda = new Venda({
+      tenantId: req.tenantId,
+      data,
+      cliente,
+      itens,
+      total: totalCalculado,
+      desconto: desconto || 0,
+      pagamentos: pagamentos || []
+    });
+
+    await venda.save();
+
+    res.json(venda);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ erro: "Erro ao processar venda" });
+  }
 });
-
 app.delete("/vendas", async (req, res) => {
   await Venda.deleteMany({ tenantId: req.tenantId });
   res.json({ status: "ok" });
