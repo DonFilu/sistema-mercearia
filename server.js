@@ -22,7 +22,11 @@ const User = mongoose.models.User || mongoose.model(
   "User",
   new mongoose.Schema({
     email: String,
-    senha: String
+    senha: String,
+
+    trialAtivo: Boolean,
+    dataExpiracao: Date,
+    primeiroPagamento: Boolean
   })
 );
 
@@ -30,7 +34,7 @@ const User = mongoose.models.User || mongoose.model(
    MIDDLEWARE TENANT (CORRETO)
 ============================= */
 
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   // libera login e registro
   if (req.path === "/login" || req.path === "/register") {
     return next();
@@ -43,7 +47,22 @@ app.use((req, res, next) => {
   }
 
   req.tenantId = userId;
+  const user = await User.findById(userId);
+
+  if (!user) {
+    return res.status(401).json({ erro: "Usuário inválido" });
+  }
+
+  const hoje = new Date();
+
+  if (user.dataExpiracao && hoje > user.dataExpiracao) {
+    return res.status(403).json({ erro: "Plano vencido" });
+  }
+
+  
+  
   next();
+  
 });
 /* =============================
    MODELS (COM TENANT)
@@ -126,7 +145,16 @@ app.post("/register", async (req, res) => {
     return res.status(400).json({ erro: "Usuário já existe" });
   }
 
-  const user = new User({ email, senha });
+  const hoje = new Date();
+
+  const user = new User({
+    email,
+    senha,
+    trialAtivo: true,
+    primeiroPagamento: false,
+    dataExpiracao: new Date(hoje.getTime() + 7 * 24 * 60 * 60 * 1000)
+  });
+
   await user.save();
 
   res.json({ ok: true });
