@@ -161,6 +161,27 @@ app.post("/register", async (req, res) => {
 });
 
 /* =============================
+   ROTA USER (NOVO)
+============================= */
+
+app.get("/user", async (req, res) => {
+  try {
+    const user = await User.findById(req.tenantId);
+
+    if (!user) {
+      return res.status(404).json({ erro: "Usuário não encontrado" });
+    }
+
+    res.json({
+      dataExpiracao: user.dataExpiracao,
+      trialAtivo: user.trialAtivo
+    });
+
+  } catch (err) {
+    res.status(500).json({ erro: "Erro ao buscar usuário" });
+  }
+});
+/* =============================
    ROTAS PRODUTOS
 ============================= */
 
