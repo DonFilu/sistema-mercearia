@@ -359,9 +359,13 @@ app.post("/criar-pix", async (req, res) => {
         transaction_amount: valor,
         description: "Assinatura Sistema",
         payment_method_id: "pix",
-        payer: {
-          email: email
-        }
+       payer: {
+  email: email,
+  identification: {
+    type: "CPF",
+    number: "19119119100"
+  }
+}
       },
       {
         headers: {
