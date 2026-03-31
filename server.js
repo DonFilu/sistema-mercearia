@@ -36,9 +36,13 @@ const User = mongoose.models.User || mongoose.model(
 
 app.use(async (req, res, next) => {
   // libera login e registro
-  if (req.path === "/login" || req.path === "/register") {
-    return next();
-  }
+ if (
+  req.path === "/login" ||
+  req.path === "/register" ||
+  req.path === "/webhook"
+) {
+  return next();
+}
 
   const userId = req.headers["x-user-id"];
 
