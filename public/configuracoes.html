@@ -280,12 +280,59 @@ async function gerarPix() {
 
     const data = await res.json();
 
-    document.getElementById("areaPix").innerHTML = `
-        <p>Escaneie o QR Code:</p>
-        <img src="data:image/png;base64,${data.qr_code_base64}" />
-        <p style="word-break: break-all;">${data.qr_code}</p>
-    `;
+   document.getElementById("areaPix").innerHTML = `
+  <div style="text-align: center; margin-top: 20px;">
+    
+    <p style="font-size: 16px; margin-bottom: 10px;">
+      Escaneie o QR Code:
+    </p>
 
+    <img 
+      src="data:image/png;base64,${data.qr_code_base64}" 
+      style="
+        width: 220px;
+        height: 220px;
+        border-radius: 12px;
+        background: white;
+        padding: 10px;
+      "
+    />
+
+    <p style="
+      margin-top: 10px;
+      font-size: 12px;
+      word-break: break-all;
+      opacity: 0.8;
+    ">
+      ${data.qr_code}
+    </p>
+
+    <button onclick="copiarPix('${data.qr_code}')" style="
+      margin-top: 10px;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 8px;
+      background: #2ecc71;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    ">
+      📋 Copiar código PIX
+    </button>
+
+  </div>
+`;
+
+}
+function copiarPix(codigo) {
+    navigator.clipboard.writeText(codigo);
+
+    const btn = document.activeElement;
+    btn.innerText = "✔ Copiado!";
+
+    setTimeout(() => {
+        btn.innerText = "📋 Copiar código PIX";
+    }, 2000);
 }
     </script>
 </body>
