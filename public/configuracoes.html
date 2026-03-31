@@ -134,6 +134,28 @@
     </div>
 
     <script>
+        async function apiFetch(url, options = {}) {
+    const userId = localStorage.getItem("userId");
+
+    options.headers = {
+        ...(options.headers || {}),
+        "Content-Type": "application/json"
+    };
+
+    if (userId) {
+        options.headers["x-user-id"] = userId;
+    }
+
+    const response = await fetch(url, options);
+
+    if (response.status === 403) {
+        alert("Seu plano venceu!");
+        window.location.href = "configuracoes.html";
+        return new Response(null, { status: 403 });
+    }
+
+    return response;
+}
         window.onload = () => {
             const tema = localStorage.getItem('tema');
             const cor = localStorage.getItem('corPrincipal') || '#1a73e8';
