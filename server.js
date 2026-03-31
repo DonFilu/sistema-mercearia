@@ -370,7 +370,8 @@ app.post("/criar-pix", async (req, res) => {
       {
       headers: {
   Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`,
-  "Content-Type": "application/json"
+  "Content-Type": "application/json",
+  "X-Idempotency-Key": Date.now().toString()
 }
       }
     );
