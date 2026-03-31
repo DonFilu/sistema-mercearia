@@ -369,7 +369,7 @@ app.post("/criar-pix", async (req, res) => {
     let valor = 29;
 
     if (!user.primeiroPagamento) {
-      valor = 19;
+      valor = 1;
     }
 
     console.log("💰 VALOR COBRADO:", valor);
