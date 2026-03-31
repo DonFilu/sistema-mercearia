@@ -173,10 +173,10 @@ app.get("/user", async (req, res) => {
     }
 
     res.json({
-      dataExpiracao: user.dataExpiracao,
-      trialAtivo: user.trialAtivo
-    });
-
+  email: user.email,
+  dataExpiracao: user.dataExpiracao,
+  trialAtivo: user.trialAtivo
+});
   } catch (err) {
     res.status(500).json({ erro: "Erro ao buscar usuário" });
   }
@@ -341,6 +341,88 @@ app.post("/vendas", async (req, res) => {
 app.delete("/vendas", async (req, res) => {
   await Venda.deleteMany({ tenantId: req.tenantId });
   res.json({ status: "ok" });
+});
+
+const axios = require("axios");
+
+app.post("/criar-pix", async (req, res) => {
+  try {
+    const { valor, email } = req.body;
+
+    const response = await axios.post(
+      "https://api.mercadopago.com/v1/payments",
+      {
+        transaction_amount: valor,
+        description: "Assinatura Sistema",
+        payment_method_id: "pix",
+        payer: {
+          email: email
+        }
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`
+        }
+      }
+    );
+
+    const dados = response.data.point_of_interaction.transaction_data;
+
+    res.json({
+      qr_code: dados.qr_code,
+      qr_code_base64: dados.qr_code_base64
+    });
+
+  } catch (err) {
+    console.error(err.response?.data || err);
+    res.status(500).json({ erro: "Erro ao gerar PIX" });
+  }
+});
+app.post("/webhook", async (req, res) => {
+  try {
+    const data = req.body;
+
+    if (data.type === "payment") {
+      const paymentId = data.data.id;
+
+      const response = await axios.get(
+        `https://api.mercadopago.com/v1/payments/${paymentId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`
+          }
+        }
+      );
+
+      const pagamento = response.data;
+
+      if (pagamento.status === "approved") {
+        const email = pagamento.payer.email;
+
+        const user = await User.findOne({ email });
+
+        if (user) {
+          const hoje = new Date();
+
+          user.dataExpiracao = new Date(
+            hoje.getTime() + 30 * 24 * 60 * 60 * 1000
+          );
+
+          user.trialAtivo = false;
+          user.primeiroPagamento = true;
+
+          await user.save();
+
+          console.log("✅ Usuário liberado:", email);
+        }
+      }
+    }
+
+    res.sendStatus(200);
+  } catch (err) {
+    console.error("Erro webhook:", err);
+    res.sendStatus(500);
+  }
 });
 
 /* =============================

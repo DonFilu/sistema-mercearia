@@ -51,6 +51,27 @@
 
     <div class="container">
         <h2>Configurações do Sistema</h2>
+        <div class="secao">
+    <h3>💳 Assinatura</h3>
+
+    <p id="statusPlano">Carregando plano...</p>
+
+    <button onclick="gerarPix()" style="
+        width: 100%;
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 12px;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 10px;
+    ">
+        💰 Pagar / Renovar Plano
+    </button>
+
+    <div id="areaPix" style="margin-top: 15px;"></div>
+</div>
 
         <div class="secao">
             <h3>🎨 Personalização</h3>
@@ -118,6 +139,7 @@
             const cor = localStorage.getItem('corPrincipal') || '#1a73e8';
             const estoque = localStorage.getItem('estoqueAtivado') === 'true';
             const impressao = localStorage.getItem('impressaoAtivada') === 'true';
+            carregarPlano();
 
             if (tema === 'dark') {
                 document.body.classList.add('dark-mode');
@@ -183,15 +205,65 @@
             };
             reader.readAsText(file);
         }
-        function sair() {
+function sair() {
     if (confirm("Deseja sair do sistema?")) {
         localStorage.removeItem("logado");
         localStorage.removeItem("usuarioAtivo");
-        localStorage.removeItem("userId"); // 🔥 ESSENCIAL
-        localStorage.removeItem("token"); // futuro login
+        localStorage.removeItem("userId");
+        localStorage.removeItem("token");
 
         window.location.href = "login.html";
     }
+}
+
+async function carregarPlano() {
+    try {
+        const res = await apiFetch("/user");
+        const user = await res.json();
+
+        if (!user.dataExpiracao) {
+            document.getElementById("statusPlano").innerText = "Plano não ativo";
+            return;
+        }
+
+        const hoje = new Date();
+        const vencimento = new Date(user.dataExpiracao);
+
+        const diff = Math.ceil((vencimento - hoje) / (1000 * 60 * 60 * 24));
+
+        if (diff > 0) {
+            document.getElementById("statusPlano").innerText =
+                `Plano ativo - vence em ${diff} dias`;
+        } else {
+            document.getElementById("statusPlano").innerText =
+                "❌ Plano vencido";
+        }
+
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+async function gerarPix() {
+    const userRes = await apiFetch("/user");
+    const userData = await userRes.json();
+
+    const res = await apiFetch("/criar-pix", {
+        method: "POST",
+        body: JSON.stringify({
+            valor: 29,
+            email: userData.email
+        })
+    });
+
+    const data = await res.json();
+
+    document.getElementById("areaPix").innerHTML = `
+        <p>Escaneie o QR Code:</p>
+        <img src="data:image/png;base64,${data.qr_code_base64}" />
+        <p style="word-break: break-all;">${data.qr_code}</p>
+    `;
+
 }
     </script>
 </body>
