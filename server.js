@@ -370,7 +370,16 @@ app.post("/criar-pix", async (req, res) => {
       }
     );
 
-    const dados = response.data.point_of_interaction.transaction_data;
+   const pagamento = response.data;
+
+const dados = pagamento.point_of_interaction?.transaction_data;
+
+if (!dados) {
+  return res.status(500).json({
+    erro: "Erro ao gerar QR Code",
+    detalhes: pagamento
+  });
+}
 
     res.json({
       qr_code: dados.qr_code,
