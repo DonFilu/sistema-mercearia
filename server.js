@@ -371,7 +371,7 @@ app.post("/criar-pix", async (req, res) => {
     );
 
    const pagamento = response.data;
-
+console.log("RESPOSTA MP:", JSON.stringify(response.data, null, 2));
 const dados = pagamento.point_of_interaction?.transaction_data;
 
 if (!dados) {
