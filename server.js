@@ -352,53 +352,76 @@ const axios = require("axios");
 
 app.post("/criar-pix", async (req, res) => {
   try {
-    const { valor, email } = req.body;
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ erro: "Email obrigatório" });
+    }
+
+    // 🔥 BUSCA USUÁRIO
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ erro: "Usuário não encontrado" });
+    }
+
+    // 🧠 REGRA DE PREÇO
+    let valor = 29;
+
+    if (!user.primeiroPagamento) {
+      valor = 19;
+    }
+
+    console.log("💰 VALOR COBRADO:", valor);
 
     const response = await axios.post(
       "https://api.mercadopago.com/v1/payments",
       {
-       transaction_amount: Number(valor),
+        transaction_amount: Number(valor),
         description: "Assinatura Sistema",
         payment_method_id: "pix",
-      payer: {
-  email: email || "test_user@test.com",
-  first_name: "Cliente",
-  last_name: "Sistema",
-  identification: {
-    type: "CPF",
-    number: "19119119100"
-  }
-}
+        payer: {
+          email: email,
+          first_name: "Cliente",
+          last_name: "Sistema",
+          identification: {
+            type: "CPF",
+            number: "19119119100"
+          }
+        }
       },
       {
-      headers: {
-  Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`,
-  "Content-Type": "application/json",
-  "X-Idempotency-Key": Date.now().toString()
-}
+        headers: {
+          Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+          "X-Idempotency-Key": Date.now().toString()
+        }
       }
     );
 
-   const pagamento = response.data;
-console.log("RESPOSTA MP:", JSON.stringify(response.data, null, 2));
-const dados = pagamento.point_of_interaction?.transaction_data;
+    const pagamento = response.data;
 
-if (!dados || !dados.qr_code || !dados.qr_code_base64) {
-  console.log("ERRO MP COMPLETO:", pagamento);
+    console.log("RESPOSTA MP:", JSON.stringify(pagamento, null, 2));
 
-  return res.status(500).json({
-    erro: "Mercado Pago não retornou QR completo",
-    detalhes: pagamento
-  });
-}
+    const dados = pagamento.point_of_interaction?.transaction_data;
+
+    if (!dados || !dados.qr_code || !dados.qr_code_base64) {
+      console.log("ERRO MP COMPLETO:", pagamento);
+
+      return res.status(500).json({
+        erro: "Mercado Pago não retornou QR completo",
+        detalhes: pagamento
+      });
+    }
 
     res.json({
       qr_code: dados.qr_code,
-      qr_code_base64: dados.qr_code_base64
+      qr_code_base64: dados.qr_code_base64,
+      valor // 👈 ENVIA PRO FRONT
     });
 
   } catch (err) {
-    console.error(err.response?.data || err);
+    console.error("ERRO PIX:", err.response?.data || err);
     res.status(500).json({ erro: "Erro ao gerar PIX" });
   }
 });
