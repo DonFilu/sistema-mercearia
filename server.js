@@ -39,7 +39,8 @@ app.use(async (req, res, next) => {
  if (
   req.path === "/login" ||
   req.path === "/register" ||
-  req.path === "/webhook"
+  req.path === "/webhook" ||
+  req.path === "/criar-pix"
 ) {
   return next();
 }
