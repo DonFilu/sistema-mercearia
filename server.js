@@ -356,11 +356,11 @@ app.post("/criar-pix", async (req, res) => {
     const response = await axios.post(
       "https://api.mercadopago.com/v1/payments",
       {
-        transaction_amount: valor,
+       transaction_amount: Number(valor),
         description: "Assinatura Sistema",
         payment_method_id: "pix",
        payer: {
-  email: email,
+ email: email || "test_user@test.com",
   identification: {
     type: "CPF",
     number: "19119119100"
@@ -368,9 +368,10 @@ app.post("/criar-pix", async (req, res) => {
 }
       },
       {
-        headers: {
-          Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`
-        }
+      headers: {
+  Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`,
+  "Content-Type": "application/json"
+}
       }
     );
 
@@ -413,6 +414,8 @@ app.post("/webhook", async (req, res) => {
 
       const pagamento = response.data;
 
+      console.log("WEBHOOK RECEBIDO:", pagamento.status);
+
       if (pagamento.status === "approved") {
         const email = pagamento.payer.email;
 
@@ -431,17 +434,19 @@ app.post("/webhook", async (req, res) => {
           await user.save();
 
           console.log("✅ Usuário liberado:", email);
+        } else {
+          console.log("⚠️ Usuário não encontrado:", email);
         }
       }
     }
 
     res.sendStatus(200);
+
   } catch (err) {
     console.error("Erro webhook:", err);
     res.sendStatus(500);
   }
 });
-
 /* =============================
    FRONTEND
 ============================= */
