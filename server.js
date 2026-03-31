@@ -360,8 +360,10 @@ app.post("/criar-pix", async (req, res) => {
        transaction_amount: Number(valor),
         description: "Assinatura Sistema",
         payment_method_id: "pix",
-       payer: {
- email: email || "test_user@test.com",
+      payer: {
+  email: email || "test_user@test.com",
+  first_name: "Cliente",
+  last_name: "Sistema",
   identification: {
     type: "CPF",
     number: "19119119100"
@@ -381,9 +383,11 @@ app.post("/criar-pix", async (req, res) => {
 console.log("RESPOSTA MP:", JSON.stringify(response.data, null, 2));
 const dados = pagamento.point_of_interaction?.transaction_data;
 
-if (!dados) {
+if (!dados || !dados.qr_code || !dados.qr_code_base64) {
+  console.log("ERRO MP COMPLETO:", pagamento);
+
   return res.status(500).json({
-    erro: "Erro ao gerar QR Code",
+    erro: "Mercado Pago não retornou QR completo",
     detalhes: pagamento
   });
 }
