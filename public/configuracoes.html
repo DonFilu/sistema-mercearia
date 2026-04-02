@@ -134,7 +134,7 @@
     </div>
 
     <script>
-        async function apiFetch(url, options = {}) {
+async function apiFetch(url, options = {}) {
     const userId = localStorage.getItem("userId");
 
     options.headers = {
@@ -148,15 +148,15 @@
 
     const response = await fetch(url, options);
 
-   if (response.status === 403) {
-    // 🔥 evita loop infinito
-    if (!window.location.href.includes("configuracoes.html")) {
-        alert("Seu plano venceu! Vá para configurações para renovar.");
-        window.location.href = "configuracoes.html";
+    if (response.status === 403) {
+        if (!window.location.href.includes("configuracoes.html")) {
+            alert("Seu plano venceu! Vá para configurações para renovar.");
+            window.location.href = "configuracoes.html";
+        }
     }
 
-    return response; // 👈 retorna a resposta original
-}
+    return response; // 🔥 ESSENCIAL
+
 }
         window.onload = () => {
             const tema = localStorage.getItem('tema');
