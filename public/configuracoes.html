@@ -288,6 +288,12 @@ const userData = await userRes.json();
 
     const data = await res.json();
 
+if (!data || !data.qr_code_base64) {
+    console.error("PIX inválido:", data);
+    alert("Erro ao gerar QR Code PIX");
+    return;
+}
+
    document.getElementById("areaPix").innerHTML = `
   <div style="text-align: center; margin-top: 20px;">
     
@@ -296,15 +302,15 @@ const userData = await userRes.json();
     </p>
 
     <img 
-      src="data:image/png;base64,${data.qr_code_base64}" 
-      style="
-        width: 220px;
-        height: 220px;
-        border-radius: 12px;
-        background: white;
-        padding: 10px;
-      "
-    />
+  src="data:image/png;base64,${data.qr_code_base64}" 
+  style="
+    width: 220px;
+    height: 220px;
+    border-radius: 12px;
+    background: white;
+    padding: 10px;
+  "
+/>
 
     <p style="
       margin-top: 10px;
