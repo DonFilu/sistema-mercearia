@@ -157,6 +157,7 @@
     </div>
 
     <script>
+   
    async function apiFetch(url, options = {}) {
     const userId = localStorage.getItem("userId");
 
@@ -169,18 +170,22 @@
         options.headers["x-user-id"] = userId;
     }
 
-    const response = await fetch(url, options);
+    try {
+        const response = await fetch(url, options);
 
-    // 🔥 TRATAMENTO DO PLANO VENCIDO
-    if (response.status === 403) {
-    // 🔥 SE JÁ ESTÁ NA CONFIG, NÃO REDIRECIONA
-    if (!window.location.href.includes("configuracoes.html")) {
-        alert("Seu plano venceu! Vá para configurações para renovar.");
-        window.location.href = "configuracoes.html";
+        if (response.status === 403) {
+            if (!window.location.href.includes("configuracoes.html")) {
+                alert("Seu plano venceu! Vá para configurações para renovar.");
+                window.location.href = "configuracoes.html";
+            }
+        }
+
+        return response;
+
+    } catch (err) {
+        console.error("Erro fetch:", err);
+        return null; // 🔥 IMPORTANTE
     }
-    return response;
-}
-
 
 }
         let totalGeral = 0;
@@ -216,8 +221,13 @@
 
         async function sincronizarClientes() {
             try {
-                const resposta = await apiFetch("/clientes");
-                clientesLista = await resposta.json();
+const resposta = await apiFetch("/clientes");
+
+if (!resposta || resposta.status !== 200) {
+    throw new Error("Erro ao carregar clientes");
+}
+
+clientesLista = await resposta.json();
 
                 localStorage.setItem("meusClientes", JSON.stringify(clientesLista));
 
@@ -247,7 +257,12 @@
         async function sincronizarProdutos() {
             try {
                 const resposta = await apiFetch("/produtos");
-                produtosLista = await resposta.json();
+
+if (!resposta || resposta.status !== 200) {
+    throw new Error("Erro ao carregar produtos");
+}
+
+produtosLista = await resposta.json();
 
                 const produtosObj = {};
                 produtosLista.forEach(p => {
