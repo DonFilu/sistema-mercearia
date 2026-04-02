@@ -168,18 +168,26 @@ app.post("/register", async (req, res) => {
 
 app.get("/user", async (req, res) => {
   try {
-    const user = await User.findById(req.tenantId);
+    const userId = req.headers["x-user-id"];
+
+    if (!userId) {
+      return res.status(401).json({ erro: "Sem userId" });
+    }
+
+    const user = await User.findById(userId);
 
     if (!user) {
       return res.status(404).json({ erro: "Usuário não encontrado" });
     }
 
     res.json({
-  email: user.email,
-  dataExpiracao: user.dataExpiracao,
-  trialAtivo: user.trialAtivo
-});
+      email: user.email,
+      dataExpiracao: user.dataExpiracao,
+      trialAtivo: user.trialAtivo
+    });
+
   } catch (err) {
+    console.error(err);
     res.status(500).json({ erro: "Erro ao buscar usuário" });
   }
 });
