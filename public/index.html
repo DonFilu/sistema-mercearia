@@ -173,12 +173,15 @@
 
     // 🔥 TRATAMENTO DO PLANO VENCIDO
     if (response.status === 403) {
+    // 🔥 SE JÁ ESTÁ NA CONFIG, NÃO REDIRECIONA
+    if (!window.location.href.includes("configuracoes.html")) {
         alert("Seu plano venceu! Vá para configurações para renovar.");
         window.location.href = "configuracoes.html";
-       return new Response(null, { status: 403 });
     }
-
     return response;
+}
+
+
 }
         let totalGeral = 0;
         let itensCarrinho = [];
