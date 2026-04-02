@@ -270,7 +270,13 @@ async function carregarPlano() {
 
 async function gerarPix() {
     const userRes = await apiFetch("/user");
-    const userData = await userRes.json();
+
+if (!userRes || userRes.status !== 200) {
+    alert("Erro ao obter usuário");
+    return;
+}
+
+const userData = await userRes.json();
 
     const res = await apiFetch("/criar-pix", {
         method: "POST",
