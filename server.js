@@ -382,29 +382,35 @@ app.post("/criar-pix", async (req, res) => {
     console.log("💰 VALOR COBRADO:", valor);
 
     const response = await axios.post(
-      "https://api.mercadopago.com/v1/payments",
-      {
-        transaction_amount: Number(valor),
-        description: "Assinatura Sistema",
-        payment_method_id: "pix",
-        payer: {
-          email: email,
-          first_name: "Cliente",
-          last_name: "Sistema",
-          identification: {
-            type: "CPF",
-            number: "19119119100"
-          }
-        }
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`,
-          "Content-Type": "application/json",
-          "X-Idempotency-Key": Date.now().toString()
-        }
+  "https://api.mercadopago.com/v1/payments",
+  {
+    transaction_amount: Number(valor),
+    description: "Assinatura Sistema",
+    payment_method_id: "pix",
+
+    payer: {
+      email: email,
+      first_name: "Cliente",
+      last_name: "Sistema",
+      identification: {
+        type: "CPF",
+        number: "19119119100"
       }
-    );
+    },
+
+    // 🔥 ESSENCIAL
+    notification_url: "https://seusistema.onrender.com/webhook",
+    external_reference: user._id.toString(),
+    
+  },
+  {
+    headers: {
+      Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
+      "X-Idempotency-Key": Date.now().toString()
+    }
+  }
+);
 
     const pagamento = response.data;
 
@@ -452,10 +458,13 @@ app.post("/webhook", async (req, res) => {
 
       console.log("WEBHOOK RECEBIDO:", pagamento.status);
 
-      if (pagamento.status === "approved") {
-        const email = pagamento.payer.email;
-
-        const user = await User.findOne({ email });
+      if (
+  pagamento.status === "approved" &&
+  pagamento.transaction_amount > 0 &&
+  pagamento.payment_method_id === "pix"
+) {
+       const userId = pagamento.external_reference;
+const user = await User.findById(userId);
 
         if (user) {
           const hoje = new Date();
