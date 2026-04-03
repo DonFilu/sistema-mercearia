@@ -179,11 +179,13 @@ app.get("/user", async (req, res) => {
     if (!user) {
       return res.status(404).json({ erro: "Usuário não encontrado" });
     }
+    console.log("USER ENVIADO:", user);
 
     res.json({
       email: user.email,
       dataExpiracao: user.dataExpiracao,
       trialAtivo: user.trialAtivo
+      
     });
 
   } catch (err) {

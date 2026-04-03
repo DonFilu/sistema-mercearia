@@ -282,7 +282,7 @@ const userData = await userRes.json();
         method: "POST",
         body: JSON.stringify({
             valor: 29,
-            email: userData.email
+            email: userData.email || "test_user@test.com"
         })
     });
 
