@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const path = require("path");
 require("dotenv").config();
+const axios = require("axios");
 
 const app = express();
 
@@ -23,7 +24,11 @@ const User = mongoose.models.User || mongoose.model(
   new mongoose.Schema({
     email: String,
     senha: String,
-
+    ultimoIP: String,
+cidade: String,
+pais: String,
+provedor: String,
+ultimoAcesso: Date,
     trialAtivo: Boolean,
     dataExpiracao: Date,
     primeiroPagamento: Boolean
@@ -129,12 +134,46 @@ const Venda = mongoose.models.Venda || mongoose.model(
 app.post("/login", async (req, res) => {
   const { email, senha } = req.body;
 
-
   const user = await User.findOne({ email });
 
   if (!user || user.senha !== senha) {
     return res.status(401).json({ erro: "Email ou senha incorretos" });
   }
+
+  // 🔥 PEGAR IP REAL
+  const ipRaw =
+  (req.headers["x-forwarded-for"] || "").split(",")[0] ||
+  req.socket.remoteAddress ||
+  "";
+
+const ip = ipRaw.replace("::ffff:", "").trim();
+
+let cidade = "";
+let pais = "";
+let provedor = "";
+
+try {
+  const geo = await axios.get(`http://ip-api.com/json/${ip}`, {
+    timeout: 2000
+  });
+
+  cidade = geo.data.city;
+  pais = geo.data.country;
+  provedor = geo.data.isp;
+
+} catch (e) {
+  console.log("IP API falhou, seguindo login...");
+}
+
+if (ip) user.ultimoIP = ip;
+if (cidade) user.cidade = cidade;
+if (pais) user.pais = pais;
+if (provedor) user.provedor = provedor;
+
+user.ultimoAcesso = new Date();
+
+await user.save();
+
 
   res.json({ userId: user._id });
 });
@@ -355,8 +394,6 @@ app.delete("/vendas", async (req, res) => {
   await Venda.deleteMany({ tenantId: req.tenantId });
   res.json({ status: "ok" });
 });
-
-const axios = require("axios");
 
 app.post("/criar-pix", async (req, res) => {
   try {

@@ -2,32 +2,78 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Admin</title>
+<title>Painel Admin</title>
 
 <style>
-body { font-family: Arial; background:#f0f2f5; margin:0; }
+body {
+  font-family: Arial;
+  background:#f0f2f5;
+  margin:0;
+}
 
 .container {
-  max-width:900px;
+  max-width:1200px;
   margin:20px auto;
   background:white;
   padding:20px;
   border-radius:12px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
 
-table { width:100%; border-collapse: collapse; }
-th, td { padding:12px; border-bottom:1px solid #ddd; }
+h2 {
+  margin-bottom: 20px;
+}
 
-.ativo { color: green; font-weight:bold; }
-.vencido { color: red; font-weight:bold; }
+table {
+  width:100%;
+  border-collapse: collapse;
+}
+
+th {
+  background:#1a73e8;
+  color:white;
+}
+
+th, td {
+  padding:10px;
+  text-align:center;
+  border-bottom:1px solid #ddd;
+  font-size: 13px;
+}
+
+.ativo {
+  color: green;
+  font-weight:bold;
+}
+
+.vencido {
+  color: red;
+  font-weight:bold;
+}
 
 button {
   background:#1a73e8;
   color:white;
   border:none;
-  padding:8px;
+  padding:6px 10px;
   border-radius:5px;
   cursor:pointer;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+.topo {
+  display:flex;
+  justify-content: space-between;
+  margin-bottom:15px;
+}
+
+input {
+  padding:8px;
+  border-radius:5px;
+  border:1px solid #ccc;
 }
 </style>
 </head>
@@ -35,7 +81,11 @@ button {
 <body>
 
 <div class="container">
-<h2>👑 Painel Admin</h2>
+
+<div class="topo">
+  <h2>👑 Painel Admin</h2>
+  <input id="busca" placeholder="Buscar email..." oninput="filtrar()">
+</div>
 
 <table>
 <thead>
@@ -43,15 +93,23 @@ button {
 <th>Email</th>
 <th>Status</th>
 <th>Expira</th>
+<th>IP</th>
+<th>Cidade</th>
+<th>País</th>
+<th>Provedor</th>
+<th>Último acesso</th>
 <th>Ação</th>
 </tr>
 </thead>
 
 <tbody id="lista"></tbody>
 </table>
+
 </div>
 
 <script>
+let usuarios = [];
+
 async function carregar() {
   const res = await fetch("/admin/users", {
     headers: {
@@ -59,24 +117,42 @@ async function carregar() {
     }
   });
 
-  const users = await res.json();
+  usuarios = await res.json();
+  render(usuarios);
+}
 
+function render(listaUsers) {
   const lista = document.getElementById("lista");
   lista.innerHTML = "";
 
   const hoje = new Date();
 
-  users.forEach(u => {
+  listaUsers.forEach(u => {
     const data = new Date(u.dataExpiracao);
     const ativo = u.dataExpiracao && data > hoje;
 
     lista.innerHTML += `
       <tr>
         <td>${u.email}</td>
+
         <td class="${ativo ? 'ativo' : 'vencido'}">
           ${ativo ? 'ATIVO' : 'VENCIDO'}
         </td>
+
         <td>${u.dataExpiracao ? data.toLocaleDateString() : "-"}</td>
+
+        <td>${u.ultimoIP || "-"}</td>
+        <td>${u.cidade || "-"}</td>
+        <td>${u.pais || "-"}</td>
+        <td>${u.provedor || "-"}</td>
+
+        <td>
+          ${u.ultimoAcesso 
+            ? new Date(u.ultimoAcesso).toLocaleString() 
+            : "-"
+          }
+        </td>
+
         <td>
           <button onclick="liberar('${u._id}')">
             Liberar
@@ -85,6 +161,16 @@ async function carregar() {
       </tr>
     `;
   });
+}
+
+function filtrar() {
+  const termo = document.getElementById("busca").value.toLowerCase();
+
+  const filtrados = usuarios.filter(u =>
+    u.email.toLowerCase().includes(termo)
+  );
+
+  render(filtrados);
 }
 
 async function liberar(id) {
