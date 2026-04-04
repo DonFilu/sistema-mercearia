@@ -1,19 +1,18 @@
 {
-  "name": "qg-alc",
+  "name": "sistema-mercearia",
   "version": "1.0.0",
-  "description": "Sistema QG ALC com Login Discord",
+  "description": "Sistema de mercearia online",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "discord.js": "^14.25.1",
-    "dotenv": "^17.2.3",
-    "express": "^4.22.1",
-    "express-session": "^1.18.2",
+    "axios": "^1.14.0",
+    "dotenv": "^17.3.1",
+    "express": "^4.18.2",
+    "express-session": "^1.19.0",
+    "jsonwebtoken": "^9.0.3",
     "mercadopago": "^2.12.0",
-    "mongoose": "^7.8.8",
-    "passport": "^0.6.0",
-    "passport-discord": "^0.1.4"
+    "mongoose": "^8.0.0"
   }
 }
