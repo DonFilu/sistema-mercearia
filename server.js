@@ -41,7 +41,8 @@ app.use(async (req, res, next) => {
   req.path === "/register" ||
   req.path === "/webhook" ||
   req.path === "/criar-pix" ||
-  req.path === "/user" // 👈 ADICIONA ISSO
+  req.path === "/user" ||
+  req.path.startsWith("/admin")
 ) {
   return next();
 }
