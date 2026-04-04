@@ -504,6 +504,62 @@ app.post("/webhook", async (req, res) => {
     res.sendStatus(500);
   }
 });
+async function isAdmin(userId) {
+  const user = await User.findById(userId);
+  return user && user.email === process.env.ADMIN_EMAIL;
+}
+app.get("/admin/users", async (req, res) => {
+  try {
+    const userId = req.headers["x-user-id"];
+
+    if (!(await isAdmin(userId))) {
+      return res.status(403).json({ erro: "Acesso negado" });
+    }
+
+    const users = await User.find().select("-senha");
+
+    res.json(users);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ erro: "Erro ao buscar usuários" });
+  }
+});
+app.post("/admin/liberar", async (req, res) => {
+  try {
+    const userId = req.headers["x-user-id"];
+
+    if (!(await isAdmin(userId))) {
+      return res.status(403).json({ erro: "Acesso negado" });
+    }
+
+    const { id } = req.body;
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({ erro: "Usuário não encontrado" });
+    }
+
+    const hoje = new Date();
+
+    const base = user.dataExpiracao && user.dataExpiracao > hoje
+      ? user.dataExpiracao
+      : hoje;
+
+    user.dataExpiracao = new Date(
+      base.getTime() + 30 * 24 * 60 * 60 * 1000
+    );
+
+    await user.save();
+
+    res.json({ ok: true });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ erro: "Erro ao liberar plano" });
+  }
+});
 /* =============================
    FRONTEND
 ============================= */

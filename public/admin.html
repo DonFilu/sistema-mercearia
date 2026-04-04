@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Admin</title>
+
+<style>
+body { font-family: Arial; background:#f0f2f5; margin:0; }
+
+.container {
+  max-width:900px;
+  margin:20px auto;
+  background:white;
+  padding:20px;
+  border-radius:12px;
+}
+
+table { width:100%; border-collapse: collapse; }
+th, td { padding:12px; border-bottom:1px solid #ddd; }
+
+.ativo { color: green; font-weight:bold; }
+.vencido { color: red; font-weight:bold; }
+
+button {
+  background:#1a73e8;
+  color:white;
+  border:none;
+  padding:8px;
+  border-radius:5px;
+  cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<h2>👑 Painel Admin</h2>
+
+<table>
+<thead>
+<tr>
+<th>Email</th>
+<th>Status</th>
+<th>Expira</th>
+<th>Ação</th>
+</tr>
+</thead>
+
+<tbody id="lista"></tbody>
+</table>
+</div>
+
+<script>
+async function carregar() {
+  const res = await fetch("/admin/users", {
+    headers: {
+      "x-user-id": localStorage.getItem("userId")
+    }
+  });
+
+  const users = await res.json();
+
+  const lista = document.getElementById("lista");
+  lista.innerHTML = "";
+
+  const hoje = new Date();
+
+  users.forEach(u => {
+    const data = new Date(u.dataExpiracao);
+    const ativo = u.dataExpiracao && data > hoje;
+
+    lista.innerHTML += `
+      <tr>
+        <td>${u.email}</td>
+        <td class="${ativo ? 'ativo' : 'vencido'}">
+          ${ativo ? 'ATIVO' : 'VENCIDO'}
+        </td>
+        <td>${u.dataExpiracao ? data.toLocaleDateString() : "-"}</td>
+        <td>
+          <button onclick="liberar('${u._id}')">
+            Liberar
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+async function liberar(id) {
+  await fetch("/admin/liberar", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-user-id": localStorage.getItem("userId")
+    },
+    body: JSON.stringify({ id })
+  });
+
+  carregar();
+}
+
+carregar();
+</script>
+
+</body>
+</html>
