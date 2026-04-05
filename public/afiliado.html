@@ -49,6 +49,23 @@
       word-break: break-all;
       font-size:13px;
     }
+
+    input {
+      width:100%;
+      padding:8px;
+      border-radius:6px;
+      border:1px solid #ccc;
+      margin-top:5px;
+    }
+    .status-pendente {
+  color: orange;
+  font-weight: bold;
+}
+
+.status-pago {
+  color: green;
+  font-weight: bold;
+}
   </style>
 </head>
 
@@ -61,6 +78,10 @@
 <div class="box">
   <strong id="saldo"></strong><br>
   <small>Saque mínimo: R$10</small>
+  <p id="clientes"></p>
+  <p id="totalSacado"></p>
+  <p id="valorPendente"></p>
+  <p id="pendente" style="color: orange; font-weight: bold;"></p>
 </div>
 
 <div class="box">
@@ -70,11 +91,24 @@
 </div>
 
 <div class="box">
+  <strong>🔑 Chave PIX:</strong>
+  <input id="pix" placeholder="Digite sua chave PIX">
+  <button onclick="salvarPix()">Salvar</button>
+</div>
+
+<div class="box">
   <strong>📊 Ganhos:</strong>
   <div id="historico"></div>
 </div>
 
-<button onclick="sacar()">Sacar tudo</button>
+<div class="box">
+  <strong>💸 Saques:</strong>
+  <div id="saques"></div>
+</div>
+
+<button id="btnSacar" onclick="sacar()">Sacar tudo</button>
+
+<p id="status"></p>
 
 </div>
 
@@ -100,12 +134,13 @@ async function carregar() {
   document.getElementById("saldo").innerText =
     "Saldo: R$ " + (afiliado.saldo || 0);
 
-  // link afiliado
-  const link = window.location.origin + "?ref=" + afiliado.codigo;
+  document.getElementById("pix").value = afiliado.pix || "";
+
+  const link = window.location.origin + "/?ref=" + afiliado.codigo;
   document.getElementById("link").innerText = link;
 }
 
-// 📊 histórico
+// 📊 ganhos
 async function carregarHistorico() {
   const res = await fetch("/afiliado/comissoes", {
     headers: {
@@ -130,12 +165,93 @@ async function carregarHistorico() {
   });
 }
 
-// 📋 copiar link
+// 💸 saques
+async function carregarSaques() {
+  const res = await fetch("/afiliado/saques", {
+    headers: {
+      "x-afiliado-id": localStorage.getItem("afiliadoId")
+    }
+  });
+
+  const data = await res.json();
+
+  document.getElementById("totalSacado").innerText =
+    "💸 Total sacado: R$ " + data.totalSacado;
+
+  const div = document.getElementById("saques");
+  div.innerHTML = "";
+
+  const temPendente = data.saques.some(s => s.status === "pendente");
+
+  document.getElementById("pendente").innerText =
+    temPendente ? "⏳ Você tem um saque em análise" : "";
+
+  // 🔥 BOTÃO (FORA DO LOOP)
+  const botao = document.getElementById("btnSacar");
+
+  if (temPendente) {
+    botao.disabled = true;
+    botao.innerText = "Saque em análise";
+  } else {
+    botao.disabled = false;
+    botao.innerText = "Sacar tudo";
+  }
+const valorPendente = data.saques
+  .filter(s => s.status === "pendente")
+  .reduce((acc, s) => acc + s.valor, 0);
+
+document.getElementById("valorPendente").innerText =
+  valorPendente > 0
+    ? "⏳ Em análise: R$ " + valorPendente
+    : "";
+  // 🔥 LISTA DE SAQUES
+  data.saques.forEach(s => {
+    div.innerHTML += `
+      <p>
+        R$ ${s.valor} - 
+        <span class="${s.status === 'pago' ? 'status-pago' : 'status-pendente'}">
+          ${s.status}
+        </span> - 
+        ${s.data ? new Date(s.data).toLocaleDateString() : "-"}
+      </p>
+    `;
+  });
+}
+
+// 👥 clientes ativos
+async function carregarStats() {
+  const res = await fetch("/afiliado/stats", {
+    headers: {
+      "x-afiliado-id": localStorage.getItem("afiliadoId")
+    }
+  });
+
+  const data = await res.json();
+
+  document.getElementById("clientes").innerText =
+    "👥 Clientes ativos: " + data.clientesAtivos;
+}
+
+// 🔑 salvar pix
+async function salvarPix() {
+  const pix = document.getElementById("pix").value;
+
+  await fetch("/afiliado/pix", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-afiliado-id": localStorage.getItem("afiliadoId")
+    },
+    body: JSON.stringify({ pix })
+  });
+
+  alert("PIX salvo!");
+}
+
+// 📋 copiar
 function copiar() {
   const texto = document.getElementById("link").innerText;
-
   navigator.clipboard.writeText(texto);
-
   alert("Link copiado!");
 }
 
@@ -146,21 +262,38 @@ async function sacar() {
     return;
   }
 
-  await fetch("/afiliado/sacar", {
+  const botao = event.target;
+  botao.disabled = true;
+  botao.innerText = "Enviando...";
+
+  const res = await fetch("/afiliado/sacar", {
     method: "POST",
     headers: {
       "x-afiliado-id": localStorage.getItem("afiliadoId")
     }
   });
 
-  alert("Solicitação enviada!");
+  const data = await res.json();
+
+  if (data.erro) {
+    alert(data.erro);
+    botao.disabled = false;
+    botao.innerText = "Sacar tudo";
+    return;
+  }
+
+  document.getElementById("status").innerText =
+    "✅ Pedido enviado! Aguarde pagamento."
+
   carregar();
-  carregarHistorico();
+  carregarSaques();
 }
 
 // 🚀 init
 carregar();
 carregarHistorico();
+carregarSaques();
+carregarStats();
 
 </script>
 

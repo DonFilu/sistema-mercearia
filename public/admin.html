@@ -107,6 +107,7 @@ input {
 <tbody id="lista"></tbody>
 </table>
 
+
 <!-- 🟡 AFILIADOS -->
 <h2>💰 Afiliados</h2>
 
@@ -117,11 +118,30 @@ input {
 <th>Telefone</th>
 <th>Status</th>
 <th>Saldo</th>
+<th>Clientes Ativos</th>
+<th>Total Pago</th>
 <th>Ação</th>
 </tr>
 </thead>
 
 <tbody id="afiliados"></tbody>
+
+</table>
+<h2>💸 Saques</h2>
+
+<table>
+<thead>
+<tr>
+<th>Email</th>
+<th>Valor</th>
+<th>PIX</th>
+<th>Status</th>
+<th>Data</th>
+<th>Ação</th>
+</tr>
+</thead>
+
+<tbody id="saques"></tbody>
 </table>
 
 </div>
@@ -227,7 +247,9 @@ async function carregarAfiliados() {
         <td>${a.email}</td>
         <td>${a.telefone || "-"}</td>
         <td>${a.status}</td>
-        <td>R$ ${a.saldo || 0}</td>
+       <td>R$ ${a.saldo || 0}</td>
+<td>${a.clientesAtivos || 0}</td>
+<td>R$ ${a.totalPago || 0}</td>
 
         <td>
           ${
@@ -270,11 +292,63 @@ async function recusar(id) {
   carregarAfiliados();
 }
 
-// ================= INIT =================
+async function carregarSaques() {
+  const res = await fetch("/admin/saques", {
+    headers: {
+      "x-user-id": localStorage.getItem("userId")
+    }
+  });
 
+  const lista = await res.json();
+
+  const tabela = document.getElementById("saques");
+  tabela.innerHTML = "";
+
+  lista.forEach(s => {
+    tabela.innerHTML += `
+      <tr>
+        <td>${s.email}</td>
+        <td>R$ ${s.valor}</td>
+        <td>
+  ${s.pix || "-"}
+  ${
+    s.pix
+      ? `<button onclick="navigator.clipboard.writeText('${s.pix}')">📋</button>`
+      : ""
+  }
+</td>
+        <td>${s.status}</td>
+<td>${s.data ? new Date(s.data).toLocaleDateString() : "-"}</td>
+<td>
+          ${
+            s.status === "pendente"
+              ? `<button onclick="confirmarSaque('${s._id}')">Confirmar</button>`
+              : "-"
+          }
+        </td>
+      </tr>
+    `;
+  });
+}
+
+async function confirmarSaque(id) {
+  await fetch("/admin/confirmar-saque", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-user-id": localStorage.getItem("userId")
+    },
+    body: JSON.stringify({ id })
+  });
+
+  alert("Pagamento confirmado!");
+ carregar();
+carregarAfiliados();
+carregarSaques();
+}
 carregar();
 carregarAfiliados();
-
+carregarSaques();
 </script>
 
 </body>

@@ -57,7 +57,6 @@ app.use(async (req, res, next) => {
   req.path === "/webhook" ||
   req.path === "/criar-pix" ||
   req.path === "/user" ||
-  req.path.startsWith("/admin")||
   req.path.startsWith("/afiliado")
 ) {
   return next();
@@ -111,7 +110,12 @@ const Comissao = mongoose.model("Comissao", new mongoose.Schema({
   descricao: String,
   data: Date
 }));
-
+const Saque = mongoose.model("Saque", new mongoose.Schema({
+  afiliadoId: String,
+  valor: Number,
+  status: { type: String, default: "pendente" },
+  data: Date
+}));
 const Produto = mongoose.models.Produto || mongoose.model(
   "Produto",
   new mongoose.Schema({
@@ -270,6 +274,21 @@ app.get("/afiliado/comissoes", async (req, res) => {
   res.json(lista);
 });
 
+app.get("/afiliado/saques", async (req, res) => {
+  const id = req.headers["x-afiliado-id"];
+
+  const lista = await Saque.find({ afiliadoId: id })
+    .sort({ data: -1 });
+
+  const totalSacado = lista
+    .filter(s => s.status === "pago")
+    .reduce((acc, s) => acc + s.valor, 0);
+
+  res.json({
+    saques: lista,
+    totalSacado
+  });
+});
 app.post("/afiliado/sacar", async (req, res) => {
   const id = req.headers["x-afiliado-id"];
 
@@ -279,8 +298,30 @@ app.post("/afiliado/sacar", async (req, res) => {
     return res.status(400).json({ erro: "Mínimo R$10" });
   }
 
-  afiliado.saldo = 0;
+  const pendente = await Saque.findOne({
+    afiliadoId: id,
+    status: "pendente"
+  });
 
+  if (pendente) {
+    return res.json({ erro: "Já existe saque pendente" });
+  }
+
+  await Saque.create({
+    afiliadoId: id,
+    valor: afiliado.saldo,
+    data: new Date()
+  });
+
+  res.json({ ok: true });
+});
+app.post("/afiliado/pix", async (req, res) => {
+  const id = req.headers["x-afiliado-id"];
+  const { pix } = req.body;
+
+  const afiliado = await Afiliado.findById(id);
+
+  afiliado.pix = pix;
   await afiliado.save();
 
   res.json({ ok: true });
@@ -293,8 +334,32 @@ app.get("/admin/afiliados", async (req, res) => {
     return res.status(403).json({ erro: "Acesso negado" });
   }
 
-  const lista = await Afiliado.find();
-  res.json(lista);
+  const afiliados = await Afiliado.find();
+  const hoje = new Date();
+
+  const resultado = [];
+
+  for (const a of afiliados) {
+    const ativos = await User.countDocuments({
+      afiliadoId: a._id.toString(),
+      dataExpiracao: { $gt: hoje }
+    });
+
+    const pagos = await Saque.find({
+      afiliadoId: a._id.toString(),
+      status: "pago"
+    });
+
+    const totalPago = pagos.reduce((acc, s) => acc + s.valor, 0);
+
+    resultado.push({
+      ...a._doc,
+      clientesAtivos: ativos,
+      totalPago
+    });
+  }
+
+  res.json(resultado);
 });
 
 app.post("/admin/aprovar-afiliado", async (req, res) => {
@@ -327,6 +392,75 @@ app.post("/admin/recusar-afiliado", async (req, res) => {
   await Afiliado.findByIdAndDelete(id);
 
   res.json({ ok: true });
+});
+app.get("/admin/saques", async (req, res) => {
+  const userId = req.headers["x-user-id"];
+
+  if (!(await isAdmin(userId))) {
+    return res.status(403).json({ erro: "Acesso negado" });
+  }
+
+  const lista = await Saque.find().sort({ data: -1 });
+
+  const resultado = [];
+
+  for (const s of lista) {
+    const afiliado = await Afiliado.findById(s.afiliadoId);
+
+    resultado.push({
+      ...s._doc,
+      email: afiliado?.email,
+      pix: afiliado?.pix
+    });
+  }
+
+  res.json(resultado);
+});
+app.post("/admin/confirmar-saque", async (req, res) => {
+  const userId = req.headers["x-user-id"];
+
+  if (!(await isAdmin(userId))) {
+    return res.status(403).json({ erro: "Acesso negado" });
+  }
+
+  const { id } = req.body;
+
+  const saque = await Saque.findById(id);
+
+  if (!saque || saque.status !== "pendente") return;
+
+  const afiliado = await Afiliado.findById(saque.afiliadoId);
+
+  if (afiliado) {
+   afiliado.saldo = Math.max(0, afiliado.saldo - saque.valor);
+    await afiliado.save();
+  }
+
+  saque.status = "pago";
+  await saque.save();
+
+  res.json({ ok: true });
+});
+app.get("/afiliado/stats", async (req, res) => {
+  const id = req.headers["x-afiliado-id"];
+
+  const hoje = new Date();
+
+  const ativos = await User.countDocuments({
+    afiliadoId: id,
+    dataExpiracao: { $gt: hoje }
+  });
+
+  const saques = await Saque.find({ afiliadoId: id });
+
+  const totalSacado = saques
+    .filter(s => s.status === "pago")
+    .reduce((acc, s) => acc + s.valor, 0);
+
+  res.json({
+    clientesAtivos: ativos,
+    totalSacado
+  });
 });
 
 app.post("/register", async (req, res) => {
