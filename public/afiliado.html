@@ -2,21 +2,92 @@
 <html>
 <head>
   <title>Painel Afiliado</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      background:#f0f2f5;
+      margin:0;
+      padding:20px;
+    }
+
+    .container {
+      max-width:800px;
+      margin:auto;
+      background:white;
+      padding:20px;
+      border-radius:12px;
+      box-shadow:0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      margin-bottom:15px;
+    }
+
+    .box {
+      background:#f7f7f7;
+      padding:15px;
+      border-radius:8px;
+      margin-bottom:15px;
+    }
+
+    button {
+      background:#1a73e8;
+      color:white;
+      border:none;
+      padding:10px;
+      border-radius:6px;
+      cursor:pointer;
+      margin-top:10px;
+    }
+
+    button:hover {
+      opacity:0.9;
+    }
+
+    .link {
+      word-break: break-all;
+      font-size:13px;
+    }
+  </style>
 </head>
 
 <body>
 
+<div class="container">
+
 <h2>💰 Painel do Afiliado</h2>
 
-<p id="saldo"></p>
+<div class="box">
+  <strong id="saldo"></strong><br>
+  <small>Saque mínimo: R$10</small>
+</div>
+
+<div class="box">
+  <strong>🔗 Seu link:</strong>
+  <p id="link" class="link"></p>
+  <button onclick="copiar()">Copiar link</button>
+</div>
+
+<div class="box">
+  <strong>📊 Ganhos:</strong>
+  <div id="historico"></div>
+</div>
 
 <button onclick="sacar()">Sacar tudo</button>
 
+</div>
+
 <script>
+
+// 🔒 proteção
 if (!localStorage.getItem("afiliadoId")) {
   window.location.href = "/afiliado-login.html";
 }
 
+let afiliado = {};
+
+// 🔄 carregar dados
 async function carregar() {
   const res = await fetch("/afiliado/dados", {
     headers: {
@@ -24,13 +95,57 @@ async function carregar() {
     }
   });
 
-  const data = await res.json();
+  afiliado = await res.json();
 
   document.getElementById("saldo").innerText =
-    "Saldo: R$ " + (data.saldo || 0);
+    "Saldo: R$ " + (afiliado.saldo || 0);
+
+  // link afiliado
+  const link = window.location.origin + "?ref=" + afiliado.codigo;
+  document.getElementById("link").innerText = link;
 }
 
+// 📊 histórico
+async function carregarHistorico() {
+  const res = await fetch("/afiliado/comissoes", {
+    headers: {
+      "x-afiliado-id": localStorage.getItem("afiliadoId")
+    }
+  });
+
+  const lista = await res.json();
+
+  const div = document.getElementById("historico");
+  div.innerHTML = "";
+
+  if (!lista.length) {
+    div.innerHTML = "<p>Sem ganhos ainda</p>";
+    return;
+  }
+
+  lista.forEach(c => {
+    div.innerHTML += `
+      <p>💰 +R$${c.valor} - ${c.descricao}</p>
+    `;
+  });
+}
+
+// 📋 copiar link
+function copiar() {
+  const texto = document.getElementById("link").innerText;
+
+  navigator.clipboard.writeText(texto);
+
+  alert("Link copiado!");
+}
+
+// 💸 sacar
 async function sacar() {
+  if ((afiliado.saldo || 0) < 10) {
+    alert("Saque mínimo é R$10");
+    return;
+  }
+
   await fetch("/afiliado/sacar", {
     method: "POST",
     headers: {
@@ -40,9 +155,13 @@ async function sacar() {
 
   alert("Solicitação enviada!");
   carregar();
+  carregarHistorico();
 }
 
+// 🚀 init
 carregar();
+carregarHistorico();
+
 </script>
 
 </body>

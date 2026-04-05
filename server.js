@@ -24,11 +24,15 @@ const User = mongoose.models.User || mongoose.model(
   new mongoose.Schema({
     email: String,
     senha: String,
+
+    afiliadoId: String, // 👈 ADICIONA ISSO
+
     ultimoIP: String,
-cidade: String,
-pais: String,
-provedor: String,
-ultimoAcesso: Date,
+    cidade: String,
+    pais: String,
+    provedor: String,
+    ultimoAcesso: Date,
+
     trialAtivo: Boolean,
     dataExpiracao: Date,
     primeiroPagamento: Boolean
@@ -47,7 +51,8 @@ app.use(async (req, res, next) => {
   req.path === "/webhook" ||
   req.path === "/criar-pix" ||
   req.path === "/user" ||
-  req.path.startsWith("/admin")
+  req.path.startsWith("/admin")||
+  req.path.startsWith("/afiliado")
 ) {
   return next();
 }
@@ -79,6 +84,27 @@ app.use(async (req, res, next) => {
 /* =============================
    MODELS (COM TENANT)
 ============================= */
+
+const Afiliado = mongoose.model("Afiliado", new mongoose.Schema({
+  email: String,
+  telefone: String,
+  senha: String,
+
+  saldo: { type: Number, default: 0 },
+  pix: String,
+
+  codigo: String,
+
+  status: { type: String, default: "pendente" }
+}));
+
+const Comissao = mongoose.model("Comissao", new mongoose.Schema({
+  afiliadoId: String,
+  userId: String, // 👈 NOVO
+  valor: Number,
+  descricao: String,
+  data: Date
+}));
 
 const Produto = mongoose.models.Produto || mongoose.model(
   "Produto",
@@ -178,8 +204,133 @@ await user.save();
   res.json({ userId: user._id });
 });
 
-app.post("/register", async (req, res) => {
+app.post("/afiliado/register", async (req, res) => {
+  const { email, telefone, senha } = req.body;
+
+  const existe = await Afiliado.findOne({ email });
+
+  if (existe) {
+    return res.json({ erro: "Email já cadastrado" });
+  }
+
+  function gerarCodigo() {
+    return Math.random().toString(36).substring(2, 8);
+  }
+
+  const afiliado = new Afiliado({
+    email,
+    telefone,
+    senha,
+    codigo: gerarCodigo(),
+    status: "pendente"
+  });
+
+  await afiliado.save();
+
+  res.json({ ok: true });
+});
+
+app.post("/afiliado/login", async (req, res) => {
   const { email, senha } = req.body;
+
+  const afiliado = await Afiliado.findOne({ email });
+
+  if (!afiliado || afiliado.senha !== senha) {
+    return res.json({ erro: "Login inválido" });
+  }
+
+  if (afiliado.status !== "aprovado") {
+    return res.json({ erro: "Conta em análise" });
+  }
+
+  res.json({ afiliadoId: afiliado._id });
+});
+
+app.get("/afiliado/dados", async (req, res) => {
+  const id = req.headers["x-afiliado-id"];
+
+  const afiliado = await Afiliado.findById(id);
+
+  res.json(afiliado);
+});
+
+app.get("/afiliado/comissoes", async (req, res) => {
+  const id = req.headers["x-afiliado-id"];
+
+ const lista = await Comissao
+  .find({ afiliadoId: id })
+  .sort({ data: -1 });
+
+  res.json(lista);
+});
+
+app.post("/afiliado/sacar", async (req, res) => {
+  const id = req.headers["x-afiliado-id"];
+
+  const afiliado = await Afiliado.findById(id);
+
+  if (!afiliado || afiliado.saldo < 10) {
+    return res.status(400).json({ erro: "Mínimo R$10" });
+  }
+
+  afiliado.saldo = 0;
+
+  await afiliado.save();
+
+  res.json({ ok: true });
+});
+
+app.get("/admin/afiliados", async (req, res) => {
+  const userId = req.headers["x-user-id"];
+
+  if (!(await isAdmin(userId))) {
+    return res.status(403).json({ erro: "Acesso negado" });
+  }
+
+  const lista = await Afiliado.find();
+  res.json(lista);
+});
+
+app.post("/admin/aprovar-afiliado", async (req, res) => {
+  const userId = req.headers["x-user-id"];
+
+  if (!(await isAdmin(userId))) {
+    return res.status(403).json({ erro: "Acesso negado" });
+  }
+
+  const { id } = req.body;
+
+  const afiliado = await Afiliado.findById(id);
+
+  afiliado.status = "aprovado";
+
+  await afiliado.save();
+
+  res.json({ ok: true });
+});
+
+app.post("/admin/recusar-afiliado", async (req, res) => {
+  const userId = req.headers["x-user-id"];
+
+  if (!(await isAdmin(userId))) {
+    return res.status(403).json({ erro: "Acesso negado" });
+  }
+
+  const { id } = req.body;
+
+  await Afiliado.findByIdAndDelete(id);
+
+  res.json({ ok: true });
+});
+
+app.post("/register", async (req, res) => {
+ const { email, senha, ref } = req.body;
+ 
+ let afiliado = null;
+
+if (ref) {
+  afiliado = await Afiliado.findOne({ codigo: ref });
+}
 
   const existe = await User.findOne({ email });
 
@@ -194,7 +345,8 @@ app.post("/register", async (req, res) => {
     senha,
     trialAtivo: true,
     primeiroPagamento: false,
-    dataExpiracao: new Date(hoje.getTime() + 7 * 24 * 60 * 60 * 1000)
+    dataExpiracao: new Date(hoje.getTime() + 7 * 24 * 60 * 60 * 1000),
+    afiliadoId: afiliado ? afiliado._id : null
   });
 
   await user.save();
@@ -528,6 +680,31 @@ app.post("/webhook", async (req, res) => {
         user.primeiroPagamento = true;
 
         await user.save();
+        if (user.afiliadoId) {
+  const afiliado = await Afiliado.findById(user.afiliadoId);
+
+  if (afiliado) {
+
+    const jaExiste = await Comissao.findOne({
+      afiliadoId: afiliado._id,
+      userId: user._id
+    });
+
+    if (!jaExiste) {
+      afiliado.saldo += 5;
+
+      await afiliado.save();
+
+      await Comissao.create({
+        afiliadoId: afiliado._id,
+        userId: user._id,
+        valor: 5,
+        descricao: "Cliente pagou plano",
+        data: new Date()
+      });
+    }
+  }
+}
 
         console.log("✅ Plano atualizado:", user.dataExpiracao);
       } else {

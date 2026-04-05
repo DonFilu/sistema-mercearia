@@ -27,6 +27,7 @@ h2 {
 table {
   width:100%;
   border-collapse: collapse;
+  margin-bottom: 30px;
 }
 
 th {
@@ -82,6 +83,7 @@ input {
 
 <div class="container">
 
+<!-- 🔵 USUÁRIOS -->
 <div class="topo">
   <h2>👑 Painel Admin</h2>
   <input id="busca" placeholder="Buscar email..." oninput="filtrar()">
@@ -105,10 +107,29 @@ input {
 <tbody id="lista"></tbody>
 </table>
 
+<!-- 🟡 AFILIADOS -->
+<h2>💰 Afiliados</h2>
+
+<table>
+<thead>
+<tr>
+<th>Email</th>
+<th>Telefone</th>
+<th>Status</th>
+<th>Saldo</th>
+<th>Ação</th>
+</tr>
+</thead>
+
+<tbody id="afiliados"></tbody>
+</table>
+
 </div>
 
 <script>
 let usuarios = [];
+
+// ================= USUÁRIOS =================
 
 async function carregar() {
   const res = await fetch("/admin/users", {
@@ -186,7 +207,74 @@ async function liberar(id) {
   carregar();
 }
 
+// ================= AFILIADOS =================
+
+async function carregarAfiliados() {
+  const res = await fetch("/admin/afiliados", {
+    headers: {
+      "x-user-id": localStorage.getItem("userId")
+    }
+  });
+
+  const lista = await res.json();
+
+  const tabela = document.getElementById("afiliados");
+  tabela.innerHTML = "";
+
+  lista.forEach(a => {
+    tabela.innerHTML += `
+      <tr>
+        <td>${a.email}</td>
+        <td>${a.telefone || "-"}</td>
+        <td>${a.status}</td>
+        <td>R$ ${a.saldo || 0}</td>
+
+        <td>
+          ${
+            a.status === "pendente"
+              ? `
+            <button onclick="aprovar('${a._id}')">Aprovar</button>
+            <button onclick="recusar('${a._id}')">Recusar</button>
+          `
+              : "-"
+          }
+        </td>
+      </tr>
+    `;
+  });
+}
+
+async function aprovar(id) {
+  await fetch("/admin/aprovar-afiliado", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-user-id": localStorage.getItem("userId")
+    },
+    body: JSON.stringify({ id })
+  });
+
+  carregarAfiliados();
+}
+
+async function recusar(id) {
+  await fetch("/admin/recusar-afiliado", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-user-id": localStorage.getItem("userId")
+    },
+    body: JSON.stringify({ id })
+  });
+
+  carregarAfiliados();
+}
+
+// ================= INIT =================
+
 carregar();
+carregarAfiliados();
+
 </script>
 
 </body>

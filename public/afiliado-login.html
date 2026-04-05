@@ -1,19 +1,113 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Login Afiliado</title>
+  <title>Área do Afiliado</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .box {
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      width: 300px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      text-align: center;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #1a73e8;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .trocar {
+      text-align: center;
+      cursor: pointer;
+      color: #1a73e8;
+      font-size: 14px;
+    }
+  </style>
 </head>
 
 <body>
 
-<h2>💰 Área do Afiliado</h2>
+<div class="box">
 
-<input id="email" placeholder="Email">
-<input id="senha" type="password" placeholder="Senha">
+  <h2 id="titulo">💰 Login Afiliado</h2>
 
-<button onclick="login()">Entrar</button>
+  <!-- LOGIN -->
+  <div id="loginBox">
+    <input id="email" placeholder="Email">
+    <input id="senha" type="password" placeholder="Senha">
+
+    <button onclick="login()">Entrar</button>
+
+    <div class="trocar" onclick="mostrarCadastro()">
+      Criar conta
+    </div>
+  </div>
+
+  <!-- CADASTRO -->
+  <div id="cadastroBox" style="display:none;">
+    <input id="emailCadastro" placeholder="Email">
+    <input id="telefoneCadastro" placeholder="Telefone (5511999999999)">
+    <input id="senhaCadastro" type="password" placeholder="Senha">
+    <input id="confirmarSenha" type="password" placeholder="Confirmar senha">
+
+    <button onclick="registrar()">Criar conta</button>
+
+    <div class="trocar" onclick="mostrarLogin()">
+      Já tenho conta
+    </div>
+  </div>
+
+</div>
 
 <script>
+
+// 🔄 alternar telas
+function mostrarCadastro() {
+  document.getElementById("loginBox").style.display = "none";
+  document.getElementById("cadastroBox").style.display = "block";
+  document.getElementById("titulo").innerText = "📝 Criar Conta";
+}
+
+function mostrarLogin() {
+  document.getElementById("loginBox").style.display = "block";
+  document.getElementById("cadastroBox").style.display = "none";
+  document.getElementById("titulo").innerText = "💰 Login Afiliado";
+}
+
+// 🔐 login
 async function login() {
   const email = document.getElementById("email").value;
   const senha = document.getElementById("senha").value;
@@ -35,6 +129,41 @@ async function login() {
 
   window.location.href = "/afiliado.html";
 }
+
+// 📝 cadastro
+async function registrar() {
+  const email = document.getElementById("emailCadastro").value;
+  const telefone = document.getElementById("telefoneCadastro").value;
+  const senha = document.getElementById("senhaCadastro").value;
+  const confirmar = document.getElementById("confirmarSenha").value;
+
+  if (senha !== confirmar) {
+    alert("Senhas não coincidem");
+    return;
+  }
+
+  if (!telefone.startsWith("55")) {
+    alert("Telefone precisa começar com 55");
+    return;
+  }
+
+  const res = await fetch("/afiliado/register", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ email, telefone, senha })
+  });
+
+  const data = await res.json();
+
+  if (data.erro) {
+    alert(data.erro);
+    return;
+  }
+
+  alert("Conta criada! Aguarde aprovação.");
+  mostrarLogin();
+}
+
 </script>
 
 </body>
