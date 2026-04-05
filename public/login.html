@@ -161,12 +161,18 @@ button:active {
 </div>
 
 <script>
-    const params = new URLSearchParams(window.location.search);
-const ref = params.get("ref");
+   // 🔥 CAPTURA REF MESMO COM REDIRECT
+(function() {
+  const url = window.location.href;
 
-if (ref) {
+  if (url.includes("ref=")) {
+    const ref = url.split("ref=")[1].split("&")[0];
+
     localStorage.setItem("ref", ref);
-}
+
+    console.log("REF SALVO:", ref);
+  }
+})();
 
 // TEMA
 window.onload = function() {
