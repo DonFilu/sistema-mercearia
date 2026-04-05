@@ -219,7 +219,12 @@
            <td>
   ${
     h.itens && h.itens.length > 0
-      ? `<button onclick='abrirNota(${encodeURIComponent(JSON.stringify(h.itens))})'>Ver nota</button>`
+      ? `<button 
+           onclick='abrirNota(this)' 
+           data-itens='${encodeURIComponent(JSON.stringify(h.itens))}'
+         >
+           Ver nota
+         </button>`
       : "-"
   }
 </td>
@@ -284,8 +289,8 @@
                 alert("Erro ao registrar pagamento.");
             }
         }
-        function abrirNota(itens) {
-  itens = JSON.parse(decodeURIComponent(itens));
+       function abrirNota(btn) {
+  const itens = JSON.parse(decodeURIComponent(btn.getAttribute("data-itens")));
 
   const div = document.getElementById("conteudoNota");
   div.innerHTML = "";
@@ -297,11 +302,11 @@
     total += valor;
 
     div.innerHTML += `
-  <div style="display:flex; justify-content:space-between; border-bottom:1px solid #ddd; padding:5px 0;">
-    <span>🛒 ${i.nome}</span>
-    <strong>${i.qtd}x</strong>
-  </div>
-`;
+      <div style="display:flex; justify-content:space-between; border-bottom:1px solid #ddd; padding:5px 0;">
+        <span>🛒 ${i.nome}</span>
+        <strong>${i.qtd}x</strong>
+      </div>
+    `;
   });
 
   div.innerHTML += `<hr><strong>Total: R$ ${total.toFixed(2)}</strong>`;
