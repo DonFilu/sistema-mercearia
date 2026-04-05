@@ -7,6 +7,12 @@ const axios = require("axios");
 const app = express();
 
 app.use(express.json());
+// 🔥 FORÇA IR PRO LOGIN
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "login.html"));
+});
+
+// depois disso:
 app.use(express.static(path.join(__dirname, "public")));
 
 const MONGO_URI = process.env.MONGODB_URI;
@@ -774,13 +780,6 @@ app.post("/admin/liberar", async (req, res) => {
     console.error(err);
     res.status(500).json({ erro: "Erro ao liberar plano" });
   }
-});
-/* =============================
-   FRONTEND
-============================= */
-
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "login.html"));
 });
 
 /* =============================
