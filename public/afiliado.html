@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Painel Afiliado</title>
+</head>
+
+<body>
+
+<h2>💰 Painel do Afiliado</h2>
+
+<p id="saldo"></p>
+
+<button onclick="sacar()">Sacar tudo</button>
+
+<script>
+if (!localStorage.getItem("afiliadoId")) {
+  window.location.href = "/afiliado-login.html";
+}
+
+async function carregar() {
+  const res = await fetch("/afiliado/dados", {
+    headers: {
+      "x-afiliado-id": localStorage.getItem("afiliadoId")
+    }
+  });
+
+  const data = await res.json();
+
+  document.getElementById("saldo").innerText =
+    "Saldo: R$ " + (data.saldo || 0);
+}
+
+async function sacar() {
+  await fetch("/afiliado/sacar", {
+    method: "POST",
+    headers: {
+      "x-afiliado-id": localStorage.getItem("afiliadoId")
+    }
+  });
+
+  alert("Solicitação enviada!");
+  carregar();
+}
+
+carregar();
+</script>
+
+</body>
+</html>

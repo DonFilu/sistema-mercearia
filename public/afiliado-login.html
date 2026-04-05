@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Login Afiliado</title>
+</head>
+
+<body>
+
+<h2>💰 Área do Afiliado</h2>
+
+<input id="email" placeholder="Email">
+<input id="senha" type="password" placeholder="Senha">
+
+<button onclick="login()">Entrar</button>
+
+<script>
+async function login() {
+  const email = document.getElementById("email").value;
+  const senha = document.getElementById("senha").value;
+
+  const res = await fetch("/afiliado/login", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ email, senha })
+  });
+
+  const data = await res.json();
+
+  if (data.erro) {
+    alert(data.erro);
+    return;
+  }
+
+  localStorage.setItem("afiliadoId", data.afiliadoId);
+
+  window.location.href = "/afiliado.html";
+}
+</script>
+
+</body>
+</html>
