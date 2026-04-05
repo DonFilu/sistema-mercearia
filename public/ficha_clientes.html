@@ -298,8 +298,8 @@
   let total = 0;
 
   itens.forEach(i => {
-    const valor = Number(i.preco || 0) * Number(i.qtd || 0);
-    total += valor;
+    const valor = Number(i.preco || i.valor || 0) * Number(i.qtd || 0);
+total += valor;
 
     div.innerHTML += `
       <div style="display:flex; justify-content:space-between; border-bottom:1px solid #ddd; padding:5px 0;">
