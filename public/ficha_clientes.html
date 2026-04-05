@@ -58,7 +58,15 @@
         .btn-modal { padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 20px; background: var(--cor-principal); color: white; width: 100%; }
     </style>
 </head>
+
 <body>
+    <div id="modalNotaOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:2000; justify-content:center; align-items:center;">
+  <div style="background:white; padding:20px; border-radius:10px; width:400px; max-height:80%; overflow:auto;">
+    <h3>🧾 Nota da Compra</h3>
+    <div id="conteudoNota"></div>
+    <button onclick="fecharNota()" style="margin-top:15px;">Fechar</button>
+  </div>
+</div>
 
     <div id="modalOverlay">
         <div class="modal">
@@ -208,7 +216,13 @@
                 ${h.metodo === 'Pagamento Parcial' ? '✅ Pagamento' : '🛒 Compra'}
             </td>
             <td>R$ ${Number(h.valor || 0).toFixed(2)}</td>
-            <td style="font-size:12px; opacity:0.7;">${itens || "-"}</td>
+           <td>
+  ${
+    h.itens && h.itens.length > 0
+      ? `<button onclick='abrirNota(${encodeURIComponent(JSON.stringify(h.itens))})'>Ver nota</button>`
+      : "-"
+  }
+</td>
         </tr>
     `;
 }).join('')}
@@ -270,6 +284,51 @@
                 alert("Erro ao registrar pagamento.");
             }
         }
+        function abrirNota(itens) {
+  itens = JSON.parse(decodeURIComponent(itens));
+
+  const div = document.getElementById("conteudoNota");
+  div.innerHTML = "";
+
+  let total = 0;
+
+  itens.forEach(i => {
+    const valor = Number(i.preco || 0) * Number(i.qtd || 0);
+    total += valor;
+
+    div.innerHTML += `
+  <div style="display:flex; justify-content:space-between; border-bottom:1px solid #ddd; padding:5px 0;">
+    <span>🛒 ${i.nome}</span>
+    <strong>${i.qtd}x</strong>
+  </div>
+`;
+  });
+
+  div.innerHTML += `<hr><strong>Total: R$ ${total.toFixed(2)}</strong>`;
+
+  document.getElementById("modalNotaOverlay").style.display = "flex";
+}
+
+function fecharNota() {
+  document.getElementById("modalNotaOverlay").style.display = "none";
+}
+
+// 🔥 EXECUTA DEPOIS QUE A PÁGINA CARREGAR
+window.addEventListener("load", () => {
+
+  // fechar clicando fora
+  document.getElementById("modalNotaOverlay").addEventListener("click", (e) => {
+    if (e.target.id === "modalNotaOverlay") {
+      fecharNota();
+    }
+  });
+
+  // fechar com ESC
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") fecharNota();
+  });
+
+});
     </script>
 </body>
 </html>
