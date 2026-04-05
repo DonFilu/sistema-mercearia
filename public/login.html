@@ -161,6 +161,12 @@ button:active {
 </div>
 
 <script>
+    const params = new URLSearchParams(window.location.search);
+const ref = params.get("ref");
+
+if (ref) {
+    localStorage.setItem("ref", ref);
+}
 
 // TEMA
 window.onload = function() {
@@ -204,7 +210,7 @@ async function entrar() {
     const res = await fetch("/login", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ email, senha })
+      body: JSON.stringify({ email, senha })
     });
 
     if (!res.ok) {
@@ -239,7 +245,11 @@ async function criarConta() {
     const res = await fetch("/register", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ email, senha })
+       body: JSON.stringify({ 
+  email, 
+  senha,
+  ref: localStorage.getItem("ref") // 👈 AQUI SIM
+})
     });
 
     const data = await res.json();
@@ -249,8 +259,12 @@ async function criarConta() {
         return;
     }
 
-    alert("Conta criada com sucesso!");
-    voltar();
+   alert("Conta criada com sucesso!");
+
+// 👇 ADICIONA AQUI
+localStorage.removeItem("ref");
+
+voltar();
 }
 
 </script>
