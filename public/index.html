@@ -195,6 +195,7 @@
         let codigoNaoCadastrado = "";
         let produtosLista = [];
         let clientesLista = [];
+        let vendaEmProcessamento = false;
 
         window.onload = async () => {
             await verificarVencimento();
@@ -526,98 +527,120 @@ produtosLista = await resposta.json();
         }
 
         async function finalizarCompra() {
-            const total = totalGeral;
-            const pago = obterSomaEscrita();
-            const troco = Math.max(0, pago - total);
-            const cliente = document.getElementById('selecionarCliente').value;
-            const fiadoVal = parseFloat(document.getElementById('p_fiado').value) || 0;
 
-            if (fiadoVal > 0 && cliente === "Consumidor Final") {
-                return avisar("Erro no Fiado", "Selecione um cliente.");
+    if (vendaEmProcessamento) return;
+
+    vendaEmProcessamento = true;
+
+    const botao = document.getElementById('btnFinalizar');
+    botao.disabled = true;
+    botao.innerText = "PROCESSANDO...";
+
+    try {
+
+        const vendaId = crypto.randomUUID();
+
+        const total = totalGeral;
+        const pago = obterSomaEscrita();
+        const cliente = document.getElementById('selecionarCliente').value;
+        const fiadoVal = parseFloat(document.getElementById('p_fiado').value) || 0;
+
+        if (fiadoVal > 0 && cliente === "Consumidor Final") {
+            throw new Error("Selecione um cliente para fiado");
+        }
+
+        const agora = new Date().toLocaleString('pt-br');
+
+        let formas = [
+            {id:'p_dinheiro', n:'Dinheiro'}, 
+            {id:'p_pix', n:'Pix'}, 
+            {id:'p_cartao', n:'Cartão'}, 
+            {id:'p_fiado', n:'Fiado'}
+        ];
+
+        let pagamentos = [];
+        let valorFiado = 0;
+        let restante = total;
+
+        formas.forEach(f => {
+            let valor = parseFloat(document.getElementById(f.id).value) || 0;
+
+            if (valor <= 0) return;
+
+            if (f.n === "Fiado") {
+                valorFiado += valor;
+                return;
             }
 
-            const agora = new Date().toLocaleString('pt-br');
+            if (restante <= 0) return;
 
-          let formas = [
-    {id:'p_dinheiro', n:'Dinheiro'}, 
-    {id:'p_pix', n:'Pix'}, 
-    {id:'p_cartao', n:'Cartão'}, 
-    {id:'p_fiado', n:'Fiado'}
-];
+            let usado = Math.min(valor, restante);
 
-let pagamentos = [];
-let valorFiado = 0;
+            pagamentos.push({
+                metodo: f.n,
+                valor: usado
+            });
 
-let restante = total;
+            restante -= usado;
+        });
 
-formas.forEach(f => {
-    let valor = parseFloat(document.getElementById(f.id).value) || 0;
+        // 🔥 SALVAR VENDA (OBRIGATÓRIO FUNCIONAR)
+        const res = await apiFetch("/vendas", {
+            method: "POST",
+            body: JSON.stringify({
+                vendaId,
+                data: agora,
+                cliente,
+                itens: itensCarrinho,
+                total: totalGeral,
+                desconto: parseFloat(document.getElementById('valorDesconto').value) || 0,
+                pagamentos
+            })
+        });
 
-    if (valor <= 0) return;
+        if (!res || res.status !== 200) {
+            throw new Error("Erro ao salvar venda");
+        }
 
-    if (f.n === "Fiado") {
-        valorFiado += valor;
-        return;
-    }
-
-    if (restante <= 0) return;
-
-    let usado = Math.min(valor, restante);
-
-    pagamentos.push({
-        metodo: f.n,
-        valor: usado
-    });
-
-    restante -= usado;
-});
-
-        
+        // 🔥 FIADO (PODE FALHAR SEM QUEBRAR VENDA)
+        if (valorFiado > 0) {
             try {
-                await apiFetch("/vendas", {
-                    
+                await apiFetch("/fiados/compra", {
                     method: "POST",
                     body: JSON.stringify({
                         data: agora,
-                        cliente: cliente,
-                        itens: itensCarrinho,
-                        total: totalGeral,
-                        desconto: parseFloat(document.getElementById('valorDesconto').value) || 0,
-                         pagamentos: pagamentos
-                         
-    })
-});
+                        cliente,
+                        valor: valorFiado,
+                        metodo: "Fiado",
+                        itens: itensCarrinho
+                    })
+                });
             } catch (err) {
-                console.warn("Rota /vendas ainda não disponível. Mantido histórico local.");
+                console.warn("Erro no fiado, salvo localmente");
+                let fichas = JSON.parse(localStorage.getItem('fichasAtivas')) || [];
+                fichas.push({ data: agora, cliente, valor: valorFiado, metodo: 'Fiado' });
+                localStorage.setItem('fichasAtivas', JSON.stringify(fichas));
             }
-
-            if (valorFiado > 0) {
-                try {
-                    await apiFetch("/fiados/compra", {
-                        method: "POST",
-                        body: JSON.stringify({
-                            data: agora,
-                            cliente: cliente,
-                            valor: valorFiado,
-                            metodo: "Fiado",
-                            itens: itensCarrinho   // 👈 ESSA LINHA NOVA
-                        })
-                    });
-                } catch (err) {
-                    console.warn("Rota /fiados/compra ainda não disponível. Mantido fiado local.");
-                    let fichas = JSON.parse(localStorage.getItem('fichasAtivas')) || [];
-                    fichas.push({ data: agora, cliente: cliente, valor: valorFiado, metodo: 'Fiado' });
-                    localStorage.setItem('fichasAtivas', JSON.stringify(fichas));
-                }
-            }
-
-        
-            
-
-            avisar("✅ Venda Finalizada", "Sucesso!", true);
-
-            
         }
+       try {
+    await atualizarEstoqueNoServidor();
+} catch (err) {
+    console.warn("Erro ao atualizar estoque");
+}
+
+avisar("✅ Venda Finalizada", "Sucesso!", true);
+
+    } catch (err) {
+        console.error(err);
+        alert(err.message || "Erro ao finalizar venda");
+    } finally {
+        vendaEmProcessamento = false;
+
+        const botao = document.getElementById('btnFinalizar');
+        botao.disabled = false;
+        botao.innerText = "FINALIZAR (F2)";
+    }
+}
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'F2' && !document.getElementById('btnFinalizar').disabled) finalizarCompra();
