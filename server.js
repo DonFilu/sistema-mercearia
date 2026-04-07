@@ -134,6 +134,8 @@ const Cliente = mongoose.models.Cliente || mongoose.model(
     tenantId: String,
     nome: String,
     telefone: String,
+    cpf: String, // 🔥 NOVO
+    limiteFiado: { type: Number, default: 0 }, // 🔥 NOVO
     fiado: Number
   })
 );
@@ -154,6 +156,7 @@ const Venda = mongoose.models.Venda || mongoose.model(
   "Venda",
   new mongoose.Schema({
     tenantId: String,
+    vendaId: String, // 🔥 ADICIONA ISSO
     data: String,
     cliente: String,
     itens: Array,
@@ -634,36 +637,51 @@ app.get("/vendas", async (req, res) => {
 });
 
 app.post("/vendas", async (req, res) => {
+  const { vendaId } = req.body;
+
+if (vendaId) {
+  const existente = await Venda.findOne({
+    tenantId: req.tenantId,
+    vendaId: vendaId
+  });
+
+  if (existente) {
+    return res.status(409).json({ 
+      erro: "Venda duplicada" 
+    });
+  }
+}
+
   try {
     const { itens, cliente, data, desconto, pagamentos } = req.body;
 
     let totalCalculado = 0;
 
     for (const item of itens) {
-      const produto = await Produto.findOne({
-        codigo: item.cod,
-        tenantId: req.tenantId
-      });
 
-      if (!produto) {
-        return res.status(400).json({ erro: `Produto não encontrado: ${item.cod}` });
-      }
+  const produto = await Produto.findOneAndUpdate(
+    {
+      codigo: item.cod,
+      tenantId: req.tenantId,
+      estoque: { $gte: item.qtd } // 🔥 garante estoque suficiente
+    },
+    {
+      $inc: { estoque: -item.qtd }
+    },
+    { new: true }
+  );
 
-      if (produto.estoque < item.qtd) {
-        return res.status(400).json({
-          erro: `Estoque insuficiente para ${produto.nome}`
-        });
-      }
+  if (!produto) {
+    return res.status(400).json({
+      erro: `Estoque insuficiente para produto ${item.cod}`
+    });
+  }
 
-      // soma total real
-      totalCalculado += produto.preco * item.qtd;
-
-      // 🔥 baixa estoque AQUI (CORRETO)
-      produto.estoque -= item.qtd;
-      await produto.save();
-    }
+  totalCalculado += produto.preco * item.qtd;
+}
 
     const venda = new Venda({
+      vendaId: req.body.vendaId,
       tenantId: req.tenantId,
       data,
       cliente,

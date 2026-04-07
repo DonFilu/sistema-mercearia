@@ -550,6 +550,44 @@ produtosLista = await resposta.json();
         }
 
         const agora = new Date().toLocaleString('pt-br');
+        const clienteSelecionado = clientesLista.find(c => c.nome === cliente);
+
+if (fiadoVal > 0 && clienteSelecionado) {
+
+    const limite = clienteSelecionado.limiteFiado || 0;
+
+    // 🔥 buscar histórico de fiado
+   let fichas = [];
+
+try {
+    const resFiados = await apiFetch("/fiados");
+
+    if (resFiados && resFiados.status === 200) {
+        fichas = await resFiados.json();
+    } else {
+        throw new Error();
+    }
+
+} catch (err) {
+    console.warn("Erro ao buscar fiados, assumindo 0");
+    fichas = [];
+}
+
+    let dividaAtual = fichas
+        .filter(f => f.cliente === cliente)
+        .reduce((acc, f) => {
+            if (f.metodo === "Fiado") return acc + f.valor;
+            else return acc - f.valor;
+        }, 0);
+
+    const novaDivida = dividaAtual + fiadoVal;
+
+    if (novaDivida > limite) {
+        throw new Error(
+            `🚫 Limite de fiado atingido!\n\nAtual: R$ ${dividaAtual.toFixed(2)}\nLimite: R$ ${limite.toFixed(2)}`
+        );
+    }
+}
 
         let formas = [
             {id:'p_dinheiro', n:'Dinheiro'}, 

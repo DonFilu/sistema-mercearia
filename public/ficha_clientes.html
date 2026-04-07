@@ -109,6 +109,7 @@
     });
 }
         let fichasCache = [];
+        let clientesLista = [];
 
         window.onload = function() {
             if (localStorage.getItem('logado') !== 'true') {
@@ -153,6 +154,8 @@
             try {
                 const resposta = await apiFetch("/fiados");
                 fichasCache = await resposta.json();
+                const resClientes = await apiFetch("/clientes");
+clientesLista = await resClientes.json();
 
                 if (!Array.isArray(fichasCache) || fichasCache.length === 0) {
                     listaContainer.innerHTML = '<div style="text-align:center; padding:50px; opacity:0.5;">Não há contas pendentes registradas.</div>';
@@ -177,12 +180,26 @@
 
                     const nomeSeguro = nome.replace(/'/g, "\\'");
 
-                    listaContainer.innerHTML += `
-                        <div class="cliente-card" data-nome="${nome}">
-                            <div class="cliente-header">
-                                <span class="cliente-nome">👤 ${nome}</span>
-                                <span class="total-divida">R$ ${ficha.saldo.toFixed(2)}</span>
-                            </div>
+                    const clienteInfo = clientesLista.find(c => c.nome === nome) || {};
+const limite = clienteInfo.limiteFiado || 0;
+const disponivel = Math.max(0, limite - ficha.saldo);
+
+listaContainer.innerHTML += `
+    <div class="cliente-card" data-nome="${nome}">
+        <div class="cliente-header">
+            <span class="cliente-nome">👤 ${nome}</span>
+            <div style="text-align:right;">
+                <div class="total-divida">R$ ${ficha.saldo.toFixed(2)}</div>
+                <div style="font-size:12px; ${
+    ficha.saldo > limite ? 'color:red;' :
+    ficha.saldo > limite * 0.8 ? 'color:orange;' :
+    'color:green;'
+}">
+                    Limite: R$ ${limite.toFixed(2)}<br>
+                    Disponível: R$ ${disponivel.toFixed(2)}
+                </div>
+            </div>
+        </div>
                             <div class="painel-pagamento">
                                 <div class="campo-input">
                                     <label>Valor que o cliente pagou:</label>
