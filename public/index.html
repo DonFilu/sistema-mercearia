@@ -552,6 +552,15 @@ produtosLista = await resposta.json();
         const agora = new Date().toLocaleString('pt-br');
         const clienteSelecionado = clientesLista.find(c => c.nome === cliente);
 
+// 🔥 VALIDAÇÃO FORTE
+if (fiadoVal > 0) {
+
+    if (cliente === "Consumidor Final" || !clienteSelecionado) {
+        throw new Error("Selecione um cliente válido para fiado");
+    }
+
+}
+
 if (fiadoVal > 0 && clienteSelecionado) {
 
     const limite = clienteSelecionado.limiteFiado || 0;
