@@ -145,7 +145,7 @@ const Fiado = mongoose.models.Fiado || mongoose.model(
   new mongoose.Schema({
     tenantId: String,
     data: String,
-    cliente: String,
+    clienteId: String,
     valor: Number,
     metodo: String,
    itens: Array // 👈 ADICIONA ISSO
@@ -576,12 +576,83 @@ app.post("/clientes", async (req, res) => {
 });
 
 app.delete("/clientes/:id", async (req, res) => {
-  await Cliente.deleteOne({
-    _id: req.params.id,
-    tenantId: req.tenantId
-  });
+  try {
 
-  res.json({ status: "ok" });
+    // 🔍 busca cliente
+    const cliente = await Cliente.findOne({
+      _id: req.params.id,
+      tenantId: req.tenantId
+    });
+
+    if (!cliente) {
+      return res.status(404).json({ erro: "Cliente não encontrado" });
+    }
+
+    // 🔥 CALCULA DÍVIDA
+    const divida = await Fiado.aggregate([
+      {
+        $match: {
+          clienteId: cliente._id.toString(),
+          tenantId: req.tenantId
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$valor" }
+        }
+      }
+    ]);
+
+    const totalDivida = divida[0]?.total || 0;
+
+    // 🚫 BLOQUEIA EXCLUSÃO
+    if (totalDivida > 0) {
+      return res.status(400).json({
+        erro: "Cliente possui dívida e não pode ser excluído"
+      });
+    }
+
+    // 🗑️ DELETE NORMAL
+    await Cliente.deleteOne({
+      _id: req.params.id,
+      tenantId: req.tenantId
+    });
+
+    res.json({ status: "ok" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ erro: "Erro ao excluir cliente" });
+  }
+});
+app.put("/clientes/:id", async (req, res) => {
+  try {
+
+    const cliente = await Cliente.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        tenantId: req.tenantId
+      },
+      {
+        nome: req.body.nome,
+        telefone: req.body.telefone,
+        cpf: req.body.cpf,
+        limiteFiado: req.body.limiteFiado
+      },
+      { new: true }
+    );
+
+    if (!cliente) {
+      return res.status(404).json({ erro: "Cliente não encontrado" });
+    }
+
+    res.json(cliente);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ erro: "Erro ao atualizar cliente" });
+  }
 });
 
 /* =============================
@@ -597,7 +668,7 @@ app.post("/fiados/compra", async (req, res) => {
   const registro = new Fiado({
     tenantId: req.tenantId,
     data: req.body.data || new Date().toLocaleString("pt-br"),
-    cliente: req.body.cliente,
+    clienteId: req.body.clienteId,
     valor: req.body.valor,
     metodo: "Fiado",
     itens: req.body.itens || [] // 👈 AQUI
