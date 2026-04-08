@@ -657,24 +657,45 @@ if (vendaId) {
 
     let totalCalculado = 0;
 
-    for (const item of itens) {
+    const estoqueAtivado = req.headers["x-estoque"] === "true";
 
-  const produto = await Produto.findOneAndUpdate(
-    {
+for (const item of itens) {
+
+  let produto;
+
+  if (estoqueAtivado) {
+
+    produto = await Produto.findOneAndUpdate(
+      {
+        codigo: item.cod,
+        tenantId: req.tenantId,
+        estoque: { $gte: item.qtd }
+      },
+      {
+        $inc: { estoque: -item.qtd }
+      },
+      { new: true }
+    );
+
+    if (!produto) {
+      return res.status(400).json({
+        erro: `Estoque insuficiente para produto ${item.cod}`
+      });
+    }
+
+  } else {
+
+    produto = await Produto.findOne({
       codigo: item.cod,
-      tenantId: req.tenantId,
-      estoque: { $gte: item.qtd } // 🔥 garante estoque suficiente
-    },
-    {
-      $inc: { estoque: -item.qtd }
-    },
-    { new: true }
-  );
-
-  if (!produto) {
-    return res.status(400).json({
-      erro: `Estoque insuficiente para produto ${item.cod}`
+      tenantId: req.tenantId
     });
+
+    if (!produto) {
+      return res.status(400).json({
+        erro: `Produto não encontrado ${item.cod}`
+      });
+    }
+
   }
 
   totalCalculado += produto.preco * item.qtd;

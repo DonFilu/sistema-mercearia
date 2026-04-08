@@ -168,6 +168,7 @@
 
     if (userId) {
         options.headers["x-user-id"] = userId;
+        options.headers["x-estoque"] = localStorage.getItem('estoqueAtivado');
     }
 
     try {
@@ -329,11 +330,10 @@ produtosLista = await resposta.json();
         }
 
         function obterSomaEscrita() {
-            return (parseFloat(document.getElementById('p_dinheiro').value) || 0) +
-                   (parseFloat(document.getElementById('p_pix').value) || 0) +
-                   (parseFloat(document.getElementById('p_cartao').value) || 0) +
-                   (parseFloat(document.getElementById('p_fiado').value) || 0);
-        }
+    return (parseFloat(document.getElementById('p_dinheiro').value) || 0) +
+           (parseFloat(document.getElementById('p_pix').value) || 0) +
+           (parseFloat(document.getElementById('p_cartao').value) || 0);
+}
 
         function atualizarSomaPagamentos() {
             let pago = obterSomaEscrita();
