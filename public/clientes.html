@@ -119,6 +119,7 @@
 }
 
 let clientesBD = [];
+let clienteEditandoId = null;
 
 
 window.onload = function() {
@@ -155,6 +156,27 @@ const limiteFiado = parseFloat(document.getElementById('limiteFiado').value) || 
 
 if (!nome) return alert("O nome do cliente é obrigatório!");
 
+try {
+
+// 🔥 EDITAR CLIENTE
+if (clienteEditandoId) {
+
+await apiFetch(`/clientes/${clienteEditandoId}`, {
+method: "PUT",
+body: JSON.stringify({
+    nome: nome,
+    telefone: tel,
+    cpf: cpf,
+    limiteFiado: limiteFiado
+})
+});
+
+alert("Cliente atualizado!");
+
+} else {
+
+// 🔥 NOVO CLIENTE
+
 const existe = clientesBD.some(c => c.nome.toLowerCase() === nome.toLowerCase());
 if (existe) return alert("Este cliente já está cadastrado!");
 
@@ -163,19 +185,31 @@ method: "POST",
 body: JSON.stringify({
     nome: nome,
     telefone: tel,
-    cpf: cpf, // 🔥 NOVO
-    limiteFiado: limiteFiado, // 🔥 NOVO
+    cpf: cpf,
+    limiteFiado: limiteFiado,
     fiado: 0
 })
 });
 
-// limpar campos
+alert("Cliente cadastrado!");
+}
+
+// 🔥 RESET
+clienteEditandoId = null;
+
 document.getElementById('nomeCliente').value = "";
 document.getElementById('telCliente').value = "";
 document.getElementById('cpfCliente').value = "";
 document.getElementById('limiteFiado').value = "";
 
+document.querySelector('.btn-salvar').innerText = "CADASTRAR CLIENTE";
+
 carregarClientes();
+
+} catch (err) {
+console.error(err);
+alert("Erro ao salvar cliente");
+}
 }
 
 function renderizar(dados) {
@@ -190,8 +224,8 @@ tbody.innerHTML += `
 <td><b>${c.nome}</b></td>
 <td>${c.telefone || '---'}</td>
 <td>
-<button class="btn-excluir" onclick="excluirCliente('${c._id}')">🗑️</button>
-</td>
+<button onclick="editarCliente('${c._id}')">✏️</button>
+<button class="btn-excluir" onclick="excluirCliente('${c._id}')">🗑️</button></td>
 </tr>
 `;
 
@@ -223,6 +257,21 @@ method: "DELETE"
 
 carregarClientes();
 }
+}
+function editarCliente(id) {
+
+const cliente = clientesBD.find(c => c._id === id);
+if (!cliente) return;
+
+clienteEditandoId = id;
+
+document.getElementById('nomeCliente').value = cliente.nome || "";
+document.getElementById('telCliente').value = cliente.telefone || "";
+document.getElementById('cpfCliente').value = cliente.cpf || "";
+document.getElementById('limiteFiado').value = cliente.limiteFiado || 0;
+
+// muda botão
+document.querySelector('.btn-salvar').innerText = "ATUALIZAR CLIENTE";
 }
 
 </script>
