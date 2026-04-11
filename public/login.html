@@ -167,6 +167,29 @@ button:active {
     margin-top: 10px;
     color: #ffd700;
 }
+.cta {
+    margin-top: 20px;
+    width: auto;
+    padding: 15px 25px;
+    font-size: 16px;
+}
+
+.prova {
+    margin-top: 40px;
+    font-size: 16px;
+    opacity: 0.9;
+}
+
+.bio {
+    margin-top: 60px;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
+    padding: 25px;
+    border-radius: 15px;
+}
 </style>
 <body>
 
@@ -188,35 +211,46 @@ cursor: pointer;
 Abrir Login
 </button>
 
-    <h1 class="titulo-site">Sistema de Mercearia</h1>
-    <p class="sub-site">Controle vendas, estoque e clientes em um só lugar</p>
-    <div class="bio">
+    <!-- HERO -->
+    <h1 class="titulo-site">
+        O sistema que sua mercearia precisa para crescer 🚀
+    </h1>
 
-    <h2>🚀 Teste grátis por 7 dias</h2>
-
-    <p>
-        Experimente o sistema completo de mercearia totalmente grátis por 7 dias.
-        Controle vendas, estoque, clientes e fiado de forma simples e profissional.
+    <p class="sub-site">
+        Controle vendas, estoque e fiado sem complicação
     </p>
 
-    <p>
-        Após o período de teste, você pode continuar usando por apenas:
-    </p>
+    <button class="cta" onclick="abrirLogin()">
+        COMEÇAR AGORA
+    </button>
 
-    <h3>💰 Primeira mensalidade: R$19</h3>
-    <h3>💎 Plano mensal: R$29</h3>
-
-    <p style="margin-top:10px;">
-        Sem compromisso. Cancele quando quiser.
-    </p>
-
-</div>
-
+    <!-- BENEFÍCIOS -->
     <div class="cards">
-        <div class="card">📦 Controle de Estoque</div>
-        <div class="card">💰 Vendas rápidas</div>
-        <div class="card">🧾 Controle de Fiado</div>
+        <div class="card">📦 Controle automático de estoque</div>
+        <div class="card">💰 Vendas rápidas e organizadas</div>
+        <div class="card">🧾 Controle de fiado com limite</div>
         <div class="card">📊 Relatórios completos</div>
+    </div>
+
+    <!-- PROVA SOCIAL -->
+    <div class="prova">
+        ⭐ Mais de 100 mercearias já utilizam o sistema
+    </div>
+
+    <!-- OFERTA -->
+    <div class="bio">
+        <h2>🔥 Teste grátis por 7 dias</h2>
+
+        <p>
+            Use todas as funções sem pagar nada por 7 dias.
+        </p>
+
+        <h3>💰 Primeira mensalidade: R$19</h3>
+        <h3>💎 Plano mensal: R$29</h3>
+
+        <button class="cta" onclick="abrirLogin()">
+            TESTAR GRÁTIS AGORA
+        </button>
     </div>
 
 </div>
