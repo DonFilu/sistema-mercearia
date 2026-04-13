@@ -128,7 +128,34 @@
                 <button class="btn btn-limpar" onclick="limparHistoricoGeral()">⚠️ Limpar Tudo (Reset Geral)</button>
             </div>
         </div>
+<div class="card">
+    <h2>📊 Dashboard Inteligente</h2>
 
+    <div class="resumo-caixa">
+
+        <div class="resumo-item" style="border-color:#28a745;">
+            <span>Receita Total</span>
+            <b id="dashReceita">R$ 0,00</b>
+        </div>
+
+        <div class="resumo-item" style="border-color:#dc3545;">
+            <span>Fiado em Aberto</span>
+            <b id="dashFiado">R$ 0,00</b>
+        </div>
+
+        <div class="resumo-item">
+            <span>Clientes Ativos</span>
+            <b id="dashClientes">0</b>
+        </div>
+
+    </div>
+
+    <h3>🏆 Top Clientes</h3>
+    <div id="topClientes"></div>
+
+    <h3>⚠️ Maiores Devedores</h3>
+    <div id="topDevedores"></div>
+</div>
         <div class="grid-graficos">
             <div class="card full-width"><h3>📅 Movimentação Recente (7 dias)</h3><canvas id="chartSemana"></canvas></div>
             <div class="card"><h3>🗓️ Faturamento Mensal</h3><canvas id="chartMes"></canvas></div>
@@ -343,7 +370,7 @@ document.getElementById('resAno').innerText = `R$ ${totalAno.toFixed(2)}`;
             
             const nomeMes = document.getElementById('filtroMes').options[mesSel].text;
             document.getElementById('tituloRelatorio').innerText = `📊 Movimentação: ${nomeMes} / ${anoSel}`;
-
+            gerarDashboard(historicoOrdenado);
             renderizarGraficos(dadosSemana, dadosMes, dadosAno);
         }
 
@@ -386,6 +413,59 @@ document.getElementById('resAno').innerText = `R$ ${totalAno.toFixed(2)}`;
                 }
             }
         }
+        function gerarDashboard(historico) {
+
+    let receita = 0;
+    let fiadoTotal = 0;
+
+    const clientes = {};
+
+    historico.forEach(v => {
+        
+        const valor = Number(v.valor || 0);
+        const nome = v.cliente || "Desconhecido";
+
+        if (!clientes[nome]) {
+            clientes[nome] = { gasto: 0, divida: 0 };
+        }
+
+        if (v.metodo === "Fiado") {
+    clientes[nome].divida += valor;
+}
+
+else if (v.metodo === "Pagamento Parcial") {
+    clientes[nome].divida = Math.max(0, clientes[nome].divida - valor);
+    receita += valor;
+}
+        else {
+            receita += valor;
+            clientes[nome].gasto += valor;
+        }
+    });
+    fiadoTotal = Object.values(clientes)
+    .reduce((total, c) => total + Math.max(c.divida, 0), 0);
+
+    // atualizar cards
+    document.getElementById("dashReceita").innerText = `R$ ${receita.toFixed(2)}`;
+    document.getElementById("dashFiado").innerText = `R$ ${fiadoTotal.toFixed(2)}`;
+    document.getElementById("dashClientes").innerText = Object.keys(clientes).length;
+
+    // top clientes
+    const top = Object.entries(clientes)
+        .sort((a, b) => b[1].gasto - a[1].gasto)
+        .slice(0, 5);
+
+    document.getElementById("topClientes").innerHTML =
+        top.map(c => `<div>👤 ${c[0]} — R$ ${c[1].gasto.toFixed(2)}</div>`).join("");
+
+    // maiores devedores
+    const devedores = Object.entries(clientes)
+        .sort((a, b) => b[1].divida - a[1].divida)
+        .slice(0, 5);
+
+    document.getElementById("topDevedores").innerHTML =
+        devedores.map(c => `<div style="color:#dc3545;">⚠️ ${c[0]} — R$ ${c[1].divida.toFixed(2)}</div>`).join("");
+}
     </script>
 </body>
 </html>
