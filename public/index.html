@@ -239,7 +239,7 @@ clientesLista = await resposta.json();
 
                 clientesLista.forEach(c => {
                     let opt = document.createElement('option');
-                    opt.value = c.nome;
+                    opt.value = c._id;
                     opt.text = c.nome;
                     select.appendChild(opt);
                 });
@@ -571,6 +571,7 @@ const pagoOutros = (dinheiro + pix + cartao) - (parseFloat(campo.value) || 0);
 }
 
         const cliente = document.getElementById('selecionarCliente').value;
+        
         const fiadoVal = parseFloat(document.getElementById('p_fiado').value) || 0;
         const dinheiro = parseFloat(document.getElementById('p_dinheiro').value) || 0;
 const pix = parseFloat(document.getElementById('p_pix').value) || 0;
@@ -588,7 +589,7 @@ if (fiadoVal > total + 0.01) {
         }
 
         const agora = new Date().toLocaleString('pt-br');
-        const clienteSelecionado = clientesLista.find(c => c.nome === cliente);
+        const clienteSelecionado = clientesLista.find(c => c._id === cliente);
 
 // 🔥 VALIDAÇÃO FORTE
 if (fiadoVal > 0) {
@@ -621,7 +622,7 @@ try {
 }
 
     let dividaAtual = fichas
-        .filter(f => f.cliente === cliente)
+        .filter(f => f.clienteId === cliente)
         .reduce((acc, f) => {
             if (f.metodo === "Fiado") return acc + f.valor;
             else return acc - f.valor;
@@ -673,14 +674,14 @@ try {
         const res = await apiFetch("/vendas", {
             method: "POST",
             body: JSON.stringify({
-                vendaId,
-                data: agora,
-                cliente,
-                itens: itensCarrinho,
-                total: totalGeral,
-                desconto: parseFloat(document.getElementById('valorDesconto').value) || 0,
-                pagamentos
-            })
+    vendaId,
+    data: agora,
+    clienteId: cliente,
+    itens: itensCarrinho,
+    total: totalGeral,
+    desconto: parseFloat(document.getElementById('valorDesconto').value) || 0,
+    pagamentos
+})
         });
 
         if (!res || res.status !== 200) {
@@ -693,17 +694,17 @@ try {
                 await apiFetch("/fiados/compra", {
                     method: "POST",
                     body: JSON.stringify({
-                        data: agora,
-                        cliente,
-                        valor: valorFiado,
-                        metodo: "Fiado",
-                        itens: itensCarrinho
-                    })
+    data: agora,
+    clienteId: cliente,
+    valor: valorFiado,
+    metodo: "Fiado",
+    itens: itensCarrinho
+})
                 });
             } catch (err) {
                 console.warn("Erro no fiado, salvo localmente");
                 let fichas = JSON.parse(localStorage.getItem('fichasAtivas')) || [];
-                fichas.push({ data: agora, cliente, valor: valorFiado, metodo: 'Fiado' });
+                fichas.push({ data: agora, clienteId: cliente, valor: valorFiado, metodo: 'Fiado' });
                 localStorage.setItem('fichasAtivas', JSON.stringify(fichas));
             }
         }

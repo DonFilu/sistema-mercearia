@@ -158,7 +158,7 @@ const Venda = mongoose.models.Venda || mongoose.model(
     tenantId: String,
     vendaId: String, // 🔥 ADICIONA ISSO
     data: String,
-    cliente: String,
+    clienteId: String,
     itens: Array,
     total: Number,
     desconto: Number,
@@ -665,15 +665,49 @@ app.get("/fiados", async (req, res) => {
 });
 
 app.post("/fiados/compra", async (req, res) => {
-  const registro = new Fiado({
-    tenantId: req.tenantId,
-    data: req.body.data || new Date().toLocaleString("pt-br"),
-    clienteId: req.body.clienteId,
-    valor: req.body.valor,
-    metodo: "Fiado",
-    itens: req.body.itens || [] // 👈 AQUI
-  });
+ 
+const cliente = await Cliente.findOne({
+  _id: req.body.clienteId,
+  tenantId: req.tenantId
+  
+});
+if (!cliente) {
+  return res.status(404).json({ erro: "Cliente não encontrado" });
+}
 
+
+const divida = await Fiado.aggregate([
+  {
+    $match: {
+      clienteId: req.body.clienteId,
+      tenantId: req.tenantId
+    }
+  },
+  {
+    $group: {
+      _id: null,
+      total: { $sum: "$valor" }
+    }
+  }
+]);
+
+const atual = divida[0]?.total || 0;
+const limite = cliente.limiteFiado || 0;
+
+if (atual + req.body.valor > limite) {
+  return res.status(400).json({
+    erro: "Limite de fiado excedido"
+  });
+ 
+}
+const registro = new Fiado({
+  tenantId: req.tenantId,
+  data: req.body.data || new Date().toLocaleString("pt-br"),
+  clienteId: req.body.clienteId,
+  valor: req.body.valor,
+  metodo: "Fiado",
+  itens: req.body.itens || []
+});
   await registro.save();
   res.json(registro);
 });
@@ -681,10 +715,26 @@ app.post("/fiados/compra", async (req, res) => {
 app.post("/fiados/pagamento", async (req, res) => {
   const agora = new Date().toLocaleString("pt-br");
 
+  // 🔥 valida cliente
+  const cliente = await Cliente.findOne({
+    _id: req.body.clienteId,
+    tenantId: req.tenantId
+  });
+
+  if (!cliente) {
+    return res.status(404).json({ erro: "Cliente não encontrado" });
+  }
+
+  // 🔥 valida valor
+  if (!req.body.valor || req.body.valor <= 0) {
+    return res.status(400).json({ erro: "Valor inválido" });
+  }
+
+  // ✅ cria registro
   const registro = new Fiado({
     tenantId: req.tenantId,
     data: agora,
-    cliente: req.body.cliente,
+    clienteId: req.body.clienteId,
     valor: req.body.valor,
     metodo: "Pagamento Parcial"
   });
@@ -784,6 +834,27 @@ for (const item of itens) {
     });
 
     await venda.save();
+    const pagamentoFiado = (pagamentos || []).find(p => p.tipo === "fiado");
+
+if (pagamentoFiado && pagamentoFiado.valor > 0) {
+
+  if (!cliente) {
+    return res.status(400).json({
+      erro: "Cliente obrigatório para venda fiado"
+    });
+  }
+
+  await Fiado.create({
+    tenantId: req.tenantId,
+    clienteId: cliente, // precisa ser ID
+    valor: pagamentoFiado.valor,
+    metodo: "Fiado",
+    data: new Date().toLocaleString("pt-br"),
+    itens: itens
+  });
+
+
+}
 
     res.json(venda);
 

@@ -163,11 +163,24 @@ clientesLista = await resClientes.json();
                 }
 
                 const porCliente = {};
-                fichasCache.forEach(v => {
-                    if (!porCliente[v.cliente]) porCliente[v.cliente] = { saldo: 0, historico: [] };
-                    if (v.metodo === "Fiado") porCliente[v.cliente].saldo += Number(v.valor || 0);
-                    else porCliente[v.cliente].saldo -= Number(v.valor || 0);
-                    porCliente[v.cliente].historico.push(v);
+
+fichasCache.forEach(v => {
+
+    const cliente = clientesLista.find(c => c._id === v.clienteId);
+    const nome = cliente ? cliente.nome : "Desconhecido";
+    if (!porCliente[nome]) {
+    porCliente[nome] = { saldo: 0, historico: [] };
+}
+
+    const valor = Number(v.valor || 0);
+
+if (v.metodo === "Fiado") {
+    porCliente[nome].saldo += valor;
+} else if (v.metodo === "Pagamento Parcial") {
+    porCliente[nome].saldo -= valor;
+}
+
+porCliente[nome].historico.push(v);
                 });
 
                 listaContainer.innerHTML = "";
@@ -288,13 +301,20 @@ listaContainer.innerHTML += `
             const valorAbatido = valorEntregue > saldo ? saldo : valorEntregue;
 
             try {
-                const resposta = await apiFetch("/fiados/pagamento", {
-                    method: "POST",
-                    body: JSON.stringify({
-                        cliente: nome,
-                        valor: valorAbatido
-                    })
-                });
+               const clienteObj = clientesLista.find(c => c.nome === nome);
+
+               if (!clienteObj) {
+    alert("Cliente não encontrado.");
+    return;
+}
+
+const resposta = await apiFetch("/fiados/pagamento", {
+    method: "POST",
+    body: JSON.stringify({
+        clienteId: clienteObj._id,
+        valor: valorAbatido
+    })
+});
 
                 if (!resposta.ok) {
                     throw new Error("Falha ao registrar pagamento.");
