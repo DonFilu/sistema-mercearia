@@ -61,6 +61,25 @@
 
         body.dark-mode { --bg-body: #121212; --text-color: #f1f1f1; --bg-card: #1e1e1e; --bg-lista: #181818; }
         body.dark-mode input, body.dark-mode select { background: #333; color: white; border-color: #444; }
+      @media print {
+
+    body * {
+        display: none !important;
+    }
+
+    #area-impressao, #area-impressao * {
+        display: block !important;
+    }
+
+    #area-impressao {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 300px;
+        font-family: monospace;
+        font-size: 14px;
+    }
+}
     </style>
 </head>
 <body>
@@ -89,7 +108,17 @@
                 <span>ITENS DA VENDA</span>
                 <span id="data-atual"></span>
             </div>
-            <div class="lista-itens" id="listaItens"></div>
+            <div id="area-impressao">
+    <div style="text-align:center; font-weight:bold; margin-bottom:10px;">
+        🧾 COMANDA
+    </div>
+
+    <div class="lista-itens" id="listaItens"></div>
+
+    <div style="border-top:1px dashed #000; margin-top:10px; padding-top:10px;">
+        <b>Total: <span id="printTotal">R$ 0,00</span></b>
+    </div>
+</div>
             <div style="padding: 10px; text-align: center;">
                 <button style="background: transparent; color: #d84315; border: 1px solid #d84315; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: bold;" onclick="limparCarrinho()">🗑️ LIMPAR TUDO (ESC)</button>
             </div>
@@ -494,6 +523,7 @@ const pagoOutros = (dinheiro + pix + cartao) - (parseFloat(campo.value) || 0);
             let valorCalculadoDesconto = (tipoDesc === 'real') ? descInput : somaItens * (descInput / 100);
             totalGeral = Math.max(0, somaItens - valorCalculadoDesconto); 
             document.getElementById('valorTotal').innerText = "R$ " + totalGeral.toFixed(2);
+            document.getElementById('printTotal').innerText = "R$ " + totalGeral.toFixed(2);
             atualizarSomaPagamentos();
         }
 
@@ -778,6 +808,7 @@ avisar("✅ Venda Finalizada", "Sucesso!", true);
         console.error("Erro ao verificar vencimento:", err);
     }
 }
+
     </script>
 </body>
 </html>
