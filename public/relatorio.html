@@ -80,6 +80,29 @@
         <div class="card">
             <h2 id="tituloRelatorio">📊 Resumo do Período</h2>
             <div class="resumo-caixa">
+                <div class="resumo-item">
+    <span>Hoje</span>
+    <b id="resHoje">R$ 0,00</b>
+</div>
+
+<div class="resumo-item">
+    <span>Últimos 7 dias</span>
+    <b id="resSemana">R$ 0,00</b>
+</div>
+
+<div class="resumo-item">
+    <span>Mês</span>
+    <b id="resMes">R$ 0,00</b>
+</div>
+
+<div class="resumo-item">
+    <span>Ano</span>
+    <b id="resAno">R$ 0,00</b>
+</div>
+                <div class="resumo-item" style="border-color:#dc3545;">
+    <span>Fiado Criado</span>
+    <b id="resFiado" style="color:#dc3545;">R$ 0,00</b>
+</div>
                 <div class="resumo-item"><span>Vendas Diretas</span><b id="resVendas">R$ 0,00</b></div>
                 <div class="resumo-item"><span>Recebimentos (Fichas)</span><b id="resRec">R$ 0,00</b></div>
                 <div class="resumo-item" style="border-color:#28a745;"><span>Total Recebido</span><b id="resTotal" style="color:#28a745;">R$ 0,00</b></div>
@@ -210,51 +233,110 @@
             let totalPix = 0;
             let totalCartao = 0;
 
-            let vDiretas = 0, vRec = 0;
+            let vDiretas = 0, vRec = 0, vFiado = 0;
+
+let totalHoje = 0;
+let totalSemana = 0;
+let totalMes = 0;
+let totalAno = 0;
             const corpoTabela = document.getElementById('corpoTabela');
             corpoTabela.innerHTML = "";
 
             let dadosSemana = {}, dadosMes = Array(12).fill(0), dadosAno = {};
 
-            const historicoOrdenado = [...historico].reverse();
+            const historicoOrdenado = [...historico].sort((a, b) => {
+    return new Date(b.data) - new Date(a.data);
+});
 
             historicoOrdenado.forEach(v => {
-                const valor = parseFloat(v.valor) || 0;
-                const dataObj = extrairDataObj(v.data);
-                if (!dataObj || isNaN(dataObj.getTime())) return;
                 
-                const vMes = dataObj.getMonth();
-                const vAno = dataObj.getFullYear();
+              
+                const valor = parseFloat(v.valor) || 0;
+               
+
+                const dataObj = extrairDataObj(v.data);
+if (!dataObj || isNaN(dataObj.getTime())) return;
+
+const vMes = dataObj.getMonth();
+const vAno = dataObj.getFullYear();
+
+if (vMes !== mesSel || vAno !== anoSel) return;
+if (v.metodo === "Fiado") {
+    vFiado += valor;
+}
                 const vDataStr = dataObj.toLocaleDateString('pt-br');
+const hoje = new Date();
+const diffDias = Math.floor((hoje - dataObj) / (1000 * 60 * 60 * 24));
 
-                if(v.metodo !== "Fiado") {
-                    if (v.metodo === "Dinheiro") totalDinheiro += valor;
-                    if (v.metodo === "Pix") totalPix += valor;
-                    if (v.metodo === "Cartão") totalCartao += valor;
-                    const diffDias = Math.floor((hojeTotal - dataObj) / (1000 * 60 * 60 * 24));
-                    if(diffDias >= 0 && diffDias < 7) dadosSemana[vDataStr] = (dadosSemana[vDataStr] || 0) + valor;
-                    if(vAno === anoSel) dadosMes[vMes] += valor;
-                    dadosAno[vAno] = (dadosAno[vAno] || 0) + valor;
-                }
 
-                if(vMes === mesSel && vAno === anoSel) {
-                    if(v.metodo !== "Fiado") {
-                        corpoTabela.innerHTML += `<tr>
-                            <td>${v.data}</td>
-                            <td>${v.cliente}</td>
-                            <td>${v.metodo === "Pagamento Parcial" ? "RECEBIMENTO" : v.metodo}</td>
-                            <td>R$ ${valor.toFixed(2)}</td>
-                        </tr>`;
+const mesmoDia =
+    dataObj.getDate() === hoje.getDate() &&
+    dataObj.getMonth() === hoje.getMonth() &&
+    dataObj.getFullYear() === hoje.getFullYear();
 
-                        if(v.metodo === "Pagamento Parcial") vRec += valor;
-                        else vDiretas += valor;
-                    }
-                }
+if (v.metodo !== "Fiado") {
+    if (mesmoDia) totalHoje += valor;
+
+    if (diffDias >= 0 && diffDias < 7) {
+        totalSemana += valor;
+    }
+
+    if (dataObj.getMonth() === hoje.getMonth() && dataObj.getFullYear() === hoje.getFullYear()) {
+        totalMes += valor;
+    }
+
+    if (dataObj.getFullYear() === hoje.getFullYear()) {
+        totalAno += valor;
+    }
+}
+
+const valorNum = parseFloat(v.valor) || 0;
+
+if (v.metodo !== "Fiado") {
+    if (v.metodo === "Dinheiro") totalDinheiro += valorNum;
+    if (v.metodo === "Pix") totalPix += valorNum;
+    if (v.metodo === "Cartão") totalCartao += valorNum;
+
+    if (diffDias >= 0 && diffDias < 7) {
+        const dia = dataObj.toLocaleDateString('pt-br');
+        dadosSemana[dia] = (dadosSemana[dia] || 0) + valorNum;
+    }
+
+    dadosMes[vMes] += valorNum;
+    dadosAno[vAno] = (dadosAno[vAno] || 0) + valorNum;
+}
+               if (v.metodo === "Pagamento Parcial") {
+    vRec += valor;
+
+    corpoTabela.innerHTML += `<tr style="background:#e8f5e9;">
+        <td>${v.data}</td>
+        <td>${v.cliente || "-"}</td>
+        <td>💰 RECEBIMENTO</td>
+        <td style="color:#2e7d32;">+ R$ ${valor.toFixed(2)}</td>
+    </tr>`;
+
+} else if (v.metodo !== "Fiado") {
+
+    vDiretas += valor;
+
+    corpoTabela.innerHTML += `<tr>
+        <td>${v.data}</td>
+        <td>${v.cliente || "-"}</td>
+        <td>${v.metodo}</td>
+        <td>R$ ${valor.toFixed(2)}</td>
+    </tr>`;
+}
+
             });
 
             document.getElementById('resVendas').innerText = `R$ ${vDiretas.toFixed(2)}`;
             document.getElementById('resRec').innerText = `R$ ${vRec.toFixed(2)}`;
             document.getElementById('resTotal').innerText = `R$ ${(vDiretas + vRec).toFixed(2)}`;
+            document.getElementById('resHoje').innerText = `R$ ${totalHoje.toFixed(2)}`;
+document.getElementById('resSemana').innerText = `R$ ${totalSemana.toFixed(2)}`;
+document.getElementById('resMes').innerText = `R$ ${totalMes.toFixed(2)}`;
+document.getElementById('resAno').innerText = `R$ ${totalAno.toFixed(2)}`;
+            document.getElementById('resFiado').innerText = `R$ ${vFiado.toFixed(2)}`;
             document.getElementById('resDinheiro').innerText = `R$ ${totalDinheiro.toFixed(2)}`;
             document.getElementById('resPix').innerText = `R$ ${totalPix.toFixed(2)}`;
             document.getElementById('resCartao').innerText = `R$ ${totalCartao.toFixed(2)}`;
