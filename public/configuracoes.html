@@ -135,15 +135,15 @@
 
     <script>
 async function apiFetch(url, options = {}) {
-    const userId = localStorage.getItem("userId");
+    const token = localStorage.getItem("token");
 
     options.headers = {
         ...(options.headers || {}),
         "Content-Type": "application/json"
     };
 
-    if (userId) {
-        options.headers["x-user-id"] = userId;
+    if (token) {
+        options.headers["Authorization"] = "Bearer " + token;
     }
 
     const response = await fetch(url, options);

@@ -165,13 +165,13 @@
 
     <script>
         function apiFetch(url, options = {}) {
-    const userId = localStorage.getItem("userId");
+    const token = localStorage.getItem("token");
 
     return fetch(url, {
         ...options,
         headers: {
             "Content-Type": "application/json",
-            "x-user-id": userId
+            "Authorization": "Bearer " + token
         }
     });
 }

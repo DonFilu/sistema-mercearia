@@ -1,13 +1,77 @@
-const express = require("express");
+﻿const express = require("express");
 const mongoose = require("mongoose");
 const path = require("path");
 require("dotenv").config();
 const axios = require("axios");
+const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
 
 const app = express();
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  process.env.SESSION_SECRET ||
+  process.env.MP_ACCESS_TOKEN ||
+  "troque-este-segredo-em-producao";
+const HASH_PREFIX = "pbkdf2";
+
+function hashPassword(senha) {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const iterations = 120000;
+  const hash = crypto
+    .pbkdf2Sync(String(senha), salt, iterations, 32, "sha256")
+    .toString("hex");
+
+  return `${HASH_PREFIX}$${iterations}$${salt}$${hash}`;
+}
+
+function verifyPassword(senha, saved) {
+  if (!saved) return false;
+
+  const parts = String(saved).split("$");
+
+  if (parts[0] !== HASH_PREFIX || parts.length !== 4) {
+    return String(senha) === String(saved);
+  }
+
+  const [, iterations, salt, expected] = parts;
+  const hash = crypto
+    .pbkdf2Sync(String(senha), salt, Number(iterations), 32, "sha256")
+    .toString("hex");
+
+  return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(expected, "hex"));
+}
+
+function passwordNeedsRehash(saved) {
+  return !String(saved || "").startsWith(`${HASH_PREFIX}$`);
+}
+
+function createToken(id, tipo) {
+  return jwt.sign({ sub: id.toString(), tipo }, JWT_SECRET, { expiresIn: "7d" });
+}
+
+function getBearerToken(req) {
+  const header = req.headers.authorization || "";
+  const [tipo, token] = header.split(" ");
+
+  return tipo === "Bearer" && token ? token : null;
+}
+
+function sanitizeAfiliado(afiliado) {
+  if (!afiliado) return null;
+
+  return {
+    _id: afiliado._id,
+    email: afiliado.email,
+    telefone: afiliado.telefone,
+    saldo: afiliado.saldo,
+    pix: afiliado.pix,
+    codigo: afiliado.codigo,
+    status: afiliado.status
+  };
+}
 
 app.use(express.json());
-// 🔥 FORÇA IR PRO LOGIN
+// ðŸ”¥ FORÃ‡A IR PRO LOGIN
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
 });
@@ -18,8 +82,8 @@ app.use(express.static(path.join(__dirname, "public")));
 const MONGO_URI = process.env.MONGODB_URI;
 
 mongoose.connect(MONGO_URI)
-.then(() => console.log("🟢 Mongo conectado"))
-.catch(err => console.log("❌ Erro Mongo:", err));
+.then(() => console.log("ðŸŸ¢ Mongo conectado"))
+.catch(err => console.log("âŒ Erro Mongo:", err));
 
 /* =============================
    MODEL USER
@@ -31,7 +95,7 @@ const User = mongoose.models.User || mongoose.model(
     email: String,
     senha: String,
 
-    afiliadoId: String, // 👈 ADICIONA ISSO
+    afiliadoId: String, // ðŸ‘ˆ ADICIONA ISSO
 
     ultimoIP: String,
     cidade: String,
@@ -56,23 +120,34 @@ app.use(async (req, res, next) => {
   req.path === "/register" ||
   req.path === "/webhook" ||
   req.path === "/criar-pix" ||
-  req.path === "/user" ||
   req.path.startsWith("/afiliado")
 ) {
   return next();
 }
 
-  const userId = req.headers["x-user-id"];
+  const token = getBearerToken(req);
 
-  if (!userId) {
-    return res.status(401).json({ erro: "Usuário não identificado" });
+  if (!token) {
+    return res.status(401).json({ erro: "UsuÃ¡rio nÃ£o identificado" });
   }
 
-  req.tenantId = userId;
-  const user = await User.findById(userId);
+  let payload;
+
+  try {
+    payload = jwt.verify(token, JWT_SECRET);
+  } catch (err) {
+    return res.status(401).json({ erro: "Sessao invalida" });
+  }
+
+  if (payload.tipo !== "user") {
+    return res.status(401).json({ erro: "Sessao invalida" });
+  }
+
+  req.tenantId = payload.sub;
+  const user = await User.findById(payload.sub);
 
   if (!user) {
-    return res.status(401).json({ erro: "Usuário inválido" });
+    return res.status(401).json({ erro: "UsuÃ¡rio invÃ¡lido" });
   }
 
   const hoje = new Date();
@@ -81,8 +156,7 @@ app.use(async (req, res, next) => {
     return res.status(403).json({ erro: "Plano vencido" });
   }
 
-  
-  
+  req.user = user;
   next();
   
 });
@@ -105,7 +179,7 @@ const Afiliado = mongoose.model("Afiliado", new mongoose.Schema({
 
 const Comissao = mongoose.model("Comissao", new mongoose.Schema({
   afiliadoId: String,
-  userId: String, // 👈 NOVO
+  userId: String, // ðŸ‘ˆ NOVO
   valor: Number,
   descricao: String,
   data: Date
@@ -134,8 +208,8 @@ const Cliente = mongoose.models.Cliente || mongoose.model(
     tenantId: String,
     nome: String,
     telefone: String,
-    cpf: String, // 🔥 NOVO
-    limiteFiado: { type: Number, default: 0 }, // 🔥 NOVO
+    cpf: String, // ðŸ”¥ NOVO
+    limiteFiado: { type: Number, default: 0 }, // ðŸ”¥ NOVO
     fiado: Number
   })
 );
@@ -148,7 +222,7 @@ const Fiado = mongoose.models.Fiado || mongoose.model(
     clienteId: String,
     valor: Number,
     metodo: String,
-   itens: Array // 👈 ADICIONA ISSO
+   itens: Array // ðŸ‘ˆ ADICIONA ISSO
   })
 );
 
@@ -156,7 +230,7 @@ const Venda = mongoose.models.Venda || mongoose.model(
   "Venda",
   new mongoose.Schema({
     tenantId: String,
-    vendaId: String, // 🔥 ADICIONA ISSO
+    vendaId: String, // ðŸ”¥ ADICIONA ISSO
     data: String,
     clienteId: String,
     itens: Array,
@@ -175,11 +249,15 @@ app.post("/login", async (req, res) => {
 
   const user = await User.findOne({ email });
 
-  if (!user || user.senha !== senha) {
+  if (!user || !verifyPassword(senha, user.senha)) {
     return res.status(401).json({ erro: "Email ou senha incorretos" });
   }
 
-  // 🔥 PEGAR IP REAL
+  if (passwordNeedsRehash(user.senha)) {
+    user.senha = hashPassword(senha);
+  }
+
+  // ðŸ”¥ PEGAR IP REAL
   const ipRaw =
   (req.headers["x-forwarded-for"] || "").split(",")[0] ||
   req.socket.remoteAddress ||
@@ -214,7 +292,10 @@ user.ultimoAcesso = new Date();
 await user.save();
 
 
-  res.json({ userId: user._id });
+  res.json({
+    userId: user._id,
+    token: createToken(user._id, "user")
+  });
 });
 
 app.post("/afiliado/register", async (req, res) => {
@@ -223,7 +304,7 @@ app.post("/afiliado/register", async (req, res) => {
   const existe = await Afiliado.findOne({ email });
 
   if (existe) {
-    return res.json({ erro: "Email já cadastrado" });
+    return res.json({ erro: "Email jÃ¡ cadastrado" });
   }
 
   function gerarCodigo() {
@@ -233,7 +314,7 @@ app.post("/afiliado/register", async (req, res) => {
   const afiliado = new Afiliado({
     email,
     telefone,
-    senha,
+    senha: hashPassword(senha),
     codigo: gerarCodigo(),
     status: "pendente"
   });
@@ -248,27 +329,60 @@ app.post("/afiliado/login", async (req, res) => {
 
   const afiliado = await Afiliado.findOne({ email });
 
-  if (!afiliado || afiliado.senha !== senha) {
-    return res.json({ erro: "Login inválido" });
+  if (!afiliado || !verifyPassword(senha, afiliado.senha)) {
+    return res.json({ erro: "Login invÃ¡lido" });
+  }
+
+  if (passwordNeedsRehash(afiliado.senha)) {
+    afiliado.senha = hashPassword(senha);
+    await afiliado.save();
   }
 
   if (afiliado.status !== "aprovado") {
-    return res.json({ erro: "Conta em análise" });
+    return res.json({ erro: "Conta em anÃ¡lise" });
   }
 
-  res.json({ afiliadoId: afiliado._id });
+  res.json({
+    afiliadoId: afiliado._id,
+    token: createToken(afiliado._id, "afiliado")
+  });
+});
+
+app.use("/afiliado", async (req, res, next) => {
+  const token = getBearerToken(req);
+
+  if (!token) {
+    return res.status(401).json({ erro: "Afiliado nao identificado" });
+  }
+
+  let payload;
+
+  try {
+    payload = jwt.verify(token, JWT_SECRET);
+  } catch (err) {
+    return res.status(401).json({ erro: "Sessao invalida" });
+  }
+
+  if (payload.tipo !== "afiliado") {
+    return res.status(401).json({ erro: "Sessao invalida" });
+  }
+
+  const afiliado = await Afiliado.findById(payload.sub);
+
+  if (!afiliado || afiliado.status !== "aprovado") {
+    return res.status(401).json({ erro: "Afiliado invalido" });
+  }
+
+  req.afiliado = afiliado;
+  next();
 });
 
 app.get("/afiliado/dados", async (req, res) => {
-  const id = req.headers["x-afiliado-id"];
-
-  const afiliado = await Afiliado.findById(id);
-
-  res.json(afiliado);
+  res.json(sanitizeAfiliado(req.afiliado));
 });
 
 app.get("/afiliado/comissoes", async (req, res) => {
-  const id = req.headers["x-afiliado-id"];
+  const id = req.afiliado._id.toString();
 
  const lista = await Comissao
   .find({ afiliadoId: id })
@@ -278,7 +392,7 @@ app.get("/afiliado/comissoes", async (req, res) => {
 });
 
 app.get("/afiliado/saques", async (req, res) => {
-  const id = req.headers["x-afiliado-id"];
+  const id = req.afiliado._id.toString();
 
   const lista = await Saque.find({ afiliadoId: id })
     .sort({ data: -1 });
@@ -293,12 +407,11 @@ app.get("/afiliado/saques", async (req, res) => {
   });
 });
 app.post("/afiliado/sacar", async (req, res) => {
-  const id = req.headers["x-afiliado-id"];
-
-  const afiliado = await Afiliado.findById(id);
+  const id = req.afiliado._id.toString();
+  const afiliado = req.afiliado;
 
   if (!afiliado || afiliado.saldo < 10) {
-    return res.status(400).json({ erro: "Mínimo R$10" });
+    return res.status(400).json({ erro: "MÃ­nimo R$10" });
   }
 
   const pendente = await Saque.findOne({
@@ -307,7 +420,7 @@ app.post("/afiliado/sacar", async (req, res) => {
   });
 
   if (pendente) {
-    return res.json({ erro: "Já existe saque pendente" });
+    return res.json({ erro: "JÃ¡ existe saque pendente" });
   }
 
   await Saque.create({
@@ -319,10 +432,9 @@ app.post("/afiliado/sacar", async (req, res) => {
   res.json({ ok: true });
 });
 app.post("/afiliado/pix", async (req, res) => {
-  const id = req.headers["x-afiliado-id"];
   const { pix } = req.body;
 
-  const afiliado = await Afiliado.findById(id);
+  const afiliado = req.afiliado;
 
   afiliado.pix = pix;
   await afiliado.save();
@@ -331,13 +443,13 @@ app.post("/afiliado/pix", async (req, res) => {
 });
 
 app.get("/admin/afiliados", async (req, res) => {
-  const userId = req.headers["x-user-id"];
+  const userId = req.user?._id;
 
   if (!(await isAdmin(userId))) {
     return res.status(403).json({ erro: "Acesso negado" });
   }
 
-  const afiliados = await Afiliado.find();
+  const afiliados = await Afiliado.find().select("-senha");
   const hoje = new Date();
 
   const resultado = [];
@@ -366,7 +478,7 @@ app.get("/admin/afiliados", async (req, res) => {
 });
 
 app.post("/admin/aprovar-afiliado", async (req, res) => {
-  const userId = req.headers["x-user-id"];
+  const userId = req.user?._id;
 
   if (!(await isAdmin(userId))) {
     return res.status(403).json({ erro: "Acesso negado" });
@@ -384,7 +496,7 @@ app.post("/admin/aprovar-afiliado", async (req, res) => {
 });
 
 app.post("/admin/recusar-afiliado", async (req, res) => {
-  const userId = req.headers["x-user-id"];
+  const userId = req.user?._id;
 
   if (!(await isAdmin(userId))) {
     return res.status(403).json({ erro: "Acesso negado" });
@@ -397,7 +509,7 @@ app.post("/admin/recusar-afiliado", async (req, res) => {
   res.json({ ok: true });
 });
 app.get("/admin/saques", async (req, res) => {
-  const userId = req.headers["x-user-id"];
+  const userId = req.user?._id;
 
   if (!(await isAdmin(userId))) {
     return res.status(403).json({ erro: "Acesso negado" });
@@ -420,7 +532,7 @@ app.get("/admin/saques", async (req, res) => {
   res.json(resultado);
 });
 app.post("/admin/confirmar-saque", async (req, res) => {
-  const userId = req.headers["x-user-id"];
+  const userId = req.user?._id;
 
   if (!(await isAdmin(userId))) {
     return res.status(403).json({ erro: "Acesso negado" });
@@ -445,7 +557,7 @@ app.post("/admin/confirmar-saque", async (req, res) => {
   res.json({ ok: true });
 });
 app.get("/afiliado/stats", async (req, res) => {
-  const id = req.headers["x-afiliado-id"];
+  const id = req.afiliado._id.toString();
 
   const hoje = new Date();
 
@@ -478,14 +590,14 @@ if (ref) {
   const existe = await User.findOne({ email });
 
   if (existe) {
-    return res.status(400).json({ erro: "Usuário já existe" });
+    return res.status(400).json({ erro: "UsuÃ¡rio jÃ¡ existe" });
   }
 
   const hoje = new Date();
 
   const user = new User({
     email,
-    senha,
+    senha: hashPassword(senha),
     trialAtivo: true,
     primeiroPagamento: false,
     dataExpiracao: new Date(hoje.getTime() + 7 * 24 * 60 * 60 * 1000),
@@ -503,7 +615,7 @@ if (ref) {
 
 app.get("/user", async (req, res) => {
   try {
-    const userId = req.headers["x-user-id"];
+    const userId = req.user?._id;
 
     if (!userId) {
       return res.status(401).json({ erro: "Sem userId" });
@@ -512,10 +624,8 @@ app.get("/user", async (req, res) => {
     const user = await User.findById(userId);
 
     if (!user) {
-      return res.status(404).json({ erro: "Usuário não encontrado" });
+      return res.status(404).json({ erro: "UsuÃ¡rio nÃ£o encontrado" });
     }
-    console.log("USER ENVIADO:", user);
-
     res.json({
       email: user.email,
       dataExpiracao: user.dataExpiracao,
@@ -525,7 +635,7 @@ app.get("/user", async (req, res) => {
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ erro: "Erro ao buscar usuário" });
+    res.status(500).json({ erro: "Erro ao buscar usuÃ¡rio" });
   }
 });
 /* =============================
@@ -578,17 +688,17 @@ app.post("/clientes", async (req, res) => {
 app.delete("/clientes/:id", async (req, res) => {
   try {
 
-    // 🔍 busca cliente
+    // ðŸ” busca cliente
     const cliente = await Cliente.findOne({
       _id: req.params.id,
       tenantId: req.tenantId
     });
 
     if (!cliente) {
-      return res.status(404).json({ erro: "Cliente não encontrado" });
+      return res.status(404).json({ erro: "Cliente nÃ£o encontrado" });
     }
 
-    // 🔥 CALCULA DÍVIDA
+    // ðŸ”¥ CALCULA DÃVIDA
     const divida = await Fiado.aggregate([
       {
         $match: {
@@ -606,14 +716,14 @@ app.delete("/clientes/:id", async (req, res) => {
 
     const totalDivida = divida[0]?.total || 0;
 
-    // 🚫 BLOQUEIA EXCLUSÃO
+    // ðŸš« BLOQUEIA EXCLUSÃƒO
     if (totalDivida > 0) {
       return res.status(400).json({
-        erro: "Cliente possui dívida e não pode ser excluído"
+        erro: "Cliente possui dÃ­vida e nÃ£o pode ser excluÃ­do"
       });
     }
 
-    // 🗑️ DELETE NORMAL
+    // ðŸ—‘ï¸ DELETE NORMAL
     await Cliente.deleteOne({
       _id: req.params.id,
       tenantId: req.tenantId
@@ -644,7 +754,7 @@ app.put("/clientes/:id", async (req, res) => {
     );
 
     if (!cliente) {
-      return res.status(404).json({ erro: "Cliente não encontrado" });
+      return res.status(404).json({ erro: "Cliente nÃ£o encontrado" });
     }
 
     res.json(cliente);
@@ -672,7 +782,13 @@ const cliente = await Cliente.findOne({
   
 });
 if (!cliente) {
-  return res.status(404).json({ erro: "Cliente não encontrado" });
+  return res.status(404).json({ erro: "Cliente nÃ£o encontrado" });
+}
+
+const valorFiado = Number(req.body.valor);
+
+if (!Number.isFinite(valorFiado) || valorFiado <= 0) {
+  return res.status(400).json({ erro: "Valor invalido" });
 }
 
 
@@ -694,7 +810,7 @@ const divida = await Fiado.aggregate([
 const atual = divida[0]?.total || 0;
 const limite = cliente.limiteFiado || 0;
 
-if (atual + req.body.valor > limite) {
+if (atual + valorFiado > limite) {
   return res.status(400).json({
     erro: "Limite de fiado excedido"
   });
@@ -704,7 +820,7 @@ const registro = new Fiado({
   tenantId: req.tenantId,
   data: req.body.data || new Date().toLocaleString("pt-br"),
   clienteId: req.body.clienteId,
-  valor: req.body.valor,
+  valor: valorFiado,
   metodo: "Fiado",
   itens: req.body.itens || []
 });
@@ -714,28 +830,29 @@ const registro = new Fiado({
 
 app.post("/fiados/pagamento", async (req, res) => {
   const agora = new Date().toLocaleString("pt-br");
+  const valorPagamento = Number(req.body.valor);
 
-  // 🔥 valida cliente
+  // ðŸ”¥ valida cliente
   const cliente = await Cliente.findOne({
     _id: req.body.clienteId,
     tenantId: req.tenantId
   });
 
   if (!cliente) {
-    return res.status(404).json({ erro: "Cliente não encontrado" });
+    return res.status(404).json({ erro: "Cliente nÃ£o encontrado" });
   }
 
-  // 🔥 valida valor
-  if (!req.body.valor || req.body.valor <= 0) {
-    return res.status(400).json({ erro: "Valor inválido" });
+  // ðŸ”¥ valida valor
+  if (!Number.isFinite(valorPagamento) || valorPagamento <= 0) {
+    return res.status(400).json({ erro: "Valor invÃ¡lido" });
   }
 
-  // ✅ cria registro
+  // âœ… cria registro
   const registro = new Fiado({
     tenantId: req.tenantId,
     data: agora,
     clienteId: req.body.clienteId,
-    valor: req.body.valor,
+    valor: -valorPagamento,
     metodo: "Pagamento Parcial"
   });
 
@@ -776,11 +893,71 @@ if (vendaId) {
   try {
     const { itens, cliente, data, desconto, pagamentos } = req.body;
 
+    if (!Array.isArray(itens) || itens.length === 0) {
+      return res.status(400).json({ erro: "Venda sem itens" });
+    }
+
     let totalCalculado = 0;
 
     const estoqueAtivado = req.headers["x-estoque"] === "true";
+    const pagamentoFiado = (pagamentos || []).find(p => p.tipo === "fiado");
+    const valorFiadoVenda = pagamentoFiado ? Number(pagamentoFiado.valor) : 0;
+
+    if (pagamentoFiado && (!Number.isFinite(valorFiadoVenda) || valorFiadoVenda <= 0)) {
+      return res.status(400).json({ erro: "Valor de fiado invalido" });
+    }
+
+    if (pagamentoFiado && valorFiadoVenda > 0) {
+      if (!cliente || cliente === "Consumidor Final") {
+        return res.status(400).json({
+          erro: "Cliente obrigatorio para venda fiado"
+        });
+      }
+
+      const clienteFiado = await Cliente.findOne({
+        _id: cliente,
+        tenantId: req.tenantId
+      });
+
+      if (!clienteFiado) {
+        return res.status(404).json({ erro: "Cliente nao encontrado" });
+      }
+
+      const divida = await Fiado.aggregate([
+        {
+          $match: {
+            clienteId: cliente,
+            tenantId: req.tenantId
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$valor" }
+          }
+        }
+      ]);
+
+      const atual = divida[0]?.total || 0;
+      const limite = clienteFiado.limiteFiado || 0;
+
+      if (atual + valorFiadoVenda > limite) {
+        return res.status(400).json({
+          erro: "Limite de fiado excedido"
+        });
+      }
+    }
 
 for (const item of itens) {
+  const qtd = Number(item.qtd);
+
+  if (!item.cod || !Number.isFinite(qtd) || qtd <= 0) {
+    return res.status(400).json({
+      erro: "Item invalido na venda"
+    });
+  }
+
+  item.qtd = qtd;
 
   let produto;
 
@@ -790,10 +967,10 @@ for (const item of itens) {
       {
         codigo: item.cod,
         tenantId: req.tenantId,
-        estoque: { $gte: item.qtd }
+        estoque: { $gte: qtd }
       },
       {
-        $inc: { estoque: -item.qtd }
+        $inc: { estoque: -qtd }
       },
       { new: true }
     );
@@ -813,13 +990,13 @@ for (const item of itens) {
 
     if (!produto) {
       return res.status(400).json({
-        erro: `Produto não encontrado ${item.cod}`
+        erro: `Produto nÃ£o encontrado ${item.cod}`
       });
     }
 
   }
 
-  totalCalculado += produto.preco * item.qtd;
+  totalCalculado += produto.preco * qtd;
 }
 
     const venda = new Venda({
@@ -834,20 +1011,13 @@ for (const item of itens) {
     });
 
     await venda.save();
-    const pagamentoFiado = (pagamentos || []).find(p => p.tipo === "fiado");
+if (pagamentoFiado && valorFiadoVenda > 0) {
 
-if (pagamentoFiado && pagamentoFiado.valor > 0) {
-
-  if (!cliente) {
-    return res.status(400).json({
-      erro: "Cliente obrigatório para venda fiado"
-    });
-  }
 
   await Fiado.create({
     tenantId: req.tenantId,
     clienteId: cliente, // precisa ser ID
-    valor: pagamentoFiado.valor,
+    valor: valorFiadoVenda,
     metodo: "Fiado",
     data: new Date().toLocaleString("pt-br"),
     itens: itens
@@ -873,24 +1043,24 @@ app.post("/criar-pix", async (req, res) => {
     const { email } = req.body;
 
     if (!email) {
-      return res.status(400).json({ erro: "Email obrigatório" });
+      return res.status(400).json({ erro: "Email obrigatÃ³rio" });
     }
 
-    // 🔥 BUSCA USUÁRIO
+    // ðŸ”¥ BUSCA USUÃRIO
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(404).json({ erro: "Usuário não encontrado" });
+      return res.status(404).json({ erro: "UsuÃ¡rio nÃ£o encontrado" });
     }
 
-    // 🧠 REGRA DE PREÇO
+    // ðŸ§  REGRA DE PREÃ‡O
     let valor = 29;
 
     if (!user.primeiroPagamento) {
       valor = 19;
     }
 
-    console.log("💰 VALOR COBRADO:", valor);
+    console.log("ðŸ’° VALOR COBRADO:", valor);
 
     const response = await axios.post(
   "https://api.mercadopago.com/v1/payments",
@@ -909,7 +1079,7 @@ app.post("/criar-pix", async (req, res) => {
       }
     },
 
-    // 🔥 ESSENCIAL
+    // ðŸ”¥ ESSENCIAL
     notification_url: "https://www.cidio.com.br/webhook",
     external_reference: user._id.toString(),
     
@@ -933,7 +1103,7 @@ app.post("/criar-pix", async (req, res) => {
       console.log("ERRO MP COMPLETO:", pagamento);
 
       return res.status(500).json({
-        erro: "Mercado Pago não retornou QR completo",
+        erro: "Mercado Pago nÃ£o retornou QR completo",
         detalhes: pagamento
       });
     }
@@ -941,7 +1111,7 @@ app.post("/criar-pix", async (req, res) => {
     res.json({
       qr_code: dados.qr_code,
       qr_code_base64: dados.qr_code_base64,
-      valor // 👈 ENVIA PRO FRONT
+      valor // ðŸ‘ˆ ENVIA PRO FRONT
     });
 
   } catch (err) {
@@ -951,7 +1121,7 @@ app.post("/criar-pix", async (req, res) => {
 });
 
 app.get("/webhook", (req, res) => {
-  res.send("Webhook ativo 🚀");
+  res.send("Webhook ativo ðŸš€");
 });
 
 app.post("/webhook", async (req, res) => {
@@ -975,7 +1145,7 @@ app.post("/webhook", async (req, res) => {
 
     const pagamento = response.data;
 
-    console.log("🔥 WEBHOOK:", pagamento.status);
+    console.log("ðŸ”¥ WEBHOOK:", pagamento.status);
 
     if (
       pagamento.status === "approved" &&
@@ -988,7 +1158,7 @@ app.post("/webhook", async (req, res) => {
       if (user) {
         const hoje = new Date();
 
-        // 🔥 SOMA (PROFISSIONAL)
+        // ðŸ”¥ SOMA (PROFISSIONAL)
         const base = user.dataExpiracao && user.dataExpiracao > hoje
           ? user.dataExpiracao
           : hoje;
@@ -1027,9 +1197,9 @@ app.post("/webhook", async (req, res) => {
   }
 }
 
-        console.log("✅ Plano atualizado:", user.dataExpiracao);
+        console.log("âœ… Plano atualizado:", user.dataExpiracao);
       } else {
-        console.log("❌ Usuário não encontrado:", userId);
+        console.log("âŒ UsuÃ¡rio nÃ£o encontrado:", userId);
       }
     }
 
@@ -1046,7 +1216,7 @@ async function isAdmin(userId) {
 }
 app.get("/admin/users", async (req, res) => {
   try {
-    const userId = req.headers["x-user-id"];
+    const userId = req.user?._id;
 
     if (!(await isAdmin(userId))) {
       return res.status(403).json({ erro: "Acesso negado" });
@@ -1058,12 +1228,12 @@ app.get("/admin/users", async (req, res) => {
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ erro: "Erro ao buscar usuários" });
+    res.status(500).json({ erro: "Erro ao buscar usuÃ¡rios" });
   }
 });
 app.post("/admin/liberar", async (req, res) => {
   try {
-    const userId = req.headers["x-user-id"];
+    const userId = req.user?._id;
 
     if (!(await isAdmin(userId))) {
       return res.status(403).json({ erro: "Acesso negado" });
@@ -1074,7 +1244,7 @@ app.post("/admin/liberar", async (req, res) => {
     const user = await User.findById(id);
 
     if (!user) {
-      return res.status(404).json({ erro: "Usuário não encontrado" });
+      return res.status(404).json({ erro: "UsuÃ¡rio nÃ£o encontrado" });
     }
 
     const hoje = new Date();
@@ -1104,5 +1274,5 @@ app.post("/admin/liberar", async (req, res) => {
 const PORT = process.env.PORT || 3001;
 
 app.listen(PORT, () => {
-  console.log("🚀 Servidor rodando na porta " + PORT);
+  console.log("ðŸš€ Servidor rodando na porta " + PORT);
 });

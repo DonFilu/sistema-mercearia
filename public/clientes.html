@@ -107,19 +107,29 @@
 
 <script>
     function apiFetch(url, options = {}) {
-    const userId = localStorage.getItem("userId");
+    const token = localStorage.getItem("token");
 
     return fetch(url, {
         ...options,
         headers: {
             "Content-Type": "application/json",
-            "x-user-id": userId
+            "Authorization": "Bearer " + token
         }
     });
 }
 
 let clientesBD = [];
 let clienteEditandoId = null;
+
+function escapeHTML(valor) {
+return String(valor ?? "").replace(/[&<>"']/g, (char) => ({
+"&": "&amp;",
+"<": "&lt;",
+">": "&gt;",
+"\"": "&quot;",
+"'": "&#39;"
+}[char]));
+}
 
 
 window.onload = function() {
@@ -221,8 +231,8 @@ dados.forEach((c) => {
 
 tbody.innerHTML += `
 <tr>
-<td><b>${c.nome}</b></td>
-<td>${c.telefone || '---'}</td>
+<td><b>${escapeHTML(c.nome)}</b></td>
+<td>${escapeHTML(c.telefone || '---')}</td>
 <td>
 <button onclick="editarCliente('${c._id}')">✏️</button>
 <button class="btn-excluir" onclick="excluirCliente('${c._id}')">🗑️</button></td>

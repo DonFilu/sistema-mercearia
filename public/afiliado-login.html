@@ -126,6 +126,7 @@ async function login() {
   }
 
   localStorage.setItem("afiliadoId", data.afiliadoId);
+  localStorage.setItem("afiliadoToken", data.token);
 
   window.location.href = "/afiliado.html";
 }

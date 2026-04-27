@@ -115,8 +115,15 @@
 <script>
 
 // 🔒 proteção
-if (!localStorage.getItem("afiliadoId")) {
+if (!localStorage.getItem("afiliadoId") || !localStorage.getItem("afiliadoToken")) {
   window.location.href = "/afiliado-login.html";
+}
+
+function afiliadoHeaders(extra = {}) {
+  return {
+    ...extra,
+    "Authorization": "Bearer " + localStorage.getItem("afiliadoToken")
+  };
 }
 
 let afiliado = {};
@@ -124,9 +131,7 @@ let afiliado = {};
 // 🔄 carregar dados
 async function carregar() {
   const res = await fetch("/afiliado/dados", {
-    headers: {
-      "x-afiliado-id": localStorage.getItem("afiliadoId")
-    }
+    headers: afiliadoHeaders()
   });
 
   afiliado = await res.json();
@@ -143,9 +148,7 @@ async function carregar() {
 // 📊 ganhos
 async function carregarHistorico() {
   const res = await fetch("/afiliado/comissoes", {
-    headers: {
-      "x-afiliado-id": localStorage.getItem("afiliadoId")
-    }
+    headers: afiliadoHeaders()
   });
 
   const lista = await res.json();
@@ -168,9 +171,7 @@ async function carregarHistorico() {
 // 💸 saques
 async function carregarSaques() {
   const res = await fetch("/afiliado/saques", {
-    headers: {
-      "x-afiliado-id": localStorage.getItem("afiliadoId")
-    }
+    headers: afiliadoHeaders()
   });
 
   const data = await res.json();
@@ -221,9 +222,7 @@ document.getElementById("valorPendente").innerText =
 // 👥 clientes ativos
 async function carregarStats() {
   const res = await fetch("/afiliado/stats", {
-    headers: {
-      "x-afiliado-id": localStorage.getItem("afiliadoId")
-    }
+    headers: afiliadoHeaders()
   });
 
   const data = await res.json();
@@ -238,10 +237,7 @@ async function salvarPix() {
 
   await fetch("/afiliado/pix", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-afiliado-id": localStorage.getItem("afiliadoId")
-    },
+    headers: afiliadoHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ pix })
   });
 
@@ -268,9 +264,7 @@ async function sacar() {
 
   const res = await fetch("/afiliado/sacar", {
     method: "POST",
-    headers: {
-      "x-afiliado-id": localStorage.getItem("afiliadoId")
-    }
+    headers: afiliadoHeaders()
   });
 
   const data = await res.json();
