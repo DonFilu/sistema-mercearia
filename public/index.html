@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <link rel="icon" href="/favicon.ico">
@@ -97,13 +97,13 @@
     </div>
 
     <div class="navbar" id="navPrincipal">
-        <a href="index.html" style="background: rgba(0,0,0,0.3);">🛒 CAIXA</a>
-        <a href="cadastro.html">📝 PRODUTOS</a>
-        <a href="clientes.html">👤 CLIENTES</a>
-        <a href="ficha_clientes.html">📒 FICHA</a>
-        <a href="relatorio.html">📊 RELATÓRIOS</a>
-        <a href="configuracoes.html">⚙️ CONFIG</a>
-        <a href="avisos.html" style="background: rgba(0,0,0,0.3);">🔔 AVISOS</a>
+        <a href="index.html" style="background: rgba(0,0,0,0.3);">ðŸ›’ CAIXA</a>
+        <a href="cadastro.html">ðŸ“ PRODUTOS</a>
+        <a href="clientes.html">ðŸ‘¤ CLIENTES</a>
+        <a href="ficha_clientes.html">ðŸ“’ FICHA</a>
+        <a href="relatorio.html">ðŸ“Š RELATÃ“RIOS</a>
+        <a href="configuracoes.html">âš™ï¸ CONFIG</a>
+        <a href="avisos.html" style="background: rgba(0,0,0,0.3);">ðŸ”” AVISOS</a>
     </div>
 
     <div class="container-principal">
@@ -114,7 +114,7 @@
             </div>
             <div id="area-impressao">
     <div style="text-align:center; font-weight:bold; margin-bottom:10px;">
-        🧾 COMANDA
+        ðŸ§¾ COMANDA
     </div>
 
     <div class="lista-itens" id="listaItens"></div>
@@ -124,7 +124,7 @@
     </div>
 </div>
             <div style="padding: 10px; text-align: center;">
-                <button style="background: transparent; color: #d84315; border: 1px solid #d84315; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: bold;" onclick="limparCarrinho()">🗑️ LIMPAR TUDO (ESC)</button>
+                <button style="background: transparent; color: #d84315; border: 1px solid #d84315; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: bold;" onclick="limparCarrinho()">ðŸ—‘ï¸ LIMPAR TUDO (ESC)</button>
             </div>
         </div>
 
@@ -137,16 +137,16 @@
             </div>
 
             <div>
-                <label>Código ou (Qtd x Código)</label>
+                <label>CÃ³digo ou (Qtd x CÃ³digo)</label>
                 <input type="text" id="campoLeitor" placeholder="Bipe aqui..." autofocus>
-                <span class="atalho-dica">Ex: 5x789... ou apenas o código</span>
+                <span class="atalho-dica">Ex: 5x789... ou apenas o cÃ³digo</span>
             </div>
 
             <div id="painelCadastroRapido" class="painel-flutuante">
-                <h4>🆕 Produto não encontrado!</h4>
+                <h4>ðŸ†• Produto nÃ£o encontrado!</h4>
                 <label>Nome do Produto</label>
                 <input type="text" id="novoNome" placeholder="Ex: Arroz 5kg">
-                <label style="margin-top:8px; display:block">Preço de Venda</label>
+                <label style="margin-top:8px; display:block">PreÃ§o de Venda</label>
                 <input type="number" id="novoPreco" step="0.01" placeholder="0.00">
                 <button onclick="salvarNovoProduto()" style="width:100%; margin-top:10px; background:#fbc02d; color:black; border:none; padding:10px; border-radius:6px; font-weight:bold; cursor:pointer">CADASTRAR E ADICIONAR (ENTER)</button>
                 <button onclick="cancelarCadastroRapido()" style="width:100%; margin-top:5px; background:transparent; border:none; color:gray; cursor:pointer; font-size:12px">Cancelar (ESC)</button>
@@ -160,7 +160,7 @@
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div style="background: rgba(0,0,0,0.03); padding: 8px; border-radius: 8px; border: 1px solid #ddd;">
-                    <label>🎁 Desconto</label>
+                    <label>ðŸŽ Desconto</label>
                     <div style="display: flex; gap: 4px;">
                         <input type="number" id="valorDesconto" value="0.00" step="0.01" oninput="renderizarCarrinho()" style="flex: 2;">
                         <select id="tipoDesconto" onchange="renderizarCarrinho()" style="flex: 1.2; padding: 5px; font-size: 14px;">
@@ -170,17 +170,17 @@
                     </div>
                 </div>
                 <div class="total-box">
-                    <span style="font-size: 11px; color: #fff; display: block; opacity: 0.7; text-transform: uppercase;">Total Líquido</span>
+                    <span style="font-size: 11px; color: #fff; display: block; opacity: 0.7; text-transform: uppercase;">Total LÃ­quido</span>
                     <span class="total-valor" id="valorTotal">R$ 0,00</span>
                 </div>
             </div>
 
             <div class="pagamento-misto">
                 <div class="grid-pagamento">
-                    <div class="campo-pgto"><label>💵 Dinheiro</label><input type="number" id="p_dinheiro" value="0.00" step="0.01" onclick="preencherRestante(this)" oninput="atualizarSomaPagamentos()"></div>
-                    <div class="campo-pgto"><label>📱 PIX</label><input type="number" id="p_pix" value="0.00" step="0.01" onclick="preencherRestante(this)" oninput="atualizarSomaPagamentos()"></div>
-                    <div class="campo-pgto"><label>💳 Cartão</label><input type="number" id="p_cartao" value="0.00" step="0.01" onclick="preencherRestante(this)" oninput="atualizarSomaPagamentos()"></div>
-                    <div class="campo-pgto"><label>📝 Fiado</label><input type="number" id="p_fiado" value="0.00" step="0.01" onclick="preencherRestante(this)" oninput="atualizarSomaPagamentos()"></div>
+                    <div class="campo-pgto"><label>ðŸ’µ Dinheiro</label><input type="number" id="p_dinheiro" value="0.00" step="0.01" onclick="preencherRestante(this)" oninput="atualizarSomaPagamentos()"></div>
+                    <div class="campo-pgto"><label>ðŸ“± PIX</label><input type="number" id="p_pix" value="0.00" step="0.01" onclick="preencherRestante(this)" oninput="atualizarSomaPagamentos()"></div>
+                    <div class="campo-pgto"><label>ðŸ’³ CartÃ£o</label><input type="number" id="p_cartao" value="0.00" step="0.01" onclick="preencherRestante(this)" oninput="atualizarSomaPagamentos()"></div>
+                    <div class="campo-pgto"><label>ðŸ“ Fiado</label><input type="number" id="p_fiado" value="0.00" step="0.01" onclick="preencherRestante(this)" oninput="atualizarSomaPagamentos()"></div>
                 </div>
                 <div id="statusPagamento" class="status-caixa status-falta">Aguardando itens...</div>
             </div>
@@ -203,14 +203,14 @@
     options.headers["Authorization"] = "Bearer " + token;
 }
 
-// 🔥 SEMPRE enviar isso
+// ðŸ”¥ SEMPRE enviar isso
 options.headers["x-estoque"] = localStorage.getItem('estoqueAtivado') === 'true';
     try {
         const response = await fetch(url, options);
 
         if (response.status === 403) {
             if (!window.location.href.includes("configuracoes.html")) {
-                alert("Seu plano venceu! Vá para configurações para renovar.");
+                alert("Seu plano venceu! VÃ¡ para configuraÃ§Ãµes para renovar.");
                 window.location.href = "configuracoes.html";
             }
         }
@@ -219,7 +219,7 @@ options.headers["x-estoque"] = localStorage.getItem('estoqueAtivado') === 'true'
 
     } catch (err) {
         console.error("Erro fetch:", err);
-        return null; // 🔥 IMPORTANTE
+        return null; // ðŸ”¥ IMPORTANTE
     }
 
 }
@@ -384,7 +384,7 @@ const pagoOutros = (dinheiro + pix + cartao) - (parseFloat(campo.value) || 0);
     const cartao = parseFloat(document.getElementById('p_cartao').value) || 0;
     const fiado = parseFloat(document.getElementById('p_fiado').value) || 0;
 
-    const pagoTotal = dinheiro + pix + cartao + fiado; // validação
+    const pagoTotal = dinheiro + pix + cartao + fiado; // validaÃ§Ã£o
     const pagoReal = dinheiro + pix + cartao; // troco
 
     let status = document.getElementById('statusPagamento');
@@ -436,7 +436,7 @@ const pagoOutros = (dinheiro + pix + cartao) - (parseFloat(campo.value) || 0);
                         let qtdJaNoCarrinho = itensCarrinho.filter(i => i.cod === codigo).reduce((acc, i) => acc + i.qtd, 0);
                         let estoqueDisponivel = parseFloat(p.estoque) || 0;
                         if (estoqueDisponivel < (qtdJaNoCarrinho + quantidade)) {
-                            avisar("❌ Sem Estoque", `"${p.nome}" insuficiente.\nEstoque: ${estoqueDisponivel.toFixed(2)}`);
+                            avisar("âŒ Sem Estoque", `"${p.nome}" insuficiente.\nEstoque: ${estoqueDisponivel.toFixed(2)}`);
                             this.value = "";
                             return;
                         }
@@ -466,7 +466,7 @@ const pagoOutros = (dinheiro + pix + cartao) - (parseFloat(campo.value) || 0);
             let preco = parseFloat(document.getElementById('novoPreco').value);
 
             if(nome === "" || isNaN(preco)) { 
-                alert("Preencha nome e preço!"); 
+                alert("Preencha nome e preÃ§o!"); 
                 return; 
             }
 
@@ -612,10 +612,10 @@ const pix = parseFloat(document.getElementById('p_pix').value) || 0;
 const cartao = parseFloat(document.getElementById('p_cartao').value) || 0;
 
 if (fiadoVal > 0 && (dinheiro + pix + cartao) >= total) {
-    throw new Error("Não use fiado quando o pagamento já cobre o total");
+    throw new Error("NÃ£o use fiado quando o pagamento jÃ¡ cobre o total");
 }
 if (fiadoVal > total + 0.01) {
-    throw new Error("Fiado não pode ser maior que o total da compra");
+    throw new Error("Fiado nÃ£o pode ser maior que o total da compra");
 }
 
         if (fiadoVal > 0 && cliente === "Consumidor Final") {
@@ -625,11 +625,11 @@ if (fiadoVal > total + 0.01) {
         const agora = new Date().toLocaleString('pt-br');
         const clienteSelecionado = clientesLista.find(c => c._id === cliente);
 
-// 🔥 VALIDAÇÃO FORTE
+// ðŸ”¥ VALIDAÃ‡ÃƒO FORTE
 if (fiadoVal > 0) {
 
     if (cliente === "Consumidor Final" || !clienteSelecionado) {
-        throw new Error("Selecione um cliente válido para fiado");
+        throw new Error("Selecione um cliente vÃ¡lido para fiado");
     }
 
 }
@@ -638,7 +638,7 @@ if (fiadoVal > 0 && clienteSelecionado) {
 
     const limite = clienteSelecionado.limiteFiado || 0;
 
-    // 🔥 buscar histórico de fiado
+    // ðŸ”¥ buscar histÃ³rico de fiado
    let fichas = [];
 
 try {
@@ -658,15 +658,16 @@ try {
     let dividaAtual = fichas
         .filter(f => f.clienteId === cliente)
         .reduce((acc, f) => {
-            if (f.metodo === "Fiado") return acc + f.valor;
-            else return acc - f.valor;
+            const valor = Number(f.valor || 0);
+            if (f.metodo === "Pagamento Parcial" && valor > 0) return acc - valor;
+            return acc + valor;
         }, 0);
 
     const novaDivida = dividaAtual + fiadoVal;
 
     if (novaDivida > limite) {
         throw new Error(
-            `🚫 Limite de fiado atingido!\n\nAtual: R$ ${dividaAtual.toFixed(2)}\nLimite: R$ ${limite.toFixed(2)}`
+            `ðŸš« Limite de fiado atingido!\n\nAtual: R$ ${dividaAtual.toFixed(2)}\nLimite: R$ ${limite.toFixed(2)}`
         );
     }
 }
@@ -674,7 +675,7 @@ try {
         let formas = [
             {id:'p_dinheiro', n:'Dinheiro'}, 
             {id:'p_pix', n:'Pix'}, 
-            {id:'p_cartao', n:'Cartão'}, 
+            {id:'p_cartao', n:'CartÃ£o'}, 
             {id:'p_fiado', n:'Fiado'}
         ];
 
@@ -688,7 +689,16 @@ try {
             if (valor <= 0) return;
 
             if (f.n === "Fiado") {
-                valorFiado += valor;
+                if (restante <= 0) return;
+
+                let usado = Math.min(valor, restante);
+                valorFiado += usado;
+                pagamentos.push({
+                    metodo: "Fiado",
+                    tipo: "fiado",
+                    valor: usado
+                });
+                restante -= usado;
                 return;
             }
 
@@ -704,7 +714,7 @@ try {
             restante -= usado;
         });
 
-        // 🔥 SALVAR VENDA (OBRIGATÓRIO FUNCIONAR)
+        // ðŸ”¥ SALVAR VENDA (OBRIGATÃ“RIO FUNCIONAR)
         const res = await apiFetch("/vendas", {
             method: "POST",
             body: JSON.stringify({
@@ -722,33 +732,14 @@ try {
             throw new Error("Erro ao salvar venda");
         }
 
-        // 🔥 FIADO (PODE FALHAR SEM QUEBRAR VENDA)
-        if (valorFiado > 0) {
-            try {
-                await apiFetch("/fiados/compra", {
-                    method: "POST",
-                    body: JSON.stringify({
-    data: agora,
-    clienteId: cliente,
-    valor: valorFiado,
-    metodo: "Fiado",
-    itens: itensCarrinho
-})
-                });
-            } catch (err) {
-                console.warn("Erro no fiado, salvo localmente");
-                let fichas = JSON.parse(localStorage.getItem('fichasAtivas')) || [];
-                fichas.push({ data: agora, clienteId: cliente, valor: valorFiado, metodo: 'Fiado' });
-                localStorage.setItem('fichasAtivas', JSON.stringify(fichas));
-            }
-        }
+        // Fiado e salvo junto com a venda no servidor, evitando duplicidade.
        try {
     await atualizarEstoqueNoServidor();
 } catch (err) {
     console.warn("Erro ao atualizar estoque");
 }
 
-avisar("✅ Venda Finalizada", "Sucesso!", true);
+avisar("âœ… Venda Finalizada", "Sucesso!", true);
 
     } catch (err) {
         console.error(err);
@@ -795,12 +786,12 @@ avisar("✅ Venda Finalizada", "Sucesso!", true);
 
             if (diff === 1) {
                 avisar(
-                    "⚠️ Atenção",
-                    "Seu plano vence AMANHÃ! Vá em configurações para renovar."
+                    "âš ï¸ AtenÃ§Ã£o",
+                    "Seu plano vence AMANHÃƒ! VÃ¡ em configuraÃ§Ãµes para renovar."
                 );
             } else if (diff <= 3 && diff > 1) {
                 avisar(
-                    "⚠️ Atenção",
+                    "âš ï¸ AtenÃ§Ã£o",
                     `Seu plano vence em ${diff} dias!`
                 );
             }

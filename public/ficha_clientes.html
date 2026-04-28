@@ -168,32 +168,34 @@ fichasCache.forEach(v => {
 
     const cliente = clientesLista.find(c => c._id === v.clienteId);
     const nome = cliente ? cliente.nome : "Desconhecido";
-    if (!porCliente[nome]) {
-    porCliente[nome] = { saldo: 0, historico: [] };
+    const chaveCliente = v.clienteId || nome;
+    if (!porCliente[chaveCliente]) {
+    porCliente[chaveCliente] = { nome, cliente, saldo: 0, historico: [] };
 }
 
     const valor = Number(v.valor || 0);
 
 if (v.metodo === "Fiado") {
-    porCliente[nome].saldo += valor;
+    porCliente[chaveCliente].saldo += valor;
 } else if (v.metodo === "Pagamento Parcial") {
-    porCliente[nome].saldo -= valor;
+    porCliente[chaveCliente].saldo += valor < 0 ? valor : -valor;
 }
 
-porCliente[nome].historico.push(v);
+porCliente[chaveCliente].historico.push(v);
                 });
 
                 listaContainer.innerHTML = "";
                 let clientesExibidos = 0;
 
-                for (let nome in porCliente) {
-                    const ficha = porCliente[nome];
+                for (let chaveCliente in porCliente) {
+                    const ficha = porCliente[chaveCliente];
+                    const nome = ficha.nome;
                     if (ficha.saldo <= 0.001) continue;
                     clientesExibidos++;
 
-                    const nomeSeguro = nome.replace(/'/g, "\\'");
+                    const nomeSeguro = String(chaveCliente).replace(/[^a-zA-Z0-9_-]/g, "_");
 
-                    const clienteInfo = clientesLista.find(c => c.nome === nome) || {};
+                    const clienteInfo = ficha.cliente || {};
 const limite = clienteInfo.limiteFiado || 0;
 const disponivel = Math.max(0, limite - ficha.saldo);
 
@@ -245,7 +247,7 @@ listaContainer.innerHTML += `
             <td class="${h.metodo === 'Pagamento Parcial' ? 'pagamento-registro' : ''}">
                 ${h.metodo === 'Pagamento Parcial' ? '✅ Pagamento' : '🛒 Compra'}
             </td>
-            <td>R$ ${Number(h.valor || 0).toFixed(2)}</td>
+            <td>R$ ${Math.abs(Number(h.valor || 0)).toFixed(2)}</td>
            <td>
   ${
     h.itens && h.itens.length > 0
@@ -289,8 +291,8 @@ listaContainer.innerHTML += `
             }
         }
 
-        async function processarPagamento(nome, saldo) {
-            const input = document.getElementById(`recebido_${nome}`);
+        async function processarPagamento(clienteId, saldo) {
+            const input = document.getElementById(`recebido_${clienteId}`);
             const valorEntregue = parseFloat(input.value);
             
             if (isNaN(valorEntregue) || valorEntregue <= 0) {
@@ -301,7 +303,7 @@ listaContainer.innerHTML += `
             const valorAbatido = valorEntregue > saldo ? saldo : valorEntregue;
 
             try {
-               const clienteObj = clientesLista.find(c => c.nome === nome);
+               const clienteObj = clientesLista.find(c => c._id === clienteId);
 
                if (!clienteObj) {
     alert("Cliente não encontrado.");
@@ -320,7 +322,7 @@ const resposta = await apiFetch("/fiados/pagamento", {
                     throw new Error("Falha ao registrar pagamento.");
                 }
 
-                avisar("Pagamento Registrado", `Foi dado baixa em R$ ${valorAbatido.toFixed(2)} na conta de ${nome}.`);
+                avisar("Pagamento Registrado", `Foi dado baixa em R$ ${valorAbatido.toFixed(2)} na conta de ${clienteObj.nome}.`);
             } catch (err) {
                 console.error(err);
                 alert("Erro ao registrar pagamento.");

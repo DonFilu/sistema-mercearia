@@ -891,7 +891,8 @@ if (vendaId) {
 }
 
   try {
-    const { itens, cliente, data, desconto, pagamentos } = req.body;
+    const { itens, clienteId, data, desconto, pagamentos } = req.body;
+    const cliente = clienteId || req.body.cliente;
 
     if (!Array.isArray(itens) || itens.length === 0) {
       return res.status(400).json({ erro: "Venda sem itens" });
@@ -900,7 +901,7 @@ if (vendaId) {
     let totalCalculado = 0;
 
     const estoqueAtivado = req.headers["x-estoque"] === "true";
-    const pagamentoFiado = (pagamentos || []).find(p => p.tipo === "fiado");
+    const pagamentoFiado = (pagamentos || []).find(p => p.tipo === "fiado" || p.metodo === "Fiado");
     const valorFiadoVenda = pagamentoFiado ? Number(pagamentoFiado.valor) : 0;
 
     if (pagamentoFiado && (!Number.isFinite(valorFiadoVenda) || valorFiadoVenda <= 0)) {
@@ -1003,7 +1004,7 @@ for (const item of itens) {
       vendaId: req.body.vendaId,
       tenantId: req.tenantId,
       data,
-      cliente,
+      clienteId: cliente,
       itens,
       total: totalCalculado,
       desconto: desconto || 0,

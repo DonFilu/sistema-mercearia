@@ -211,22 +211,31 @@
 
         async function carregarHistorico() {
             try {
-                const [resVendas, resFiados] = await Promise.all([
+                const [resVendas, resFiados, resClientes] = await Promise.all([
                     apiFetch("/vendas"),
-                    apiFetch("/fiados")
+                    apiFetch("/fiados"),
+                    apiFetch("/clientes")
                 ]);
 
                 const vendas = resVendas.ok ? await resVendas.json() : [];
                 const fiados = resFiados.ok ? await resFiados.json() : [];
+                const clientes = resClientes.ok ? await resClientes.json() : [];
+                const nomesClientes = {};
+
+                clientes.forEach(c => {
+                    nomesClientes[c._id] = c.nome;
+                });
 
                 const historicoVendas = [];
 
                 vendas.forEach(venda => {
                     if (Array.isArray(venda.pagamentos)) {
                         venda.pagamentos.forEach(pg => {
+                            if (pg.metodo === "Fiado" || pg.tipo === "fiado") return;
+
                             historicoVendas.push({
                                 data: venda.data,
-                                cliente: venda.cliente,
+                                cliente: nomesClientes[venda.clienteId] || "Consumidor Final",
                                 valor: Number(pg.valor || 0),
                                 metodo: pg.metodo
                             });
@@ -234,7 +243,12 @@
                     }
                 });
 
-                historicoCompleto = [...historicoVendas, ...fiados];
+                const historicoFiados = fiados.map(f => ({
+                    ...f,
+                    cliente: nomesClientes[f.clienteId] || "Desconhecido"
+                }));
+
+                historicoCompleto = [...historicoVendas, ...historicoFiados];
                 localStorage.setItem('historicoVendas', JSON.stringify(historicoCompleto));
             } catch (err) {
                 console.error("Erro ao carregar histórico do servidor:", err);
@@ -278,7 +292,8 @@ let totalAno = 0;
             historicoOrdenado.forEach(v => {
                 
               
-                const valor = parseFloat(v.valor) || 0;
+                const valorBruto = parseFloat(v.valor) || 0;
+                const valor = v.metodo === "Pagamento Parcial" ? Math.abs(valorBruto) : valorBruto;
                
 
                 const dataObj = extrairDataObj(v.data);
@@ -317,7 +332,7 @@ if (v.metodo !== "Fiado") {
     }
 }
 
-const valorNum = parseFloat(v.valor) || 0;
+const valorNum = valor;
 
 if (v.metodo !== "Fiado") {
     if (v.metodo === "Dinheiro") totalDinheiro += valorNum;
@@ -422,7 +437,8 @@ document.getElementById('resAno').innerText = `R$ ${totalAno.toFixed(2)}`;
 
     historico.forEach(v => {
         
-        const valor = Number(v.valor || 0);
+        const valorOriginal = Number(v.valor || 0);
+        const valor = v.metodo === "Pagamento Parcial" ? Math.abs(valorOriginal) : valorOriginal;
         const nome = v.cliente || "Desconhecido";
 
         if (!clientes[nome]) {
