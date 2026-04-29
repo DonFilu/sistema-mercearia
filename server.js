@@ -5,6 +5,8 @@ require("dotenv").config();
 const axios = require("axios");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const restaurantesRouter = require("./src/restaurantes/routes");
+const { RestauranteConta } = require("./src/restaurantes/models");
 
 const app = express();
 const JWT_SECRET =
@@ -71,10 +73,24 @@ function sanitizeAfiliado(afiliado) {
 }
 
 app.use(express.json());
-// ðŸ”¥ FORÃ‡A IR PRO LOGIN
 app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "landing.html"));
+});
+
+app.get("/mercearias", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
 });
+
+app.get("/restaurantes", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "restaurantes", "index.html"));
+});
+
+app.get("/restaurantes/cardapio/:slug", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "restaurantes", "cardapio.html"));
+});
+
+app.use("/restaurantes", express.static(path.join(__dirname, "public", "restaurantes")));
+app.use("/restaurantes/api", restaurantesRouter);
 
 // depois disso:
 app.use(express.static(path.join(__dirname, "public")));
@@ -120,6 +136,7 @@ app.use(async (req, res, next) => {
   req.path === "/register" ||
   req.path === "/webhook" ||
   req.path === "/criar-pix" ||
+  req.path.startsWith("/restaurantes") ||
   req.path.startsWith("/afiliado")
 ) {
   return next();
@@ -1153,6 +1170,28 @@ app.post("/webhook", async (req, res) => {
       pagamento.payment_method_id === "pix"
     ) {
       const userId = pagamento.external_reference;
+
+      if (String(userId || "").startsWith("restaurante:")) {
+        const restauranteId = String(userId).replace("restaurante:", "");
+        const restaurante = await RestauranteConta.findById(restauranteId);
+
+        if (restaurante) {
+          const hoje = new Date();
+          const base = restaurante.dataExpiracao && restaurante.dataExpiracao > hoje
+            ? restaurante.dataExpiracao
+            : hoje;
+
+          restaurante.dataExpiracao = new Date(
+            base.getTime() + 30 * 24 * 60 * 60 * 1000
+          );
+          restaurante.planoAtivo = true;
+          restaurante.primeiroPagamento = true;
+          await restaurante.save();
+          console.log("Plano restaurante atualizado:", restaurante.nomeRestaurante);
+        }
+
+        return res.sendStatus(200);
+      }
 
       const user = await User.findById(userId);
 

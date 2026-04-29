@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cardápio Online</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #f3f6f8; color: #17202a; }
+    header { padding: 22px; background: #1f7a4d; color: #fff; }
+    main { display: grid; grid-template-columns: 1fr 360px; gap: 16px; padding: 16px; }
+    .card, .cart { background: #fff; border: 1px solid #dde3ea; border-radius: 8px; padding: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+    img { max-width: 100%; border-radius: 6px; aspect-ratio: 16/9; object-fit: cover; background: #e8eef3; }
+    button { border: 0; border-radius: 6px; padding: 10px 12px; background: #1f7a4d; color: #fff; cursor: pointer; }
+    input, select, textarea { width: 100%; padding: 10px; border: 1px solid #cfd8e3; border-radius: 6px; margin: 4px 0 10px; }
+    .muted { color: #64748b; }
+    .row { display: flex; justify-content: space-between; gap: 10px; align-items: center; border-bottom: 1px solid #edf1f5; padding: 8px 0; }
+    @media (max-width: 850px) { main { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 id="nome">Cardápio</h1>
+    <p id="status"></p>
+  </header>
+  <main>
+    <section>
+      <div id="categorias"></div>
+      <div class="grid" id="produtos"></div>
+    </section>
+    <aside class="cart">
+      <h2>Carrinho</h2>
+      <div id="itens"></div>
+      <label>Nome <input id="clienteNome"></label>
+      <label>Telefone <input id="clienteTelefone"></label>
+      <label>Endereço <textarea id="clienteEndereco"></textarea></label>
+      <label>Bairro <select id="bairro" onchange="renderCarrinho()"></select></label>
+      <label>Pagamento <select id="pagamento"></select></label>
+      <label>Observação <textarea id="observacao"></textarea></label>
+      <h3 id="total">R$ 0,00</h3>
+      <button onclick="enviarPedido()">Enviar pedido</button>
+    </aside>
+  </main>
+  <script>
+    const slug = location.pathname.split("/").pop();
+    let dados = null;
+    let carrinho = [];
+
+    function moeda(v) { return Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
+    function texto(v) { return String(v ?? ""); }
+    async function carregar() {
+      const res = await fetch(`/restaurantes/api/public/cardapio/${slug}`);
+      dados = await res.json();
+      if (!res.ok) { document.body.innerHTML = `<p>${dados.erro || "Cardápio não encontrado"}</p>`; return; }
+      nome.textContent = dados.restaurante.nomeRestaurante;
+      status.textContent = dados.restaurante.aberto ? "Aberto para pedidos" : "Fechado no momento";
+      pagamento.innerHTML = (dados.restaurante.formasPagamento || []).map(p => `<option>${texto(p)}</option>`).join("");
+      bairro.innerHTML = `<option value="">Selecione</option>` + dados.bairros.map(b => `<option value="${b._id}">${texto(b.nome)} - ${moeda(b.valorEntrega)} - ${texto(b.tempoEstimado)}</option>`).join("");
+      renderProdutos();
+      renderCarrinho();
+    }
+    function renderProdutos() {
+      categorias.innerHTML = dados.categorias.map(c => `<button onclick="filtrar('${c._id}')">${texto(c.nome)}</button>`).join(" ");
+      produtos.innerHTML = dados.produtos.map(p => produtoHtml(p)).join("");
+    }
+    function filtrar(categoriaId) {
+      produtos.innerHTML = dados.produtos.filter(p => p.categoriaId === categoriaId).map(p => produtoHtml(p)).join("");
+    }
+    function produtoHtml(p) {
+      return `<div class="card">
+        ${p.foto ? `<img src="${p.foto}" alt="">` : ""}
+        <h3>${texto(p.nome)}</h3>
+        <p class="muted">${texto(p.descricao)}</p>
+        <strong>${moeda(p.preco)}</strong><br>
+        <button onclick="adicionar('${p._id}')">Adicionar</button>
+      </div>`;
+    }
+    function adicionar(id) {
+      const item = carrinho.find(i => i.produtoId === id);
+      if (item) item.qtd += 1;
+      else {
+        const p = dados.produtos.find(x => x._id === id);
+        carrinho.push({ produtoId: id, nome: p.nome, preco: p.preco, qtd: 1 });
+      }
+      renderCarrinho();
+    }
+    function remover(id) { carrinho = carrinho.filter(i => i.produtoId !== id); renderCarrinho(); }
+    function renderCarrinho() {
+      const subtotal = carrinho.reduce((s, i) => s + i.preco * i.qtd, 0);
+      const bairroObj = dados?.bairros.find(b => b._id === bairro.value);
+      const entrega = bairroObj ? Number(bairroObj.valorEntrega || 0) : 0;
+      itens.innerHTML = carrinho.map(i => `<div class="row"><span>${i.qtd}x ${texto(i.nome)}</span><span>${moeda(i.preco * i.qtd)} <button onclick="remover('${i.produtoId}')">x</button></span></div>`).join("") || "<p class='muted'>Carrinho vazio.</p>";
+      total.textContent = moeda(subtotal + entrega);
+    }
+    async function enviarPedido() {
+      if (!dados.restaurante.aberto) return alert("Restaurante fechado.");
+      const body = {
+        cliente: { nome: clienteNome.value, telefone: clienteTelefone.value, endereco: clienteEndereco.value },
+        bairroId: bairro.value,
+        formaPagamento: pagamento.value,
+        observacao: observacao.value,
+        itens: carrinho.map(i => ({ produtoId: i.produtoId, qtd: i.qtd }))
+      };
+      const res = await fetch(`/restaurantes/api/public/cardapio/${slug}/pedidos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.erro || "Erro ao enviar pedido");
+      alert(`Pedido #${data.pedido.numero} enviado!`);
+      carrinho = [];
+      renderCarrinho();
+    }
+    carregar();
+  </script>
+</body>
+</html>

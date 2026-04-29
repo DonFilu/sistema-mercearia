@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cidio Restaurantes</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #eef2f5; color: #17202a; }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; border: 0; border-radius: 6px; padding: 10px 14px; background: #1f7a4d; color: #fff; }
+    button.secondary { background: #34495e; }
+    button.danger { background: #b42318; }
+    button.ghost { background: #e8eef3; color: #17202a; }
+    input, select, textarea { width: 100%; padding: 10px; border: 1px solid #cfd8e3; border-radius: 6px; background: #fff; }
+    label { display: grid; gap: 6px; color: #34495e; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #dde3ea; }
+    th, td { padding: 10px; border-bottom: 1px solid #edf1f5; text-align: left; vertical-align: top; }
+    th { background: #f7f9fb; font-size: 13px; color: #52616f; }
+    .login { min-height: 100vh; display: grid; place-items: center; padding: 20px; }
+    .login-box { width: min(440px, 100%); background: #fff; padding: 26px; border: 1px solid #dde3ea; border-radius: 8px; box-shadow: 0 12px 30px rgba(16,24,40,.12); }
+    .login-box h1 { margin: 0 0 6px; }
+    .login-box p { margin: 0 0 18px; color: #5d6d7e; }
+    .form { display: grid; gap: 12px; }
+    .app { display: none; min-height: 100vh; }
+    header { height: 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; background: #fff; border-bottom: 1px solid #dde3ea; }
+    nav { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 18px; background: #f8fafc; border-bottom: 1px solid #dde3ea; }
+    nav button { background: #e8eef3; color: #17202a; }
+    nav button.active { background: #1f7a4d; color: #fff; }
+    main { padding: 18px; }
+    .view { display: none; }
+    .view.active { display: block; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 18px; }
+    .card { background: #fff; border: 1px solid #dde3ea; border-radius: 8px; padding: 16px; }
+    .card span { display: block; color: #5d6d7e; font-size: 13px; }
+    .card strong { display: block; font-size: 28px; margin-top: 8px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+    .panel { background: #fff; border: 1px solid #dde3ea; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pdv { display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; }
+    .products { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+    .product { background: #fff; border: 1px solid #dde3ea; border-radius: 8px; padding: 12px; }
+    .muted { color: #64748b; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 999px; background: #e8eef3; font-size: 12px; }
+    @media (max-width: 820px) { .pdv { grid-template-columns: 1fr; } header { height: auto; align-items: flex-start; gap: 8px; flex-direction: column; padding: 12px; } }
+  </style>
+</head>
+<body>
+  <section id="login" class="login">
+    <div class="login-box">
+      <h1>Cidio Restaurantes</h1>
+      <p>Entre ou cadastre seu restaurante.</p>
+      <div class="form">
+        <label>Email <input id="authEmail" type="email"></label>
+        <label>Senha <input id="authSenha" type="password"></label>
+        <label>Nome do restaurante <input id="authNome" placeholder="Obrigatório no cadastro"></label>
+        <label>Telefone/WhatsApp <input id="authTelefone"></label>
+        <div class="actions">
+          <button onclick="login()">Entrar</button>
+          <button class="secondary" onclick="registrar()">Cadastrar</button>
+          <a href="/" class="muted">Voltar</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="app" class="app">
+    <header>
+      <div>
+        <strong id="nomeRestaurante">Cidio Restaurantes</strong>
+        <div class="muted" id="linkPublico"></div>
+      </div>
+      <div class="actions">
+        <button class="ghost" onclick="abrirCardapio()">Abrir cardápio</button>
+        <button class="danger" onclick="sair()">Sair</button>
+      </div>
+    </header>
+    <nav id="nav"></nav>
+    <main>
+      <section id="dashboard" class="view active">
+        <div class="cards" id="dashboardCards"></div>
+        <div class="panel">
+          <h2>Pedidos recentes</h2>
+          <div id="pedidosResumo"></div>
+        </div>
+      </section>
+
+      <section id="pdv" class="view">
+        <div class="pdv">
+          <div class="panel">
+            <h2>PDV / Caixa</h2>
+            <input id="buscaPdv" placeholder="Buscar por nome ou código" oninput="renderProdutosPdv()">
+            <div class="products" id="produtosPdv"></div>
+          </div>
+          <div class="panel">
+            <h2>Carrinho</h2>
+            <div id="carrinho"></div>
+            <label>Desconto <input id="pdvDesconto" type="number" step="0.01" value="0" oninput="renderCarrinho()"></label>
+            <label>Pagamento
+              <select id="pdvPagamento"><option>Dinheiro</option><option>Pix</option><option>Cartao</option></select>
+            </label>
+            <h3 id="pdvTotal">R$ 0,00</h3>
+            <button onclick="finalizarPdv()">Finalizar venda</button>
+            <button class="secondary" onclick="imprimirComprovante()">Imprimir/gerar comprovante</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="produtos" class="view">
+        <div class="panel">
+          <h2>Produtos</h2>
+          <div class="grid">
+            <label>Nome <input id="produtoNome"></label>
+            <label>Descrição <input id="produtoDescricao"></label>
+            <label>Categoria <select id="produtoCategoria"></select></label>
+            <label>Código <input id="produtoCodigo"></label>
+            <label>Preço <input id="produtoPreco" type="number" step="0.01"></label>
+            <label>Foto URL/base64 <input id="produtoFoto"></label>
+            <label>Status <select id="produtoAtivo"><option value="true">Ativo</option><option value="false">Inativo</option></select></label>
+            <label>Controla estoque <select id="produtoControlaEstoque"><option value="false">Não</option><option value="true">Sim</option></select></label>
+            <label>Estoque <input id="produtoEstoque" type="number" step="0.01" value="0"></label>
+            <label>Estoque mínimo <input id="produtoEstoqueMinimo" type="number" step="0.01" value="0"></label>
+          </div>
+          <button onclick="salvarProduto()">Salvar produto</button>
+        </div>
+        <div id="listaProdutos"></div>
+      </section>
+
+      <section id="categorias" class="view">
+        <div class="panel">
+          <h2>Categorias</h2>
+          <div class="grid">
+            <label>Nome <input id="categoriaNome"></label>
+            <label>Ordem <input id="categoriaOrdem" type="number" value="0"></label>
+            <label>Status <select id="categoriaAtivo"><option value="true">Ativa</option><option value="false">Inativa</option></select></label>
+          </div>
+          <button onclick="salvarCategoria()">Salvar categoria</button>
+        </div>
+        <div id="listaCategorias"></div>
+      </section>
+
+      <section id="bairros" class="view">
+        <div class="panel">
+          <h2>Bairros de entrega</h2>
+          <div class="grid">
+            <label>Bairro <input id="bairroNome"></label>
+            <label>Valor da entrega <input id="bairroValor" type="number" step="0.01"></label>
+            <label>Tempo estimado <input id="bairroTempo" placeholder="30-45 min"></label>
+            <label>Status <select id="bairroAtivo"><option value="true">Ativo</option><option value="false">Inativo</option></select></label>
+          </div>
+          <button onclick="salvarBairro()">Salvar bairro</button>
+        </div>
+        <div id="listaBairros"></div>
+      </section>
+
+      <section id="pedidos" class="view">
+        <div class="panel">
+          <h2>Pedidos</h2>
+          <div id="listaPedidos"></div>
+        </div>
+      </section>
+
+      <section id="estoque" class="view">
+        <div class="panel">
+          <h2>Estoque</h2>
+          <div id="listaEstoque"></div>
+        </div>
+      </section>
+
+      <section id="config" class="view">
+        <div class="panel">
+          <h2>Configurações</h2>
+          <div class="grid">
+            <label>Nome <input id="cfgNome"></label>
+            <label>Logo <input id="cfgLogo"></label>
+            <label>Telefone <input id="cfgTelefone"></label>
+            <label>WhatsApp <input id="cfgWhatsapp"></label>
+            <label>Horário <input id="cfgHorario"></label>
+            <label>Tempo médio preparo <input id="cfgPreparo" type="number"></label>
+            <label>Pedido mínimo <input id="cfgMinimo" type="number" step="0.01"></label>
+            <label>Formas pagamento <input id="cfgPagamentos" placeholder="Dinheiro, Pix, Cartao"></label>
+            <label>Chave Pix <input id="cfgPix"></label>
+            <label>Status <select id="cfgAberto"><option value="true">Aberto</option><option value="false">Fechado</option></select></label>
+          </div>
+          <label>Mensagem automática <textarea id="cfgMensagem"></textarea></label>
+          <button onclick="salvarConfig()">Salvar configurações</button>
+        </div>
+      </section>
+
+      <section id="pagamento" class="view">
+        <div class="panel">
+          <h2>Pagamento do sistema</h2>
+          <p class="muted">Plano Cidio Restaurantes separado do Mercearias.</p>
+          <button onclick="criarPix()">Gerar QR Code Pix</button>
+          <div id="pixArea"></div>
+        </div>
+      </section>
+    </main>
+  </section>
+
+  <script>
+    const views = ["dashboard", "pdv", "produtos", "categorias", "bairros", "pedidos", "estoque", "config", "pagamento"];
+    const labels = { dashboard: "Dashboard", pdv: "PDV", produtos: "Produtos", categorias: "Categorias", bairros: "Bairros", pedidos: "Pedidos", estoque: "Estoque", config: "Configurações", pagamento: "Pagamento" };
+    let restaurante = null, produtos = [], categorias = [], bairros = [], pedidos = [], carrinho = [];
+
+    function token() { return localStorage.getItem("restauranteToken"); }
+    async function api(url, options = {}) {
+      const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+      if (token()) headers.Authorization = "Bearer " + token();
+      const res = await fetch("/restaurantes/api" + url, { ...options, headers });
+      if (res.status === 401) { sair(false); throw new Error("Sessão expirada"); }
+      return res;
+    }
+    function moeda(v) { return Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
+    function texto(v) { return String(v ?? ""); }
+
+    function montarNav() {
+      const nav = document.getElementById("nav");
+      nav.innerHTML = "";
+      views.forEach(v => {
+        const btn = document.createElement("button");
+        btn.textContent = labels[v];
+        btn.onclick = () => abrir(v);
+        btn.id = "nav_" + v;
+        nav.appendChild(btn);
+      });
+    }
+    function abrir(view) {
+      document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+      document.getElementById(view).classList.add("active");
+      document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+      document.getElementById("nav_" + view).classList.add("active");
+      carregarTudo();
+    }
+    async function login() {
+      const res = await fetch("/restaurantes/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: authEmail.value, senha: authSenha.value })
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.erro || "Erro no login");
+      localStorage.setItem("restauranteToken", data.token);
+      await iniciar();
+    }
+    async function registrar() {
+      const res = await fetch("/restaurantes/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: authEmail.value, senha: authSenha.value, nomeRestaurante: authNome.value, telefone: authTelefone.value })
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.erro || "Erro no cadastro");
+      localStorage.setItem("restauranteToken", data.token);
+      await iniciar();
+    }
+    function sair(reload = true) {
+      localStorage.removeItem("restauranteToken");
+      if (reload) location.reload();
+    }
+    async function iniciar() {
+      if (!token()) return;
+      const res = await api("/auth/me");
+      restaurante = await res.json();
+      document.getElementById("login").style.display = "none";
+      document.getElementById("app").style.display = "block";
+      document.getElementById("nomeRestaurante").textContent = restaurante.nomeRestaurante;
+      document.getElementById("linkPublico").textContent = location.origin + restaurante.linkPublico;
+      montarNav();
+      abrir("dashboard");
+      preencherConfig();
+    }
+    function abrirCardapio() {
+      if (restaurante?.linkPublico) window.open(restaurante.linkPublico, "_blank");
+    }
+    async function carregarTudo() {
+      if (!token()) return;
+      const [dash, pr, cat, bai, ped] = await Promise.all([
+        api("/dashboard").then(r => r.json()),
+        api("/produtos").then(r => r.json()),
+        api("/categorias").then(r => r.json()),
+        api("/bairros").then(r => r.json()),
+        api("/pedidos").then(r => r.json())
+      ]);
+      produtos = pr; categorias = cat; bairros = bai; pedidos = ped;
+      renderDashboard(dash); renderProdutosPdv(); renderCarrinho(); renderProdutos(); renderCategorias(); renderBairros(); renderPedidos(); renderEstoque();
+    }
+    function renderDashboard(d) {
+      dashboardCards.innerHTML = [
+        ["Pedidos hoje", d.pedidosHoje],
+        ["Total vendido", moeda(d.totalVendido)],
+        ["Pendentes", d.pendentes],
+        ["Em preparo", d.emPreparo],
+        ["Entregues", d.entregues],
+        ["Cancelados", d.cancelados]
+      ].map(c => `<div class="card"><span>${c[0]}</span><strong>${c[1]}</strong></div>`).join("");
+      pedidosResumo.innerHTML = pedidos.slice(0, 8).map(p => `<p>#${p.numero} ${p.cliente?.nome || "Balcão"} - ${p.status} - ${moeda(p.total)}</p>`).join("") || "<p class='muted'>Sem pedidos.</p>";
+    }
+    function nomeCategoria(id) { return categorias.find(c => c._id === id)?.nome || "Sem categoria"; }
+    function renderProdutosPdv() {
+      const termo = (buscaPdv?.value || "").toLowerCase();
+      produtosPdv.innerHTML = produtos.filter(p => p.ativo && (`${p.nome} ${p.codigo || ""}`).toLowerCase().includes(termo)).map(p => `
+        <div class="product">
+          <strong>${texto(p.nome)}</strong>
+          <div class="muted">${nomeCategoria(p.categoriaId)}</div>
+          <div>${moeda(p.preco)}</div>
+          ${p.controlaEstoque ? `<span class="badge">Estoque ${p.estoque}</span>` : ""}
+          <button onclick="addCarrinho('${p._id}')">Adicionar</button>
+        </div>`).join("");
+    }
+    function addCarrinho(id) {
+      const item = carrinho.find(i => i.produtoId === id);
+      if (item) item.qtd += 1;
+      else {
+        const p = produtos.find(x => x._id === id);
+        carrinho.push({ produtoId: id, nome: p.nome, qtd: 1, preco: p.preco });
+      }
+      renderCarrinho();
+    }
+    function removeCarrinho(id) { carrinho = carrinho.filter(i => i.produtoId !== id); renderCarrinho(); }
+    function setQtd(id, qtd) { const item = carrinho.find(i => i.produtoId === id); if (item) item.qtd = Math.max(1, Number(qtd) || 1); renderCarrinho(); }
+    function renderCarrinho() {
+      const desconto = Number(pdvDesconto?.value || 0);
+      const subtotal = carrinho.reduce((s, i) => s + i.preco * i.qtd, 0);
+      document.getElementById("carrinho").innerHTML = carrinho.map(i => `<p>${texto(i.nome)} <input style="width:70px" type="number" value="${i.qtd}" onchange="setQtd('${i.produtoId}', this.value)"> ${moeda(i.preco * i.qtd)} <button class="danger" onclick="removeCarrinho('${i.produtoId}')">Remover</button></p>`).join("") || "<p class='muted'>Carrinho vazio.</p>";
+      pdvTotal.textContent = moeda(Math.max(0, subtotal - desconto));
+    }
+    async function finalizarPdv() {
+      const res = await api("/pdv/vendas", {
+        method: "POST",
+        body: JSON.stringify({ itens: carrinho.map(i => ({ produtoId: i.produtoId, qtd: i.qtd })), desconto: pdvDesconto.value, formaPagamento: pdvPagamento.value })
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.erro || "Erro ao finalizar");
+      carrinho = []; pdvDesconto.value = 0; renderCarrinho(); await carregarTudo(); alert("Venda finalizada.");
+    }
+    function imprimirComprovante() {
+      window.print();
+    }
+    function preencherCategoriasSelect() {
+      produtoCategoria.innerHTML = `<option value="">Sem categoria</option>` + categorias.map(c => `<option value="${c._id}">${texto(c.nome)}</option>`).join("");
+    }
+    async function salvarProduto() {
+      const body = { nome: produtoNome.value, descricao: produtoDescricao.value, categoriaId: produtoCategoria.value, codigo: produtoCodigo.value, preco: Number(produtoPreco.value), foto: produtoFoto.value, ativo: produtoAtivo.value === "true", controlaEstoque: produtoControlaEstoque.value === "true", estoque: Number(produtoEstoque.value || 0), estoqueMinimo: Number(produtoEstoqueMinimo.value || 0) };
+      const res = await api("/produtos", { method: "POST", body: JSON.stringify(body) });
+      if (!res.ok) return alert((await res.json()).erro || "Erro ao salvar produto");
+      produtoNome.value = produtoDescricao.value = produtoCodigo.value = produtoPreco.value = produtoFoto.value = "";
+      await carregarTudo();
+    }
+    function renderProdutos() {
+      preencherCategoriasSelect();
+      listaProdutos.innerHTML = `<table><tr><th>Produto</th><th>Categoria</th><th>Preço</th><th>Status</th><th>Estoque</th><th>Ações</th></tr>${produtos.map(p => `<tr><td>${texto(p.nome)}<br><span class="muted">${texto(p.descricao)}</span></td><td>${nomeCategoria(p.categoriaId)}</td><td>${moeda(p.preco)}</td><td>${p.ativo ? "Ativo" : "Inativo"}</td><td>${p.controlaEstoque ? p.estoque : "-"}</td><td><button class="danger" onclick="remover('/produtos/${p._id}')">Excluir</button></td></tr>`).join("")}</table>`;
+    }
+    async function salvarCategoria() {
+      await api("/categorias", { method: "POST", body: JSON.stringify({ nome: document.getElementById("categoriaNome").value, ordem: Number(categoriaOrdem.value || 0), ativo: categoriaAtivo.value === "true" }) });
+      document.getElementById("categoriaNome").value = ""; await carregarTudo();
+    }
+    function renderCategorias() {
+      listaCategorias.innerHTML = `<table><tr><th>Nome</th><th>Ordem</th><th>Status</th><th>Ações</th></tr>${categorias.map(c => `<tr><td>${texto(c.nome)}</td><td>${c.ordem}</td><td>${c.ativo ? "Ativa" : "Inativa"}</td><td><button class="danger" onclick="remover('/categorias/${c._id}')">Excluir</button></td></tr>`).join("")}</table>`;
+    }
+    async function salvarBairro() {
+      await api("/bairros", { method: "POST", body: JSON.stringify({ nome: bairroNome.value, valorEntrega: Number(bairroValor.value || 0), tempoEstimado: bairroTempo.value, ativo: bairroAtivo.value === "true" }) });
+      bairroNome.value = bairroValor.value = bairroTempo.value = ""; await carregarTudo();
+    }
+    function renderBairros() {
+      listaBairros.innerHTML = `<table><tr><th>Bairro</th><th>Entrega</th><th>Tempo</th><th>Status</th><th>Ações</th></tr>${bairros.map(b => `<tr><td>${texto(b.nome)}</td><td>${moeda(b.valorEntrega)}</td><td>${texto(b.tempoEstimado)}</td><td>${b.ativo ? "Ativo" : "Inativo"}</td><td><button class="danger" onclick="remover('/bairros/${b._id}')">Excluir</button></td></tr>`).join("")}</table>`;
+    }
+    function renderPedidos() {
+      listaPedidos.innerHTML = pedidos.map(p => `<div class="panel"><h3>#${p.numero} ${p.cliente?.nome || "Balcão"} <span class="badge">${p.status}</span></h3><p>${p.cliente?.telefone || ""} ${p.cliente?.endereco || ""} ${p.cliente?.bairroNome || ""}</p><p>${p.itens.map(i => `${i.qtd}x ${i.nome}`).join(", ")}</p><p>Subtotal ${moeda(p.subtotal)} Entrega ${moeda(p.taxaEntrega)} Total <strong>${moeda(p.total)}</strong></p><div class="actions">${["Aceito","Em preparo","Saiu para entrega","Entregue","Cancelado"].map(s => `<button onclick="statusPedido('${p._id}','${s}')">${s}</button>`).join("")}<button class="secondary" onclick="window.print()">Imprimir</button><button class="ghost" onclick="whats('${p.cliente?.telefone || ""}', ${p.numero})">WhatsApp</button></div></div>`).join("") || "<p class='muted'>Sem pedidos.</p>";
+    }
+    async function statusPedido(id, status) { await api(`/pedidos/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }); await carregarTudo(); }
+    function whats(tel, numero) { window.open(`https://wa.me/55${String(tel).replace(/\D/g, "")}?text=Olá, seu pedido ${numero} foi atualizado.`, "_blank"); }
+    function renderEstoque() {
+      const baixos = produtos.filter(p => p.controlaEstoque && Number(p.estoque) <= Number(p.estoqueMinimo || 0));
+      listaEstoque.innerHTML = `<h3>Alertas</h3>${baixos.map(p => `<p>${texto(p.nome)}: ${p.estoque}</p>`).join("") || "<p class='muted'>Sem alertas.</p>"}<table><tr><th>Produto</th><th>Estoque</th><th>Ajuste</th></tr>${produtos.filter(p => p.controlaEstoque).map(p => `<tr><td>${texto(p.nome)}</td><td>${p.estoque}</td><td><input id="est_${p._id}" type="number" value="${p.estoque}"><button onclick="ajustarEstoque('${p._id}')">Ajustar</button></td></tr>`).join("")}</table>`;
+    }
+    async function ajustarEstoque(id) { await api(`/estoque/${id}/ajuste`, { method: "POST", body: JSON.stringify({ estoque: document.getElementById("est_" + id).value, observacao: "Ajuste manual" }) }); await carregarTudo(); }
+    function preencherConfig() {
+      if (!restaurante) return;
+      cfgNome.value = restaurante.nomeRestaurante || ""; cfgLogo.value = restaurante.logo || ""; cfgTelefone.value = restaurante.telefone || ""; cfgWhatsapp.value = restaurante.whatsapp || ""; cfgHorario.value = restaurante.horarioFuncionamento || ""; cfgPreparo.value = restaurante.tempoMedioPreparo || 30; cfgMinimo.value = restaurante.pedidoMinimo || 0; cfgPagamentos.value = (restaurante.formasPagamento || []).join(", "); cfgPix.value = restaurante.chavePix || ""; cfgMensagem.value = restaurante.mensagemPedidoRecebido || ""; cfgAberto.value = String(!!restaurante.aberto);
+    }
+    async function salvarConfig() {
+      const body = { nomeRestaurante: cfgNome.value, logo: cfgLogo.value, telefone: cfgTelefone.value, whatsapp: cfgWhatsapp.value, horarioFuncionamento: cfgHorario.value, tempoMedioPreparo: Number(cfgPreparo.value || 30), pedidoMinimo: Number(cfgMinimo.value || 0), formasPagamento: cfgPagamentos.value.split(",").map(x => x.trim()).filter(Boolean), chavePix: cfgPix.value, mensagemPedidoRecebido: cfgMensagem.value, aberto: cfgAberto.value === "true" };
+      const res = await api("/config", { method: "PUT", body: JSON.stringify(body) });
+      restaurante = await res.json(); preencherConfig(); document.getElementById("nomeRestaurante").textContent = restaurante.nomeRestaurante; document.getElementById("linkPublico").textContent = location.origin + restaurante.linkPublico; alert("Configurações salvas.");
+    }
+    async function criarPix() {
+      const res = await api("/pagamento/criar-pix", { method: "POST" });
+      const data = await res.json();
+      pixArea.innerHTML = data.qr_code_base64 ? `<p>Valor: ${moeda(data.valor)}</p><img alt="QR Code Pix" src="data:image/png;base64,${data.qr_code_base64}"><textarea>${data.qr_code}</textarea>` : `<p>${data.mensagem || data.erro}</p><p>Valor: ${moeda(data.valor)}</p>`;
+    }
+    async function remover(url) { if (!confirm("Excluir registro?")) return; await api(url, { method: "DELETE" }); await carregarTudo(); }
+    iniciar();
+  </script>
+</body>
+</html>
