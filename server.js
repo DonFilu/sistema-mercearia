@@ -1,12 +1,21 @@
 ﻿const express = require("express");
 const mongoose = require("mongoose");
 const path = require("path");
+const fs = require("fs");
 require("dotenv").config();
 const axios = require("axios");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
-const restaurantesRouter = require("./src/restaurantes/routes");
-const { RestauranteConta } = require("./src/restaurantes/models");
+
+let restaurantesRouter = null;
+let RestauranteConta = null;
+
+try {
+  restaurantesRouter = require("./src/restaurantes/routes");
+  RestauranteConta = require("./src/restaurantes/models").RestauranteConta;
+} catch (err) {
+  console.warn("Modulo Cidio Restaurantes indisponivel:", err.message);
+}
 
 const app = express();
 const JWT_SECRET =
@@ -82,15 +91,36 @@ app.get("/mercearias", (req, res) => {
 });
 
 app.get("/restaurantes", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "restaurantes", "index.html"));
+  const file = path.join(__dirname, "public", "restaurantes", "index.html");
+
+  if (!fs.existsSync(file)) {
+    return res.status(503).send("Cidio Restaurantes nao esta disponivel neste deploy.");
+  }
+
+  res.sendFile(file);
 });
 
 app.get("/restaurantes/cardapio/:slug", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "restaurantes", "cardapio.html"));
+  const file = path.join(__dirname, "public", "restaurantes", "cardapio.html");
+
+  if (!fs.existsSync(file)) {
+    return res.status(503).send("Cardapio do Cidio Restaurantes nao esta disponivel neste deploy.");
+  }
+
+  res.sendFile(file);
 });
 
 app.use("/restaurantes", express.static(path.join(__dirname, "public", "restaurantes")));
-app.use("/restaurantes/api", restaurantesRouter);
+
+if (restaurantesRouter) {
+  app.use("/restaurantes/api", restaurantesRouter);
+} else {
+  app.use("/restaurantes/api", (req, res) => {
+    res.status(503).json({
+      erro: "Modulo Cidio Restaurantes nao encontrado no deploy. Envie a pasta src/restaurantes."
+    });
+  });
+}
 
 // depois disso:
 app.use(express.static(path.join(__dirname, "public")));
@@ -1174,6 +1204,11 @@ app.post("/webhook", async (req, res) => {
       const userId = pagamento.external_reference;
 
       if (String(userId || "").startsWith("restaurante:")) {
+        if (!RestauranteConta) {
+          console.warn("Pagamento restaurante recebido, mas modulo Restaurantes nao esta disponivel.");
+          return res.sendStatus(200);
+        }
+
         const restauranteId = String(userId).replace("restaurante:", "");
         const restaurante = await RestauranteConta.findById(restauranteId);
 
