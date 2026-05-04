@@ -14,6 +14,7 @@ const {
 } = require("./security");
 
 const router = express.Router();
+let indexesChecked = false;
 
 function requireDatabase(req, res, next) {
   if (mongoose.connection.readyState !== 1) {
@@ -43,6 +44,20 @@ function publicAccount(account) {
     email: account.email,
     guilds: account.guilds || []
   };
+}
+
+async function prepareClanIndexes() {
+  if (indexesChecked) return;
+  indexesChecked = true;
+
+  try {
+    await ClanAccount.collection.dropIndex("email_1");
+    console.log("Indice antigo email_1 do Clan Cidio removido.");
+  } catch (err) {
+    if (err.codeName !== "IndexNotFound" && err.code !== 27) {
+      console.warn("Nao foi possivel remover indice antigo email_1 do Clan:", err.message);
+    }
+  }
 }
 
 async function requireClanAuth(req, res, next) {
@@ -93,6 +108,8 @@ router.get("/auth/discord", requireDiscordConfig, (req, res) => {
 
 router.get("/auth/discord/callback", requireDatabase, requireDiscordConfig, async (req, res) => {
   try {
+    await prepareClanIndexes();
+
     const { code, state } = req.query;
 
     if (!code || !state || state !== getState(req)) {
@@ -125,6 +142,7 @@ router.get("/auth/discord/callback", requireDatabase, requireDiscordConfig, asyn
     ]);
 
     const user = userResponse.data;
+    const email = user.email ? String(user.email).toLowerCase().trim() : undefined;
     const guilds = (guildsResponse.data || []).map(guild => ({
       id: guild.id,
       name: guild.name,
@@ -133,17 +151,32 @@ router.get("/auth/discord/callback", requireDatabase, requireDiscordConfig, asyn
       permissions: String(guild.permissions || "")
     }));
 
-    const account = await ClanAccount.findOneAndUpdate(
-      { discordId: user.id },
-      {
+    const existingAccount = await ClanAccount.findOne({
+      $or: [
+        { discordId: user.id },
+        ...(email ? [{ email }] : [])
+      ]
+    });
+
+    const update = {
+      $set: {
         tipoSistema: "clan",
         discordId: user.id,
         username: user.global_name || user.username,
         avatar: discordAvatarUrl(user),
-        email: user.email || "",
         guilds,
         lastLoginAt: new Date()
       },
+      $unset: {
+        senha: ""
+      }
+    };
+
+    if (email) update.$set.email = email;
+
+    const account = await ClanAccount.findOneAndUpdate(
+      existingAccount ? { _id: existingAccount._id } : { discordId: user.id },
+      update,
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
@@ -151,7 +184,13 @@ router.get("/auth/discord/callback", requireDatabase, requireDiscordConfig, asyn
     setSession(res, account._id);
     return res.redirect("/clans/home");
   } catch (err) {
-    console.error("Erro no Discord OAuth:", err.response?.data || err);
+    const details = err.response?.data || {
+      message: err.message,
+      code: err.code,
+      codeName: err.codeName,
+      keyPattern: err.keyPattern
+    };
+    console.error("Erro no Discord OAuth:", details);
     clearOAuthState(res);
     return res.status(500).send("Nao foi possivel concluir o login com Discord.");
   }
