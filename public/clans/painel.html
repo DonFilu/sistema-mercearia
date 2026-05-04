@@ -6,104 +6,242 @@
   <title>Painel Clan Cidio</title>
   <style>
     * { box-sizing: border-box; }
+    :root {
+      --bg: #f3f6fb;
+      --panel: #fff;
+      --text: #101828;
+      --muted: #667085;
+      --line: #d8e0ea;
+      --brand: #5865f2;
+      --sidebar: #111827;
+    }
     body {
       margin: 0;
       min-height: 100vh;
       font-family: Inter, Arial, Helvetica, sans-serif;
-      background: #f3f6fb;
-      color: #101828;
+      background: var(--bg);
+      color: var(--text);
     }
+    .layout {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 260px 1fr;
+    }
+    aside {
+      background: var(--sidebar);
+      color: #fff;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+    .brand { font-size: 20px; font-weight: 900; }
+    nav { display: grid; gap: 8px; }
+    nav button, nav a {
+      width: 100%;
+      border: 0;
+      border-radius: 9px;
+      padding: 11px 12px;
+      text-align: left;
+      color: #d1d5db;
+      background: transparent;
+      text-decoration: none;
+      font: inherit;
+      cursor: pointer;
+    }
+    nav button.active, nav button:hover, nav a:hover {
+      background: rgba(255,255,255,.10);
+      color: #fff;
+    }
+    main { padding: 24px; }
     header {
-      height: 64px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 24px;
-      background: #fff;
-      border-bottom: 1px solid #d8e0ea;
+      gap: 12px;
+      margin-bottom: 18px;
     }
-    strong { font-size: 18px; }
-    button {
-      border: 0;
-      border-radius: 8px;
-      padding: 10px 13px;
+    .user {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+    }
+    .avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
       background: #e9eef7;
-      color: #101828;
-      cursor: pointer;
-      font-weight: 700;
+      object-fit: cover;
     }
-    main {
-      min-height: calc(100vh - 64px);
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 22px;
+      box-shadow: 0 12px 32px rgba(16,24,40,.08);
+    }
+    .view { display: none; }
+    .view.active { display: block; }
+    h1 { margin: 0 0 10px; font-size: 30px; letter-spacing: 0; }
+    p { color: var(--muted); line-height: 1.55; }
+    .servers {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .server {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      background: #fff;
+    }
+    .server img, .server-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: #e9eef7;
       display: grid;
       place-items: center;
-      padding: 24px;
+      font-weight: 900;
+      color: var(--brand);
+      flex: 0 0 auto;
     }
-    section {
-      width: min(760px, 100%);
-      background: #fff;
-      border: 1px solid #d8e0ea;
-      border-radius: 12px;
-      padding: 34px;
-      box-shadow: 0 18px 48px rgba(16, 24, 40, .10);
+    .server strong { display: block; }
+    .server span { color: var(--muted); font-size: 13px; word-break: break-all; }
+    .logout {
+      border: 0;
+      border-radius: 9px;
+      background: #e9eef7;
+      color: #101828;
+      font: inherit;
+      font-weight: 800;
+      padding: 10px 13px;
+      cursor: pointer;
     }
-    h1 {
-      margin: 0 0 12px;
-      font-size: 32px;
-      letter-spacing: 0;
-    }
-    p {
-      margin: 0;
-      color: #667085;
-      font-size: 17px;
-      line-height: 1.55;
-    }
-    .account {
-      margin-top: 22px;
-      padding-top: 18px;
-      border-top: 1px solid #edf1f5;
-      color: #667085;
-      font-size: 14px;
+    @media (max-width: 820px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: sticky; top: 0; z-index: 2; }
+      nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      main { padding: 16px; }
+      header { align-items: flex-start; flex-direction: column; }
     }
   </style>
 </head>
 <body>
-  <header>
-    <strong>Clan Cidio</strong>
-    <button onclick="logout()">Sair</button>
-  </header>
-  <main>
-    <section>
-      <h1>Painel de Controle — Clan Cidio</h1>
-      <p>Em breve você poderá configurar seu servidor por aqui.</p>
-      <div id="account" class="account"></div>
-    </section>
-  </main>
+  <div class="layout">
+    <aside>
+      <div class="brand">Clan Cidio</div>
+      <nav>
+        <button id="tabInicio" class="active" onclick="setView('inicio')">Início</button>
+        <button id="tabServidores" onclick="setView('servidores')">Servidores</button>
+        <a href="/api/clans/bot-invite" target="_blank" rel="noopener">Convidar bot</a>
+        <button id="tabConfig" onclick="setView('config')">Configurações</button>
+      </nav>
+    </aside>
+    <main>
+      <header>
+        <div>
+          <h1 id="pageTitle">Painel</h1>
+          <p id="pageSubtitle">Gerencie seu Clan Cidio.</p>
+        </div>
+        <div class="user">
+          <img id="avatar" class="avatar" alt="">
+          <span id="username">Carregando...</span>
+          <button class="logout" onclick="logout()">Sair</button>
+        </div>
+      </header>
+
+      <section id="viewInicio" class="view active">
+        <div class="card">
+          <h1>Painel de Controle — Clan Cidio</h1>
+          <p>Em breve você poderá configurar seu servidor por aqui.</p>
+        </div>
+      </section>
+
+      <section id="viewServidores" class="view">
+        <div class="card">
+          <h1>Servidores</h1>
+          <p>Servidores retornados pela sua conta Discord.</p>
+          <div id="servers" class="servers"></div>
+        </div>
+      </section>
+
+      <section id="viewConfig" class="view">
+        <div class="card">
+          <h1>Configurações</h1>
+          <p>Em breve você poderá conectar permissões, canais e automações do bot por aqui.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
   <script>
-    function logout() {
-      localStorage.removeItem("clanToken");
-      localStorage.removeItem("clanAccount");
-      window.location.href = "/clans/register";
+    let account = null;
+
+    function setView(view) {
+      const titles = {
+        inicio: ["Painel", "Gerencie seu Clan Cidio."],
+        servidores: ["Servidores", "Veja os servidores conectados à sua conta Discord."],
+        config: ["Configurações", "Prepare as próximas integrações do seu servidor."]
+      };
+
+      document.querySelectorAll(".view").forEach(el => el.classList.remove("active"));
+      document.querySelectorAll("nav button").forEach(el => el.classList.remove("active"));
+      document.getElementById("view" + view.charAt(0).toUpperCase() + view.slice(1)).classList.add("active");
+      const tab = document.getElementById("tab" + view.charAt(0).toUpperCase() + view.slice(1));
+      if (tab) tab.classList.add("active");
+      document.getElementById("pageTitle").textContent = titles[view][0];
+      document.getElementById("pageSubtitle").textContent = titles[view][1];
     }
 
-    async function loadAccount() {
-      const token = localStorage.getItem("clanToken");
+    function serverIcon(server) {
+      if (server.icon) return `<img src="${server.icon}" alt="">`;
+      return `<div class="server-icon">${String(server.name || "?").charAt(0).toUpperCase()}</div>`;
+    }
 
-      if (!token) {
-        window.location.href = "/clans/register";
+    function renderServers() {
+      const guilds = account.guilds || [];
+      const container = document.getElementById("servers");
+
+      if (!guilds.length) {
+        container.innerHTML = "<p>Nenhum servidor retornado pelo Discord.</p>";
         return;
       }
 
-      const response = await fetch("/clans/api/me", {
-        headers: { Authorization: "Bearer " + token }
-      });
+      container.innerHTML = guilds.map(server => `
+        <div class="server">
+          ${serverIcon(server)}
+          <div>
+            <strong>${server.name}</strong>
+            <span>ID: ${server.id}</span>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    async function loadAccount() {
+      const response = await fetch("/api/clans/me");
 
       if (!response.ok) {
-        logout();
+        window.location.href = "/clans";
         return;
       }
 
       const data = await response.json();
-      document.getElementById("account").textContent = "Conta: " + data.account.email;
+      account = data.account;
+      document.getElementById("username").textContent = account.username || account.email || "Discord";
+      document.getElementById("avatar").src = account.avatar || "";
+      renderServers();
+    }
+
+    async function logout() {
+      await fetch("/api/clans/logout", { method: "POST" });
+      window.location.href = "/clans";
     }
 
     loadAccount();

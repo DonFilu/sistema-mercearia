@@ -7,9 +7,11 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 
 let clansRouter = null;
+let hasValidClanSession = null;
 
 try {
   clansRouter = require("./src/clans/routes");
+  hasValidClanSession = require("./src/clans/security").hasValidClanSession;
 } catch (err) {
   console.warn("Modulo Clan Cidio indisponivel:", err.message);
 }
@@ -83,18 +85,34 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
 });
 
+app.get("/clans", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "clans", "index.html"));
+});
+
 app.get("/clans/register", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "clans", "register.html"));
+  res.redirect("/clans");
+});
+
+app.get("/clans/home", (req, res) => {
+  if (!hasValidClanSession || !hasValidClanSession(req)) {
+    return res.redirect("/clans");
+  }
+
+  res.sendFile(path.join(__dirname, "public", "clans", "home.html"));
 });
 
 app.get("/clans/painel", (req, res) => {
+  if (!hasValidClanSession || !hasValidClanSession(req)) {
+    return res.redirect("/clans");
+  }
+
   res.sendFile(path.join(__dirname, "public", "clans", "painel.html"));
 });
 
 if (clansRouter) {
-  app.use("/clans/api", clansRouter);
+  app.use("/api", clansRouter);
 } else {
-  app.use("/clans/api", (req, res) => {
+  app.use("/api/auth/discord", (req, res) => {
     res.status(503).json({
       erro: "Modulo Clan Cidio nao encontrado neste deploy."
     });
@@ -148,6 +166,8 @@ app.use(async (req, res, next) => {
   req.path === "/webhook" ||
   req.path === "/criar-pix" ||
   req.path.startsWith("/clans") ||
+  req.path.startsWith("/api/auth/discord") ||
+  req.path.startsWith("/api/clans") ||
   req.path.startsWith("/afiliado")
 ) {
   return next();

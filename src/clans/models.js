@@ -5,10 +5,20 @@ const ClanAccount = mongoose.models.ClanAccount || mongoose.model(
   new mongoose.Schema(
     {
       tipoSistema: { type: String, default: "clan", index: true },
-      email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-      senha: { type: String, required: true },
-      discordId: String,
-      discordUsername: String
+      discordId: { type: String, required: true, unique: true, index: true },
+      username: String,
+      avatar: String,
+      email: { type: String, lowercase: true, trim: true },
+      guilds: [
+        {
+          id: String,
+          name: String,
+          icon: String,
+          owner: Boolean,
+          permissions: String
+        }
+      ],
+      lastLoginAt: Date
     },
     { timestamps: true }
   )

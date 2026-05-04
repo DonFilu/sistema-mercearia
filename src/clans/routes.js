@@ -1,29 +1,19 @@
 const express = require("express");
 const mongoose = require("mongoose");
+const axios = require("axios");
 const { ClanAccount } = require("./models");
 const {
-  hashPassword,
-  verifyPassword,
-  createClanToken,
-  getBearerToken,
+  randomState,
+  getState,
+  getSessionToken,
+  setOAuthState,
+  clearOAuthState,
+  setSession,
+  clearSession,
   verifyToken
 } = require("./security");
 
 const router = express.Router();
-
-function validateEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || ""));
-}
-
-function publicAccount(account) {
-  return {
-    id: account._id,
-    email: account.email,
-    tipoSistema: account.tipoSistema,
-    discordId: account.discordId || null,
-    discordUsername: account.discordUsername || null
-  };
-}
 
 function requireDatabase(req, res, next) {
   if (mongoose.connection.readyState !== 1) {
@@ -35,15 +25,29 @@ function requireDatabase(req, res, next) {
   return next();
 }
 
-async function requireClanAuth(req, res, next) {
-  const token = getBearerToken(req);
-
-  if (!token) {
-    return res.status(401).json({ erro: "Sessao nao encontrada" });
+function requireDiscordConfig(req, res, next) {
+  if (!process.env.DISCORD_CLIENT_ID || !process.env.DISCORD_CLIENT_SECRET || !process.env.DISCORD_REDIRECT_URI) {
+    return res.status(500).send("Discord OAuth nao configurado no servidor.");
   }
 
+  return next();
+}
+
+function publicAccount(account) {
+  return {
+    id: account._id,
+    tipoSistema: account.tipoSistema,
+    discordId: account.discordId,
+    username: account.username,
+    avatar: account.avatar,
+    email: account.email,
+    guilds: account.guilds || []
+  };
+}
+
+async function requireClanAuth(req, res, next) {
   try {
-    const payload = verifyToken(token);
+    const payload = verifyToken(getSessionToken(req));
 
     if (payload.tipoSistema !== "clan") {
       return res.status(401).json({ erro: "Sessao invalida" });
@@ -62,70 +66,109 @@ async function requireClanAuth(req, res, next) {
   }
 }
 
-router.use(requireDatabase);
+function discordAvatarUrl(user) {
+  if (!user.avatar) return "";
+  return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`;
+}
 
-router.post("/register", async (req, res) => {
+function guildIconUrl(guild) {
+  if (!guild.icon) return "";
+  return `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`;
+}
+
+router.get("/auth/discord", requireDiscordConfig, (req, res) => {
+  const state = randomState();
+  setOAuthState(res, state);
+
+  const params = new URLSearchParams({
+    response_type: "code",
+    client_id: process.env.DISCORD_CLIENT_ID,
+    redirect_uri: process.env.DISCORD_REDIRECT_URI,
+    scope: "identify email guilds",
+    state
+  });
+
+  return res.redirect(`https://discord.com/oauth2/authorize?${params.toString()}`);
+});
+
+router.get("/auth/discord/callback", requireDatabase, requireDiscordConfig, async (req, res) => {
   try {
-    const email = String(req.body.email || "").trim().toLowerCase();
-    const senha = String(req.body.senha || "");
+    const { code, state } = req.query;
 
-    if (!email || !senha) {
-      return res.status(400).json({ erro: "Preencha todos os campos" });
+    if (!code || !state || state !== getState(req)) {
+      clearOAuthState(res);
+      return res.status(400).send("Login com Discord invalido. Tente novamente.");
     }
 
-    if (!validateEmail(email)) {
-      return res.status(400).json({ erro: "Email invalido" });
-    }
+    const tokenResponse = await axios.post(
+      "https://discord.com/api/oauth2/token",
+      new URLSearchParams({
+        client_id: process.env.DISCORD_CLIENT_ID,
+        client_secret: process.env.DISCORD_CLIENT_SECRET,
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: process.env.DISCORD_REDIRECT_URI
+      }).toString(),
+      {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
+        }
+      }
+    );
 
-    const exists = await ClanAccount.findOne({ email });
+    const accessToken = tokenResponse.data.access_token;
+    const headers = { Authorization: `Bearer ${accessToken}` };
 
-    if (exists) {
-      return res.status(400).json({ erro: "Email ja cadastrado" });
-    }
+    const [userResponse, guildsResponse] = await Promise.all([
+      axios.get("https://discord.com/api/users/@me", { headers }),
+      axios.get("https://discord.com/api/users/@me/guilds", { headers })
+    ]);
 
-    const account = await ClanAccount.create({
-      email,
-      senha: hashPassword(senha),
-      tipoSistema: "clan"
-    });
+    const user = userResponse.data;
+    const guilds = (guildsResponse.data || []).map(guild => ({
+      id: guild.id,
+      name: guild.name,
+      icon: guildIconUrl(guild),
+      owner: !!guild.owner,
+      permissions: String(guild.permissions || "")
+    }));
 
-    return res.json({
-      token: createClanToken(account._id),
-      account: publicAccount(account)
-    });
+    const account = await ClanAccount.findOneAndUpdate(
+      { discordId: user.id },
+      {
+        tipoSistema: "clan",
+        discordId: user.id,
+        username: user.global_name || user.username,
+        avatar: discordAvatarUrl(user),
+        email: user.email || "",
+        guilds,
+        lastLoginAt: new Date()
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    clearOAuthState(res);
+    setSession(res, account._id);
+    return res.redirect("/clans/home");
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ erro: "Erro ao criar conta" });
+    console.error("Erro no Discord OAuth:", err.response?.data || err);
+    clearOAuthState(res);
+    return res.status(500).send("Nao foi possivel concluir o login com Discord.");
   }
 });
 
-router.post("/login", async (req, res) => {
-  try {
-    const email = String(req.body.email || "").trim().toLowerCase();
-    const senha = String(req.body.senha || "");
-
-    if (!email || !senha) {
-      return res.status(400).json({ erro: "Preencha todos os campos" });
-    }
-
-    const account = await ClanAccount.findOne({ email });
-
-    if (!account || !verifyPassword(senha, account.senha)) {
-      return res.status(401).json({ erro: "Email ou senha incorretos" });
-    }
-
-    return res.json({
-      token: createClanToken(account._id),
-      account: publicAccount(account)
-    });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ erro: "Erro ao entrar" });
-  }
-});
-
-router.get("/me", requireClanAuth, (req, res) => {
+router.get("/clans/me", requireDatabase, requireClanAuth, (req, res) => {
   return res.json({ account: publicAccount(req.clanAccount) });
+});
+
+router.get("/clans/bot-invite", (req, res) => {
+  const inviteUrl = process.env.DISCORD_BOT_INVITE_URL || "https://discord.com/developers/applications";
+  return res.redirect(inviteUrl);
+});
+
+router.post("/clans/logout", (req, res) => {
+  clearSession(res);
+  return res.json({ ok: true });
 });
 
 module.exports = router;
