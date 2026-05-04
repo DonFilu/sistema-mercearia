@@ -13,6 +13,14 @@ const AVATAR_COMMAND = {
     }
   ]
 };
+const TESTAR_BOAS_VINDAS_COMMAND = {
+  name: "testar-boasvindas",
+  description: "Testa a mensagem de boas-vindas no canal configurado."
+};
+const CLAN_COMMANDS = [
+  AVATAR_COMMAND,
+  TESTAR_BOAS_VINDAS_COMMAND
+];
 
 function discordCommandConfig() {
   const applicationId = process.env.DISCORD_APPLICATION_ID || process.env.DISCORD_CLIENT_ID;
@@ -36,11 +44,11 @@ async function registerGlobalAvatarCommand() {
   const { applicationId, token } = discordCommandConfig();
   await axios.put(
     `https://discord.com/api/v10/applications/${applicationId}/commands`,
-    [AVATAR_COMMAND],
+    CLAN_COMMANDS,
     { headers: commandHeaders(token), timeout: 10000 }
   );
 
-  console.log("Comando /avatar registrado globalmente.");
+  console.log("Comandos Clan Cidio registrados globalmente.");
 }
 
 async function registerGuildAvatarCommand(guildId) {
@@ -49,11 +57,11 @@ async function registerGuildAvatarCommand(guildId) {
   const { applicationId, token } = discordCommandConfig();
   await axios.put(
     `https://discord.com/api/v10/applications/${applicationId}/guilds/${guildId}/commands`,
-    [AVATAR_COMMAND],
+    CLAN_COMMANDS,
     { headers: commandHeaders(token), timeout: 10000 }
   );
 
-  console.log("Comando /avatar registrado no servidor:", guildId);
+  console.log("Comandos Clan Cidio registrados no servidor:", guildId);
 }
 
 function envGuildIds() {
@@ -78,9 +86,7 @@ async function registerAvatarCommands(guildIds = []) {
 
 async function registerConfiguredGuildCommands() {
   const { ClanGuildConfig } = require("./models");
-  const guildIds = await ClanGuildConfig.distinct("guildId", {
-    avatarRobloxEnabled: true
-  });
+  const guildIds = await ClanGuildConfig.distinct("guildId");
 
   await registerAvatarCommands(guildIds);
 }
@@ -94,6 +100,8 @@ if (require.main === module) {
 
 module.exports = {
   AVATAR_COMMAND,
+  TESTAR_BOAS_VINDAS_COMMAND,
+  CLAN_COMMANDS,
   registerAvatarCommands,
   registerConfiguredGuildCommands,
   registerGuildAvatarCommand

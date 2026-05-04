@@ -4,7 +4,8 @@ const {
   Client,
   GatewayIntentBits,
   EmbedBuilder,
-  AttachmentBuilder
+  AttachmentBuilder,
+  PermissionFlagsBits
 } = require("discord.js");
 const { ClanGuildConfig } = require("./models");
 const {
@@ -129,6 +130,44 @@ async function handleAvatarCommand(interaction) {
     });
   }
 }
+
+async function handleTestarBoasVindasCommand(interaction) {
+  console.log("[Boas-vindas] /testar-boasvindas recebido", {
+    guildId: interaction.guildId,
+    userId: interaction.user?.id || null,
+    username: interaction.user?.username || null
+  });
+
+  try {
+    await interaction.deferReply({ ephemeral: true });
+  } catch (err) {
+    console.error("[Boas-vindas] erro ao deferir /testar-boasvindas:", err);
+    return;
+  }
+
+  try {
+    if (!interaction.guild) {
+      await interaction.editReply("Use este comando dentro de um servidor.");
+      return;
+    }
+
+    const member = interaction.member?.user
+      ? interaction.member
+      : await interaction.guild.members.fetch(interaction.user.id);
+    const result = await sendBoasVindasForMember(member, "slash-test");
+
+    if (result.ok) {
+      await interaction.editReply(`Teste enviado no canal configurado: <#${result.channelId}>.`);
+      return;
+    }
+
+    await interaction.editReply(`Boas-vindas não foi enviada. Motivo: ${result.reason || "erro"}. Veja os logs do bot.`);
+  } catch (err) {
+    console.error("[Boas-vindas] erro completo no /testar-boasvindas:", err);
+    await interaction.editReply("Erro ao testar Boas-vindas. Veja os logs do bot.");
+  }
+}
+
 
 function mapGet(map, key, fallback) {
   if (!map) return fallback;
@@ -324,64 +363,139 @@ async function handleModoToscoMessage(message) {
 }
 
 async function handleGuildMemberAdd(member) {
-  console.log("Novo membro detectado para Boas-vindas:", {
+  console.log("[Boas-vindas] EVENTO RECEBIDO", member.guild?.id || null, member.user?.id || null);
+  console.log("[Boas-vindas] guildMemberAdd recebido", {
     guildId: member.guild?.id || null,
-    userId: member.user?.id || null
+    userId: member.user?.id || null,
+    username: member.user?.username || null
   });
 
-  if (!member.guild?.id || mongoose.connection.readyState !== 1) return;
+  await sendBoasVindasForMember(member, "guildMemberAdd");
+}
+
+async function sendBoasVindasForMember(member, source = "manual") {
+  console.log("[Boas-vindas] fluxo iniciado", {
+    source,
+    guildId: member.guild?.id || null,
+    userId: member.user?.id || null,
+    username: member.user?.username || null
+  });
+
+  if (!member.guild?.id) {
+    console.log("[Boas-vindas] ignorado: membro sem guildId.");
+    return { ok: false, reason: "sem_guild" };
+  }
+
+  if (mongoose.connection.readyState !== 1) {
+    console.log("[Boas-vindas] ignorado: banco desconectado.");
+    return { ok: false, reason: "banco_desconectado" };
+  }
 
   try {
     const config = await ClanGuildConfig.findOne({ guildId: member.guild.id });
+    console.log("[Boas-vindas] config carregada", config ? {
+      guildId: config.guildId,
+      boasVindasEnabled: config.boasVindasEnabled === true,
+      boasVindasChannelId: config.boasVindasChannelId ? String(config.boasVindasChannelId) : null,
+      temFundo: !!config.boasVindasBackgroundUrl
+    } : null);
 
     if (!config || config.boasVindasEnabled !== true) {
-      console.log("Boas-vindas ignorado: funcao desativada ou sem config.", {
+      console.log("[Boas-vindas] ignorado: funcao desativada ou sem config.", {
         guildId: member.guild.id
       });
-      return;
+      return { ok: false, reason: "desativado" };
     }
 
-    if (!config.boasVindasChannelId) {
-      console.log("Boas-vindas ignorado: canal nao configurado.", {
+    const channelId = config.boasVindasChannelId ? String(config.boasVindasChannelId) : null;
+
+    if (!channelId) {
+      console.log("[Boas-vindas] ignorado: canal nao configurado.", {
         guildId: member.guild.id
       });
-      return;
+      return { ok: false, reason: "sem_canal" };
     }
 
-    const channel = await member.guild.channels.fetch(config.boasVindasChannelId);
+    const channel = await member.guild.channels.fetch(channelId);
+    console.log("[Boas-vindas] canal encontrado", {
+      guildId: member.guild.id,
+      channelId,
+      found: !!channel,
+      sendFunction: typeof channel?.send === "function"
+    });
 
     if (!channel || typeof channel.send !== "function") {
-      console.log("Boas-vindas erro: canal invalido ou sem envio.", {
+      console.log("[Boas-vindas] erro: canal invalido ou sem envio.", {
         guildId: member.guild.id,
-        channelId: config.boasVindasChannelId
+        channelId
       });
-      return;
+      return { ok: false, reason: "canal_invalido" };
     }
 
-    const imageBuffer = createWelcomeImageBuffer(member, config);
-    const attachment = new AttachmentBuilder(imageBuffer, {
-      name: "boas-vindas.svg"
-    });
-    console.log("Imagem Boas-vindas gerada:", {
+    const me = member.guild.members.me || await member.guild.members.fetchMe().catch(() => null);
+    const permissions = me ? channel.permissionsFor(me) : null;
+    const requiredPermissions = [
+      PermissionFlagsBits.ViewChannel,
+      PermissionFlagsBits.SendMessages,
+      PermissionFlagsBits.AttachFiles,
+      PermissionFlagsBits.EmbedLinks
+    ];
+    const missing = permissions
+      ? requiredPermissions.filter(permission => !permissions.has(permission))
+      : requiredPermissions;
+
+    if (missing.length) {
+      console.log("[Boas-vindas] erro: permissoes ausentes.", {
+        guildId: member.guild.id,
+        channelId,
+        missing: missing.map(permission => permission.toString())
+      });
+      return { ok: false, reason: "sem_permissao" };
+    }
+
+    console.log("[Boas-vindas] fundo carregado", {
       guildId: member.guild.id,
-      userId: member.user.id
+      temFundo: !!config.boasVindasBackgroundUrl
     });
 
+    let files = [];
+
+    try {
+      const imageBuffer = createWelcomeImageBuffer(member, config);
+      files = [
+        new AttachmentBuilder(imageBuffer, {
+          name: "boas-vindas.svg"
+        })
+      ];
+      console.log("[Boas-vindas] imagem gerada", {
+        guildId: member.guild.id,
+        userId: member.user.id
+      });
+    } catch (imageErr) {
+      console.error("[Boas-vindas] erro ao gerar imagem, usando fallback texto:", imageErr);
+    }
+
     await channel.send({
-      content: "Seja bem-vindo(a)!!",
-      files: [attachment]
+      content: files.length
+        ? "Seja bem-vindo(a)!!"
+        : `Seja bem-vindo(a), ${member}!`,
+      files
     });
-    console.log("Mensagem Boas-vindas enviada:", {
+    console.log("[Boas-vindas] mensagem enviada", {
       guildId: member.guild.id,
-      channelId: config.boasVindasChannelId,
-      userId: member.user.id
+      channelId,
+      userId: member.user.id,
+      comImagem: files.length > 0
     });
+    return { ok: true, channelId, comImagem: files.length > 0 };
   } catch (err) {
-    console.error("Erro em Boas-vindas:", {
+    console.error("[Boas-vindas] erro completo:", err);
+    console.error("[Boas-vindas] erro resumido:", {
       guildId: member.guild?.id || null,
       userId: member.user?.id || null,
       erro: err.message
     });
+    return { ok: false, reason: "erro", error: err.message };
   }
 }
 
@@ -509,9 +623,15 @@ async function startClanDiscordBot() {
 
     client.on("interactionCreate", async interaction => {
       if (!interaction.isChatInputCommand()) return;
-      if (interaction.commandName !== "avatar") return;
 
-      await handleAvatarCommand(interaction);
+      if (interaction.commandName === "avatar") {
+        await handleAvatarCommand(interaction);
+        return;
+      }
+
+      if (interaction.commandName === "testar-boasvindas") {
+        await handleTestarBoasVindasCommand(interaction);
+      }
     });
 
     client.on("messageCreate", async message => {
