@@ -10,6 +10,7 @@ const {
   normalizeQuestions,
   DEFAULT_CHAMADAS_MESSAGE,
   DEFAULT_CHAMADAS_END_MESSAGE,
+  DEFAULT_MODO_TOSCO_MESSAGES,
   listTextChannels,
   findRobloxUser,
   findRobloxAvatar
@@ -423,7 +424,9 @@ router.get("/clans/guilds", requireDatabase, requireClanAuth, async (req, res) =
     avatarRobloxEnabled: config.avatarRobloxEnabled === true,
     avatarRobloxChannelId: config.avatarRobloxChannelId || null,
     chamadasEnabled: config.chamadasEnabled === true,
-    chamadasChannelId: config.chamadasChannelId || null
+    chamadasChannelId: config.chamadasChannelId || null,
+    modoToscoEnabled: config.modoToscoEnabled === true,
+    modoToscoChannels: config.modoToscoChannels || []
   })));
 
   return res.json({
@@ -434,7 +437,9 @@ router.get("/clans/guilds", requireDatabase, requireClanAuth, async (req, res) =
         avatarRobloxEnabled: false,
         avatarRobloxChannelId: null,
         chamadasEnabled: false,
-        chamadasChannelId: null
+        chamadasChannelId: null,
+        modoToscoEnabled: false,
+        modoToscoChannels: []
       }
     }))
   });
@@ -474,7 +479,9 @@ router.get("/clans/guilds/:guildId/config", requireDatabase, requireClanAuth, as
     avatarRobloxEnabled: config.avatarRobloxEnabled,
     avatarRobloxChannelId: config.avatarRobloxChannelId || null,
     chamadasEnabled: config.chamadasEnabled === true,
-    chamadasChannelId: config.chamadasChannelId || null
+    chamadasChannelId: config.chamadasChannelId || null,
+    modoToscoEnabled: config.modoToscoEnabled === true,
+    modoToscoChannels: config.modoToscoChannels || []
   });
 
   return res.json({ config: publicGuildConfig(config) });
@@ -589,6 +596,60 @@ router.put("/clans/guilds/:guildId/config/chamadas", requireDatabase, requireCla
   return res.json({
     ok: true,
     mensagem: "Configuração de Chamadas salva com sucesso.",
+    config: publicGuildConfig(config)
+  });
+});
+
+router.put("/clans/guilds/:guildId/config/modo-tosco", requireDatabase, requireClanAuth, async (req, res) => {
+  console.log("GuildId recebido em Configuracoes Modo Tosco:", req.params.guildId);
+  const guild = findManageableGuild(req.clanAccount, req.params.guildId);
+
+  if (!guild) {
+    return res.status(403).json({ erro: "Voce nao tem permissao para configurar este servidor." });
+  }
+
+  const enabled = req.body.modoToscoEnabled === true;
+  const channels = Array.isArray(req.body.modoToscoChannels)
+    ? req.body.modoToscoChannels.map(channelId => String(channelId)).filter(Boolean)
+    : [];
+  const frequency = Math.max(1, Math.min(1000, Number(req.body.modoToscoFrequency || 5)));
+  const messages = normalizeQuestions(req.body.modoToscoMessages);
+
+  if (channels.length) {
+    const textChannels = await listTextChannels(req.params.guildId);
+    const validIds = new Set(textChannels.map(channel => channel.id));
+    const invalid = channels.find(channelId => !validIds.has(channelId));
+
+    if (invalid) {
+      return res.status(400).json({ erro: "Um dos canais selecionados nao pertence a este servidor." });
+    }
+  }
+
+  const config = await ClanGuildConfig.findOneAndUpdate(
+    { guildId: req.params.guildId },
+    {
+      $set: {
+        guildId: req.params.guildId,
+        modoToscoEnabled: enabled,
+        modoToscoChannels: channels,
+        modoToscoFrequency: frequency,
+        modoToscoMessages: messages.length ? messages : DEFAULT_MODO_TOSCO_MESSAGES
+      }
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  console.log("Config Modo Tosco salva:", {
+    guildId: config.guildId,
+    modoToscoEnabled: config.modoToscoEnabled === true,
+    canais: config.modoToscoChannels || [],
+    modoToscoFrequency: config.modoToscoFrequency,
+    mensagens: config.modoToscoMessages?.length || 0
+  });
+
+  return res.json({
+    ok: true,
+    mensagem: "Configuração de Modo Tosco salva com sucesso.",
     config: publicGuildConfig(config)
   });
 });

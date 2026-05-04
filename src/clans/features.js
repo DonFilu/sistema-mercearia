@@ -35,6 +35,23 @@ const DEFAULT_CHAMADAS_QUESTIONS = [
   "🎵 Qual música combina com o clã hoje?"
 ];
 const DEFAULT_CHAMADAS_END_MESSAGE = "📌 Chamada de hoje encerrada, obrigado a todos!";
+const DEFAULT_MODO_TOSCO_MESSAGES = [
+  "um pato entrou no server e saiu com admin kkkkk",
+  "alguem viu meu controle? ele foi jogar sozinho",
+  "isso ai me lembrou um pão olhando pro nada",
+  "se isso fizer sentido eu sou uma geladeira",
+  "acabou de passar um cachorro programador aqui",
+  "o clima ta estranho parece segunda feira em sexta",
+  "isso ai foi tão aleatório que o wifi caiu de vergonha",
+  "parece cena cortada de filme que nunca existiu",
+  "isso foi tão inesperado quanto abrir a geladeira e ter comida",
+  "o cara digitou isso e o teclado pediu demissão",
+  "se continuar assim o universo reinicia",
+  "o chat virou episódio perdido",
+  "alguem explica isso pro meu peixe pfv",
+  "isso ai foi tão confuso que até o eco desistiu",
+  "isso não faz sentido nem em sonho"
+];
 
 function hasGuildAdminPermission(guild) {
   if (!guild) return false;
@@ -69,7 +86,11 @@ async function getGuildConfig(guildId) {
         chamadasMessage: DEFAULT_CHAMADAS_MESSAGE,
         chamadasQuestions: DEFAULT_CHAMADAS_QUESTIONS,
         chamadasEndMessage: DEFAULT_CHAMADAS_END_MESSAGE,
-        chamadasLastQuestion: null
+        chamadasLastQuestion: null,
+        modoToscoEnabled: false,
+        modoToscoChannels: [],
+        modoToscoFrequency: 5,
+        modoToscoMessages: DEFAULT_MODO_TOSCO_MESSAGES
       }
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
@@ -85,6 +106,12 @@ function publicGuildConfig(config) {
     config.chamadasLastQuestion
   );
   const savedQuestions = Array.isArray(config.chamadasQuestions) ? config.chamadasQuestions : null;
+  const hasCustomModoToscoConfig = !!(
+    config.modoToscoEnabled ||
+    (Array.isArray(config.modoToscoChannels) && config.modoToscoChannels.length) ||
+    config.modoToscoFrequency
+  );
+  const savedModoToscoMessages = Array.isArray(config.modoToscoMessages) ? config.modoToscoMessages : null;
 
   return {
     guildId: config.guildId,
@@ -99,7 +126,13 @@ function publicGuildConfig(config) {
       ? savedQuestions
       : DEFAULT_CHAMADAS_QUESTIONS,
     chamadasEndMessage: config.chamadasEndMessage || DEFAULT_CHAMADAS_END_MESSAGE,
-    chamadasLastQuestion: config.chamadasLastQuestion || null
+    chamadasLastQuestion: config.chamadasLastQuestion || null,
+    modoToscoEnabled: config.modoToscoEnabled === true,
+    modoToscoChannels: Array.isArray(config.modoToscoChannels) ? config.modoToscoChannels : [],
+    modoToscoFrequency: Math.max(1, Number(config.modoToscoFrequency || 5)),
+    modoToscoMessages: savedModoToscoMessages && (savedModoToscoMessages.length || hasCustomModoToscoConfig)
+      ? savedModoToscoMessages
+      : DEFAULT_MODO_TOSCO_MESSAGES
   };
 }
 
@@ -200,6 +233,7 @@ module.exports = {
   DEFAULT_CHAMADAS_MESSAGE,
   DEFAULT_CHAMADAS_QUESTIONS,
   DEFAULT_CHAMADAS_END_MESSAGE,
+  DEFAULT_MODO_TOSCO_MESSAGES,
   listTextChannels,
   findRobloxUser,
   findRobloxAvatar

@@ -11,7 +11,8 @@ const {
   findRobloxAvatar,
   chooseDailyQuestion,
   DEFAULT_CHAMADAS_MESSAGE,
-  DEFAULT_CHAMADAS_END_MESSAGE
+  DEFAULT_CHAMADAS_END_MESSAGE,
+  DEFAULT_MODO_TOSCO_MESSAGES
 } = require("./features");
 const { registerConfiguredGuildCommands } = require("./registerCommands");
 
@@ -127,6 +128,85 @@ async function handleAvatarCommand(interaction) {
   }
 }
 
+function mapGet(map, key, fallback) {
+  if (!map) return fallback;
+  return typeof map.get === "function" ? map.get(key) ?? fallback : map[key] ?? fallback;
+}
+
+function mapSet(map, key, value) {
+  if (typeof map.set === "function") {
+    map.set(key, value);
+  } else {
+    map[key] = value;
+  }
+}
+
+function pickRandom(items) {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+async function handleModoToscoMessage(message) {
+  if (!message.guildId || message.author?.bot) return;
+  if (mongoose.connection.readyState !== 1) return;
+
+  try {
+    const config = await ClanGuildConfig.findOne({ guildId: message.guildId });
+
+    if (!config || config.modoToscoEnabled !== true) return;
+    if (!Array.isArray(config.modoToscoChannels) || !config.modoToscoChannels.includes(message.channelId)) return;
+
+    const responses = Array.isArray(config.modoToscoMessages) && config.modoToscoMessages.length
+      ? config.modoToscoMessages
+      : DEFAULT_MODO_TOSCO_MESSAGES;
+
+    if (!responses.length) return;
+
+    const now = new Date();
+    const lastReplyAt = mapGet(config.modoToscoLastReplyAt, message.channelId, null);
+
+    if (lastReplyAt && now.getTime() - new Date(lastReplyAt).getTime() < 5000) return;
+
+    const recentUsers = mapGet(config.modoToscoLastUsers, message.channelId, [])
+      .filter(userId => userId !== message.author.id);
+    const updatedUsers = [message.author.id, ...recentUsers.filter(userId => userId !== message.author.id)].slice(0, 10);
+    const currentCounter = Number(mapGet(config.modoToscoMessageCounter, message.channelId, 0)) + 1;
+    const frequency = Math.max(1, Number(config.modoToscoFrequency || 5));
+    const variation = Math.max(0, Math.min(2, Math.floor(frequency / 5)));
+    const target = frequency + (variation ? Math.floor(Math.random() * (variation + 1)) : 0);
+
+    mapSet(config.modoToscoLastUsers, message.channelId, updatedUsers);
+
+    if (currentCounter < target) {
+      mapSet(config.modoToscoMessageCounter, message.channelId, currentCounter);
+      await config.save();
+      return;
+    }
+
+    mapSet(config.modoToscoMessageCounter, message.channelId, 0);
+    mapSet(config.modoToscoLastReplyAt, message.channelId, now);
+    await config.save();
+
+    const selectedUserId = pickRandom(updatedUsers);
+    const selectedMessage = pickRandom(responses);
+    console.log("Modo Tosco enviando mensagem:", {
+      guildId: message.guildId,
+      channelId: message.channelId,
+      selectedUserId,
+      frequency
+    });
+
+    await message.channel.send({
+      content: `<@${selectedUserId}> ${selectedMessage}`
+    });
+  } catch (err) {
+    console.error("Erro no Modo Tosco:", {
+      guildId: message.guildId,
+      channelId: message.channelId,
+      erro: err.message
+    });
+  }
+}
+
 function saoPauloNowParts() {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
@@ -236,7 +316,11 @@ async function startClanDiscordBot() {
     await registerConfiguredGuildCommands();
 
     client = new Client({
-      intents: [GatewayIntentBits.Guilds]
+      intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+      ]
     });
 
     client.once("ready", () => {
@@ -249,6 +333,10 @@ async function startClanDiscordBot() {
       if (interaction.commandName !== "avatar") return;
 
       await handleAvatarCommand(interaction);
+    });
+
+    client.on("messageCreate", async message => {
+      await handleModoToscoMessage(message);
     });
 
     await client.login(process.env.DISCORD_BOT_TOKEN);

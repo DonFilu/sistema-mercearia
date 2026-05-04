@@ -148,6 +148,31 @@
           <button class="primary" onclick="saveChamadasConfig()">Salvar</button>
           <div id="chamadasSaveMessage" class="message"></div>
         </div>
+        <div id="modoToscoConfig" class="card hidden">
+          <div class="card-head">
+            <div>
+              <h2>Modo Tosco</h2>
+              <p>Configure respostas engraçadas automáticas nos canais escolhidos.</p>
+            </div>
+            <button class="ghost" onclick="closeModoToscoConfig()">Minimizar</button>
+          </div>
+          <label>Servidor
+            <select id="modoToscoGuildSelect" onchange="loadModoToscoFeatureConfig()"></select>
+          </label>
+          <label>Canais permitidos
+            <select id="modoToscoChannelSelect" multiple size="6"></select>
+          </label>
+          <label>Enviar resposta a cada X mensagens
+            <input id="modoToscoFrequency" type="number" min="1" max="1000" value="5">
+          </label>
+          <label>Mensagens/Respostas Toscas
+            <textarea id="modoToscoMessages"></textarea>
+          </label>
+          <p>Escreva uma resposta por linha ou separadas por vírgula. O bot escolherá aleatoriamente.</p>
+          <p id="modoToscoHelp"></p>
+          <button class="primary" onclick="saveModoToscoConfig()">Salvar</button>
+          <div id="modoToscoSaveMessage" class="message"></div>
+        </div>
       </section>
 
       <section id="viewServidores" class="view">
@@ -183,6 +208,15 @@
             <button id="chamadasToggle" class="switch" aria-label="Ativar ou desativar Chamadas" onclick="toggleChamadas()"></button>
           </div>
           <div id="chamadasConfigMessage" class="message"></div>
+        </div>
+        <div class="feature">
+          <strong>Modo Tosco</strong>
+          <span>Envia respostas engraçadas automaticamente nos canais configurados.</span>
+          <div class="toggle">
+            <span id="modoToscoToggleText">Desativado</span>
+            <button id="modoToscoToggle" class="switch" aria-label="Ativar ou desativar Modo Tosco" onclick="toggleModoTosco()"></button>
+          </div>
+          <div id="modoToscoConfigMessage" class="message"></div>
         </div>
       </section>
     </main>
@@ -239,6 +273,7 @@
       document.getElementById("configGuildSelect").innerHTML = options;
       document.getElementById("avatarGuildSelect").innerHTML = options;
       document.getElementById("chamadasGuildSelect").innerHTML = options;
+      document.getElementById("modoToscoGuildSelect").innerHTML = options;
     }
 
     function setSelectedGuildId(guildId) {
@@ -249,6 +284,7 @@
       document.getElementById("configGuildSelect").value = selectedGuildId;
       document.getElementById("avatarGuildSelect").value = selectedGuildId;
       document.getElementById("chamadasGuildSelect").value = selectedGuildId;
+      document.getElementById("modoToscoGuildSelect").value = selectedGuildId;
       console.log("GuildId selecionado no painel", selectedGuildId);
     }
 
@@ -294,12 +330,16 @@
       const guild = selectedConfigGuild();
       const enabled = guild?.config?.avatarRobloxEnabled === true;
       const chamadasEnabled = guild?.config?.chamadasEnabled === true;
+      const modoToscoEnabled = guild?.config?.modoToscoEnabled === true;
       document.getElementById("avatarToggle").classList.toggle("on", enabled);
       document.getElementById("avatarToggleText").textContent = enabled ? "Ativado" : "Desativado";
       document.getElementById("chamadasToggle").classList.toggle("on", chamadasEnabled);
       document.getElementById("chamadasToggleText").textContent = chamadasEnabled ? "Ativado" : "Desativado";
+      document.getElementById("modoToscoToggle").classList.toggle("on", modoToscoEnabled);
+      document.getElementById("modoToscoToggleText").textContent = modoToscoEnabled ? "Ativado" : "Desativado";
       document.getElementById("configMessage").textContent = "";
       document.getElementById("chamadasConfigMessage").textContent = "";
+      document.getElementById("modoToscoConfigMessage").textContent = "";
     }
 
     function renderActiveFeatures() {
@@ -307,21 +347,26 @@
       const guild = selectedConfigGuild();
       const avatarEnabled = guild?.config?.avatarRobloxEnabled === true;
       const chamadasEnabled = guild?.config?.chamadasEnabled === true;
+      const modoToscoEnabled = guild?.config?.modoToscoEnabled === true;
 
       console.log("Valor retornado pela API ao carregar Painel", {
         guildId: guild?.id || null,
         avatarRobloxEnabled: avatarEnabled,
         avatarRobloxChannelId: guild?.config?.avatarRobloxChannelId || null,
         chamadasEnabled,
-        chamadasChannelId: guild?.config?.chamadasChannelId || null
+        chamadasChannelId: guild?.config?.chamadasChannelId || null,
+        modoToscoEnabled,
+        modoToscoChannels: guild?.config?.modoToscoChannels || []
       });
 
-      if (!guild || (!avatarEnabled && !chamadasEnabled)) {
+      if (!guild || (!avatarEnabled && !chamadasEnabled && !modoToscoEnabled)) {
         container.innerHTML = "";
         document.getElementById("avatarConfig").classList.add("hidden");
         document.getElementById("chamadasConfig").classList.add("hidden");
+        document.getElementById("modoToscoConfig").classList.add("hidden");
         updateAvatarConfigButton();
         updateChamadasConfigButton();
+        updateModoToscoConfigButton();
         return;
       }
 
@@ -351,9 +396,22 @@
         document.getElementById("chamadasConfig").classList.add("hidden");
       }
 
+      if (modoToscoEnabled) {
+        cards.push(`
+        <div class="feature">
+          <strong>Modo Tosco</strong>
+          <span>${guild.name}</span>
+          <button id="modoToscoConfigToggleButton" class="primary" onclick="toggleModoToscoConfig('${guild.id}')">Configurar</button>
+        </div>
+        `);
+      } else {
+        document.getElementById("modoToscoConfig").classList.add("hidden");
+      }
+
       container.innerHTML = cards.join("");
       updateAvatarConfigButton();
       updateChamadasConfigButton();
+      updateModoToscoConfigButton();
     }
 
     async function toggleAvatarRoblox() {
@@ -422,6 +480,42 @@
       }
     }
 
+    async function toggleModoTosco() {
+      const guild = selectedConfigGuild();
+      if (!guild) return;
+      setSelectedGuildId(guild.id);
+      await fetchGuildConfig(guild.id);
+
+      const enabled = guild.config?.modoToscoEnabled !== true;
+      const response = await fetch(`/api/clans/guilds/${guild.id}/config/modo-tosco`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          modoToscoEnabled: enabled,
+          modoToscoChannels: guild.config?.modoToscoChannels || [],
+          modoToscoFrequency: guild.config?.modoToscoFrequency || 5,
+          modoToscoMessages: guild.config?.modoToscoMessages || []
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) return alert(data.erro || "Erro ao salvar Modo Tosco");
+      guild.config = data.config;
+      console.log("Config Modo Tosco salva ao ativar/desativar", {
+        guildId: guild.id,
+        modoToscoEnabled: data.config?.modoToscoEnabled === true,
+        canais: data.config?.modoToscoChannels || [],
+        frequencia: data.config?.modoToscoFrequency
+      });
+      setSelectedGuildId(guild.id);
+      renderConfigFeature();
+      renderActiveFeatures();
+
+      if (enabled && !(guild.config?.modoToscoChannels || []).length) {
+        await openModoToscoConfig(guild.id);
+        document.getElementById("modoToscoConfigMessage").textContent = "Modo Tosco ativado. Escolha os canais e a frequência.";
+      }
+    }
+
     function updateAvatarConfigButton() {
       const button = document.getElementById("avatarConfigToggleButton");
       if (!button) return;
@@ -438,6 +532,14 @@
       button.textContent = isOpen ? "Fechar configuração" : "Configurar";
     }
 
+    function updateModoToscoConfigButton() {
+      const button = document.getElementById("modoToscoConfigToggleButton");
+      if (!button) return;
+
+      const isOpen = !document.getElementById("modoToscoConfig").classList.contains("hidden");
+      button.textContent = isOpen ? "Fechar configuração" : "Configurar";
+    }
+
     function closeAvatarConfig() {
       document.getElementById("avatarConfig").classList.add("hidden");
       document.getElementById("avatarSaveMessage").textContent = "";
@@ -448,6 +550,12 @@
       document.getElementById("chamadasConfig").classList.add("hidden");
       document.getElementById("chamadasSaveMessage").textContent = "";
       updateChamadasConfigButton();
+    }
+
+    function closeModoToscoConfig() {
+      document.getElementById("modoToscoConfig").classList.add("hidden");
+      document.getElementById("modoToscoSaveMessage").textContent = "";
+      updateModoToscoConfigButton();
     }
 
     async function toggleAvatarConfig(guildId) {
@@ -472,6 +580,17 @@
       await openChamadasConfig(guildId);
     }
 
+    async function toggleModoToscoConfig(guildId) {
+      const isOpen = !document.getElementById("modoToscoConfig").classList.contains("hidden");
+
+      if (isOpen && selectedGuildId === guildId) {
+        closeModoToscoConfig();
+        return;
+      }
+
+      await openModoToscoConfig(guildId);
+    }
+
     async function openAvatarConfig(guildId) {
       setView("inicio");
       document.getElementById("avatarConfig").classList.remove("hidden");
@@ -488,6 +607,15 @@
       updateChamadasConfigButton();
       delete channelsByGuild[guildId];
       await loadChamadasFeatureConfig();
+    }
+
+    async function openModoToscoConfig(guildId) {
+      setView("inicio");
+      document.getElementById("modoToscoConfig").classList.remove("hidden");
+      setSelectedGuildId(guildId);
+      updateModoToscoConfigButton();
+      delete channelsByGuild[guildId];
+      await loadModoToscoFeatureConfig();
     }
 
     async function loadChannels(guildId) {
@@ -609,6 +737,77 @@
       await refreshGuildConfig(guildId);
     }
 
+    async function loadModoToscoFeatureConfig() {
+      setSelectedGuildId(document.getElementById("modoToscoGuildSelect").value);
+      const guildId = selectedGuildId;
+      const select = document.getElementById("modoToscoChannelSelect");
+      const help = document.getElementById("modoToscoHelp");
+      const saveMessage = document.getElementById("modoToscoSaveMessage");
+
+      select.innerHTML = `<option>Carregando canais...</option>`;
+      select.disabled = true;
+      help.textContent = "";
+      saveMessage.textContent = "";
+
+      try {
+        const config = await fetchGuildConfig(guildId);
+        const result = await loadChannels(guildId);
+        const channels = result.channels || [];
+        const selectedChannels = new Set(config.modoToscoChannels || []);
+
+        if (!channels.length) {
+          select.innerHTML = `<option value="">Nenhum canal de texto encontrado</option>`;
+          help.textContent = result.mensagem || "Nenhum canal de texto foi encontrado.";
+          return;
+        }
+
+        select.innerHTML = channels.map(channel =>
+          `<option value="${channel.id}" ${selectedChannels.has(channel.id) ? "selected" : ""}>#${channel.name}</option>`
+        ).join("");
+        select.disabled = false;
+        document.getElementById("modoToscoFrequency").value = config.modoToscoFrequency || 5;
+        document.getElementById("modoToscoMessages").value = (config.modoToscoMessages || []).join("\n");
+        help.textContent = "Use Ctrl ou toque múltiplo para selecionar mais de um canal.";
+      } catch (err) {
+        select.innerHTML = `<option value="">Canais indisponíveis</option>`;
+        help.innerHTML = `${err.message} <a href="/api/clans/bot-invite" target="_blank" rel="noopener">Convidar bot</a>`;
+      }
+    }
+
+    async function saveModoToscoConfig() {
+      const guildId = document.getElementById("modoToscoGuildSelect").value;
+      const channelIds = Array.from(document.getElementById("modoToscoChannelSelect").selectedOptions)
+        .map(option => option.value)
+        .filter(Boolean);
+      const guild = guilds.find(item => item.id === guildId);
+      setSelectedGuildId(guildId);
+
+      const response = await fetch(`/api/clans/guilds/${guildId}/config/modo-tosco`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          modoToscoEnabled: true,
+          modoToscoChannels: channelIds,
+          modoToscoFrequency: document.getElementById("modoToscoFrequency").value || 5,
+          modoToscoMessages: document.getElementById("modoToscoMessages").value
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) return alert(data.erro || "Erro ao salvar Modo Tosco");
+
+      if (guild) guild.config = data.config;
+      console.log("Config Modo Tosco salva", {
+        guildId,
+        modoToscoEnabled: data.config?.modoToscoEnabled === true,
+        canais: data.config?.modoToscoChannels || [],
+        frequencia: data.config?.modoToscoFrequency
+      });
+      document.getElementById("modoToscoSaveMessage").textContent = "Configuração de Modo Tosco salva com sucesso.";
+      renderConfigFeature();
+      renderActiveFeatures();
+      await refreshGuildConfig(guildId);
+    }
+
     async function saveAvatarChannel() {
       const guildId = document.getElementById("avatarGuildSelect").value;
       const channelId = document.getElementById("avatarChannelSelect").value;
@@ -674,7 +873,8 @@
       await Promise.all(guilds.map(guild => fetchGuildConfig(guild.id).catch(() => null)));
       const firstEnabledGuild = guilds.find(guild =>
         guild.config?.avatarRobloxEnabled === true ||
-        guild.config?.chamadasEnabled === true
+        guild.config?.chamadasEnabled === true ||
+        guild.config?.modoToscoEnabled === true
       );
       setSelectedGuildId(firstEnabledGuild?.id || guilds[0]?.id || null);
 

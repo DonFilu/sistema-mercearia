@@ -40,7 +40,14 @@ const ClanGuildConfig = mongoose.models.ClanGuildConfig || mongoose.model(
       chamadasEndMessage: String,
       chamadasLastQuestion: String,
       chamadasLastStartDate: String,
-      chamadasLastEndDate: String
+      chamadasLastEndDate: String,
+      modoToscoEnabled: { type: Boolean, default: false },
+      modoToscoChannels: [String],
+      modoToscoFrequency: { type: Number, default: 5 },
+      modoToscoMessages: [String],
+      modoToscoMessageCounter: { type: Map, of: Number, default: {} },
+      modoToscoLastUsers: { type: Map, of: [String], default: {} },
+      modoToscoLastReplyAt: { type: Map, of: Date, default: {} }
     },
     { timestamps: true }
   )
