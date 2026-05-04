@@ -45,6 +45,7 @@
     .server strong, .feature strong { display: block; }
     .server span, .feature span { color: var(--muted); font-size: 13px; word-break: break-all; }
     .toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+    .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
     .switch { width: 54px; height: 30px; border-radius: 999px; border: 0; background: #cbd5e1; padding: 3px; cursor: pointer; }
     .switch::before { content: ""; display: block; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .18s ease; }
     .switch.on { background: var(--brand); }
@@ -91,8 +92,13 @@
         </div>
         <div id="activeFeatures" class="features"></div>
         <div id="avatarConfig" class="card hidden">
-          <h2>Avatar Roblox</h2>
-          <p>Escolha o canal onde o bot poderá responder ao comando /avatar.</p>
+          <div class="card-head">
+            <div>
+              <h2>Avatar Roblox</h2>
+              <p>Escolha o canal onde o bot poderá responder ao comando /avatar.</p>
+            </div>
+            <button class="ghost" onclick="closeAvatarConfig()">Minimizar</button>
+          </div>
           <label>Servidor
             <select id="avatarGuildSelect" onchange="loadAvatarFeatureConfig()"></select>
           </label>
@@ -254,6 +260,7 @@
       if (!guild || !enabled) {
         container.innerHTML = "";
         document.getElementById("avatarConfig").classList.add("hidden");
+        updateAvatarConfigButton();
         return;
       }
 
@@ -261,9 +268,10 @@
         <div class="feature">
           <strong>Avatar Roblox</strong>
           <span>${guild.name}</span>
-          <button class="primary" onclick="openAvatarConfig('${guild.id}')">Configurar</button>
+          <button id="avatarConfigToggleButton" class="primary" onclick="toggleAvatarConfig('${guild.id}')">Configurar</button>
         </div>
       `;
+      updateAvatarConfigButton();
     }
 
     async function toggleAvatarRoblox() {
@@ -298,10 +306,36 @@
       }
     }
 
+    function updateAvatarConfigButton() {
+      const button = document.getElementById("avatarConfigToggleButton");
+      if (!button) return;
+
+      const isOpen = !document.getElementById("avatarConfig").classList.contains("hidden");
+      button.textContent = isOpen ? "Fechar configuração" : "Configurar";
+    }
+
+    function closeAvatarConfig() {
+      document.getElementById("avatarConfig").classList.add("hidden");
+      document.getElementById("avatarSaveMessage").textContent = "";
+      updateAvatarConfigButton();
+    }
+
+    async function toggleAvatarConfig(guildId) {
+      const isOpen = !document.getElementById("avatarConfig").classList.contains("hidden");
+
+      if (isOpen && selectedGuildId === guildId) {
+        closeAvatarConfig();
+        return;
+      }
+
+      await openAvatarConfig(guildId);
+    }
+
     async function openAvatarConfig(guildId) {
       setView("inicio");
       document.getElementById("avatarConfig").classList.remove("hidden");
       setSelectedGuildId(guildId);
+      updateAvatarConfigButton();
       delete channelsByGuild[guildId];
       await loadAvatarFeatureConfig();
     }
