@@ -9,6 +9,7 @@ const jwt = require("jsonwebtoken");
 let clansRouter = null;
 let hasValidClanSession = null;
 let registerConfiguredGuildCommands = null;
+let startClanDiscordBot = null;
 
 try {
   clansRouter = require("./src/clans/routes");
@@ -16,6 +17,12 @@ try {
   registerConfiguredGuildCommands = require("./src/clans/registerCommands").registerConfiguredGuildCommands;
 } catch (err) {
   console.warn("Modulo Clan Cidio indisponivel:", err.message);
+}
+
+try {
+  startClanDiscordBot = require("./src/clans/bot").startClanDiscordBot;
+} catch (err) {
+  console.warn("Bot Clan Cidio indisponivel neste ambiente:", err.message);
 }
 
 const app = express();
@@ -142,6 +149,12 @@ mongoose.connect(MONGO_URI, {
     } catch (err) {
       console.warn("Nao foi possivel registrar comandos Clan Cidio:", err.response?.data || err.message);
     }
+  }
+
+  if (startClanDiscordBot) {
+    startClanDiscordBot().catch(err => {
+      console.warn("Nao foi possivel iniciar bot Clan Cidio:", err.message);
+    });
   }
 })
 .catch(err => console.log("âŒ Erro Mongo:", err));
