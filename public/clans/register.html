@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clan Cidio - Acesso</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root {
+      --bg: #f3f6fb;
+      --panel: #ffffff;
+      --text: #101828;
+      --muted: #667085;
+      --line: #d8e0ea;
+      --brand: #3157d5;
+      --brand-dark: #2442a6;
+      --danger: #b42318;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, Arial, Helvetica, sans-serif;
+      background:
+        linear-gradient(135deg, rgba(49, 87, 213, .12), transparent 34%),
+        var(--bg);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    main {
+      width: min(980px, 100%);
+      display: grid;
+      grid-template-columns: 1fr 430px;
+      gap: 28px;
+      align-items: center;
+    }
+    .intro h1 {
+      margin: 0 0 12px;
+      font-size: 44px;
+      letter-spacing: 0;
+    }
+    .intro p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 17px;
+      max-width: 560px;
+    }
+    .auth-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 18px 48px rgba(16, 24, 40, .12);
+      padding: 20px;
+    }
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      background: #eef2f7;
+      border-radius: 10px;
+      padding: 5px;
+      margin-bottom: 20px;
+    }
+    .tab {
+      border: 0;
+      border-radius: 8px;
+      padding: 11px 12px;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .tab.active {
+      background: #fff;
+      color: var(--brand);
+      box-shadow: 0 2px 8px rgba(16, 24, 40, .08);
+    }
+    form {
+      display: none;
+      gap: 14px;
+    }
+    form.active { display: grid; }
+    label {
+      display: grid;
+      gap: 7px;
+      color: #344054;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 13px;
+      font: inherit;
+      outline: none;
+    }
+    input:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(49, 87, 213, .14);
+    }
+    .primary {
+      border: 0;
+      border-radius: 8px;
+      background: var(--brand);
+      color: #fff;
+      font-weight: 800;
+      padding: 12px 14px;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+    .primary:hover { background: var(--brand-dark); }
+    .message {
+      min-height: 22px;
+      color: var(--danger);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    .hint {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+      margin-top: 10px;
+    }
+    @media (max-width: 840px) {
+      main { grid-template-columns: 1fr; }
+      .intro h1 { font-size: 34px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="intro">
+      <h1>Clan Cidio</h1>
+      <p>Gerencie seu acesso em uma tela única. A estrutura já está preparada para evoluir com login via Discord no futuro.</p>
+    </section>
+
+    <section class="auth-card" aria-label="Autenticação Clan Cidio">
+      <div class="tabs" role="tablist">
+        <button id="tabCreate" class="tab active" type="button" role="tab" aria-selected="true" onclick="setTab('create')">Criar conta</button>
+        <button id="tabLogin" class="tab" type="button" role="tab" aria-selected="false" onclick="setTab('login')">Entrar</button>
+      </div>
+
+      <form id="formCreate" class="active" onsubmit="createAccount(event)">
+        <label>Email <input id="createEmail" type="email" autocomplete="email"></label>
+        <label>Senha <input id="createPassword" type="password" autocomplete="new-password"></label>
+        <label>Confirmar senha <input id="createConfirm" type="password" autocomplete="new-password"></label>
+        <div id="createMessage" class="message"></div>
+        <button class="primary" type="submit">Criar conta</button>
+      </form>
+
+      <form id="formLogin" onsubmit="login(event)">
+        <label>Email <input id="loginEmail" type="email" autocomplete="email"></label>
+        <label>Senha <input id="loginPassword" type="password" autocomplete="current-password"></label>
+        <div id="loginMessage" class="message"></div>
+        <button class="primary" type="submit">Entrar</button>
+      </form>
+
+      <p class="hint">Clan Cidio é separado do sistema de mercearias. Esta conta não altera seu acesso ao Cidio Mercearias.</p>
+    </section>
+  </main>
+
+  <script>
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    function setTab(tab) {
+      const createActive = tab === "create";
+      document.getElementById("tabCreate").classList.toggle("active", createActive);
+      document.getElementById("tabLogin").classList.toggle("active", !createActive);
+      document.getElementById("tabCreate").setAttribute("aria-selected", String(createActive));
+      document.getElementById("tabLogin").setAttribute("aria-selected", String(!createActive));
+      document.getElementById("formCreate").classList.toggle("active", createActive);
+      document.getElementById("formLogin").classList.toggle("active", !createActive);
+      clearMessages();
+    }
+
+    function clearMessages() {
+      document.getElementById("createMessage").textContent = "";
+      document.getElementById("loginMessage").textContent = "";
+    }
+
+    function validateRequired(fields, messageEl) {
+      const empty = fields.some(field => !field.value.trim());
+      if (empty) {
+        messageEl.textContent = "Preencha todos os campos.";
+        return false;
+      }
+      return true;
+    }
+
+    function saveSession(data) {
+      localStorage.setItem("clanToken", data.token);
+      localStorage.setItem("clanAccount", JSON.stringify(data.account));
+      window.location.href = "/clans/painel";
+    }
+
+    async function createAccount(event) {
+      event.preventDefault();
+      const message = document.getElementById("createMessage");
+      const email = document.getElementById("createEmail");
+      const senha = document.getElementById("createPassword");
+      const confirmar = document.getElementById("createConfirm");
+      message.textContent = "";
+
+      if (!validateRequired([email, senha, confirmar], message)) return;
+      if (!emailRegex.test(email.value.trim())) {
+        message.textContent = "Informe um email válido.";
+        return;
+      }
+      if (senha.value !== confirmar.value) {
+        message.textContent = "Senha e confirmar senha devem ser iguais.";
+        return;
+      }
+
+      const response = await fetch("/clans/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.value.trim(), senha: senha.value })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        message.textContent = data.erro || "Não foi possível criar a conta.";
+        return;
+      }
+
+      saveSession(data);
+    }
+
+    async function login(event) {
+      event.preventDefault();
+      const message = document.getElementById("loginMessage");
+      const email = document.getElementById("loginEmail");
+      const senha = document.getElementById("loginPassword");
+      message.textContent = "";
+
+      if (!validateRequired([email, senha], message)) return;
+      if (!emailRegex.test(email.value.trim())) {
+        message.textContent = "Informe um email válido.";
+        return;
+      }
+
+      const response = await fetch("/clans/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.value.trim(), senha: senha.value })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        message.textContent = "Email ou senha incorretos";
+        return;
+      }
+
+      saveSession(data);
+    }
+  </script>
+</body>
+</html>

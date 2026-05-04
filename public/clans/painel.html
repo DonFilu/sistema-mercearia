@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel Clan Cidio</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, Arial, Helvetica, sans-serif;
+      background: #f3f6fb;
+      color: #101828;
+    }
+    header {
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: #fff;
+      border-bottom: 1px solid #d8e0ea;
+    }
+    strong { font-size: 18px; }
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 13px;
+      background: #e9eef7;
+      color: #101828;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    main {
+      min-height: calc(100vh - 64px);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    section {
+      width: min(760px, 100%);
+      background: #fff;
+      border: 1px solid #d8e0ea;
+      border-radius: 12px;
+      padding: 34px;
+      box-shadow: 0 18px 48px rgba(16, 24, 40, .10);
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 32px;
+      letter-spacing: 0;
+    }
+    p {
+      margin: 0;
+      color: #667085;
+      font-size: 17px;
+      line-height: 1.55;
+    }
+    .account {
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid #edf1f5;
+      color: #667085;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Clan Cidio</strong>
+    <button onclick="logout()">Sair</button>
+  </header>
+  <main>
+    <section>
+      <h1>Painel de Controle — Clan Cidio</h1>
+      <p>Em breve você poderá configurar seu servidor por aqui.</p>
+      <div id="account" class="account"></div>
+    </section>
+  </main>
+  <script>
+    function logout() {
+      localStorage.removeItem("clanToken");
+      localStorage.removeItem("clanAccount");
+      window.location.href = "/clans/register";
+    }
+
+    async function loadAccount() {
+      const token = localStorage.getItem("clanToken");
+
+      if (!token) {
+        window.location.href = "/clans/register";
+        return;
+      }
+
+      const response = await fetch("/clans/api/me", {
+        headers: { Authorization: "Bearer " + token }
+      });
+
+      if (!response.ok) {
+        logout();
+        return;
+      }
+
+      const data = await response.json();
+      document.getElementById("account").textContent = "Conta: " + data.account.email;
+    }
+
+    loadAccount();
+  </script>
+</body>
+</html>

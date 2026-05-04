@@ -6,6 +6,14 @@ const axios = require("axios");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 
+let clansRouter = null;
+
+try {
+  clansRouter = require("./src/clans/routes");
+} catch (err) {
+  console.warn("Modulo Clan Cidio indisponivel:", err.message);
+}
+
 const app = express();
 const JWT_SECRET =
   process.env.JWT_SECRET ||
@@ -75,6 +83,24 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
 });
 
+app.get("/clans/register", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "clans", "register.html"));
+});
+
+app.get("/clans/painel", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "clans", "painel.html"));
+});
+
+if (clansRouter) {
+  app.use("/clans/api", clansRouter);
+} else {
+  app.use("/clans/api", (req, res) => {
+    res.status(503).json({
+      erro: "Modulo Clan Cidio nao encontrado neste deploy."
+    });
+  });
+}
+
 // depois disso:
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -121,6 +147,7 @@ app.use(async (req, res, next) => {
   req.path === "/register" ||
   req.path === "/webhook" ||
   req.path === "/criar-pix" ||
+  req.path.startsWith("/clans") ||
   req.path.startsWith("/afiliado")
 ) {
   return next();
