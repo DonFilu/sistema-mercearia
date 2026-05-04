@@ -290,7 +290,12 @@ router.get("/clans/guilds/:guildId/channels", requireDatabase, requireClanAuth, 
     }
 
     const channels = await listTextChannels(req.params.guildId);
-    return res.json({ channels });
+    return res.json({
+      channels,
+      mensagem: channels.length
+        ? ""
+        : "Nenhum canal de texto foi encontrado nesse servidor."
+    });
   } catch (err) {
     console.error(err.response?.data || err);
     return res.status(err.status || 500).json({ erro: err.message || "Erro ao listar canais" });

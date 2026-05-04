@@ -41,19 +41,34 @@ function publicGuildConfig(config) {
 
 async function listTextChannels(guildId) {
   if (!process.env.DISCORD_BOT_TOKEN) {
-    const err = new Error("DISCORD_BOT_TOKEN nao configurado");
+    const err = new Error("Token do bot nao configurado. Configure DISCORD_BOT_TOKEN no deploy.");
     err.status = 500;
     throw err;
   }
 
-  const response = await axios.get(`${DISCORD_API}/guilds/${guildId}/channels`, {
-    headers: {
-      Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`
-    }
-  });
+  let response;
+
+  try {
+    response = await axios.get(`${DISCORD_API}/guilds/${guildId}/channels`, {
+      headers: {
+        Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`
+      }
+    });
+  } catch (err) {
+    const status = err.response?.status;
+    const apiMessage = err.response?.data?.message;
+    const friendly = new Error(
+      status === 403 || status === 404
+        ? "Nao consegui acessar os canais desse servidor. Convide o bot para esse servidor e garanta permissao para ver canais."
+        : apiMessage || "Erro ao consultar canais no Discord."
+    );
+
+    friendly.status = status || 500;
+    throw friendly;
+  }
 
   return (response.data || [])
-    .filter(channel => channel.type === 0)
+    .filter(channel => Number(channel.type) === 0)
     .sort((a, b) => (a.position || 0) - (b.position || 0))
     .map(channel => ({
       id: channel.id,

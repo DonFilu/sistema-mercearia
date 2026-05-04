@@ -99,6 +99,7 @@
           <label>Canal de texto
             <select id="avatarChannelSelect"></select>
           </label>
+          <p id="avatarChannelHelp"></p>
           <button class="primary" onclick="saveAvatarChannel()">Salvar configuração</button>
           <div id="avatarSaveMessage" class="message"></div>
         </div>
@@ -243,6 +244,7 @@
       setView("inicio");
       document.getElementById("avatarConfig").classList.remove("hidden");
       document.getElementById("avatarGuildSelect").value = guildId;
+      delete channelsByGuild[guildId];
       await loadAvatarFeatureConfig();
     }
 
@@ -251,22 +253,51 @@
       const response = await fetch(`/api/clans/guilds/${guildId}/channels`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.erro || "Erro ao carregar canais");
-      channelsByGuild[guildId] = data.channels;
-      return data.channels;
+      channelsByGuild[guildId] = data;
+      return data;
     }
 
     async function loadAvatarFeatureConfig() {
       const guildId = document.getElementById("avatarGuildSelect").value;
       const guild = guilds.find(item => item.id === guildId);
-      const channels = await loadChannels(guildId);
-      document.getElementById("avatarChannelSelect").innerHTML = channels.map(channel => `<option value="${channel.id}">#${channel.name}</option>`).join("");
-      document.getElementById("avatarChannelSelect").value = guild?.config?.avatarRobloxChannelId || "";
-      document.getElementById("avatarSaveMessage").textContent = "";
+      const select = document.getElementById("avatarChannelSelect");
+      const help = document.getElementById("avatarChannelHelp");
+      const saveMessage = document.getElementById("avatarSaveMessage");
+
+      select.innerHTML = `<option>Carregando canais...</option>`;
+      select.disabled = true;
+      help.textContent = "";
+      saveMessage.textContent = "";
+
+      try {
+        const result = await loadChannels(guildId);
+        const channels = result.channels || [];
+
+        if (!channels.length) {
+          select.innerHTML = `<option value="">Nenhum canal de texto encontrado</option>`;
+          help.textContent = result.mensagem || "Nenhum canal de texto foi encontrado.";
+          return;
+        }
+
+        select.innerHTML = channels.map(channel => `<option value="${channel.id}">#${channel.name}</option>`).join("");
+        select.value = guild?.config?.avatarRobloxChannelId || "";
+        select.disabled = false;
+        help.textContent = "Selecione um canal onde o bot possa ler e responder mensagens.";
+      } catch (err) {
+        select.innerHTML = `<option value="">Canais indisponíveis</option>`;
+        help.innerHTML = `${err.message} <a href="/api/clans/bot-invite" target="_blank" rel="noopener">Convidar bot</a>`;
+      }
     }
 
     async function saveAvatarChannel() {
       const guildId = document.getElementById("avatarGuildSelect").value;
       const channelId = document.getElementById("avatarChannelSelect").value;
+
+      if (!channelId) {
+        document.getElementById("avatarSaveMessage").textContent = "Escolha um canal de texto antes de salvar.";
+        return;
+      }
+
       const response = await fetch(`/api/clans/guilds/${guildId}/config/avatar-roblox`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
