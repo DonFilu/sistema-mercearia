@@ -52,6 +52,8 @@ const DEFAULT_MODO_TOSCO_MESSAGES = [
   "isso ai foi tão confuso que até o eco desistiu",
   "isso não faz sentido nem em sonho"
 ];
+const DEFAULT_BOAS_VINDAS_TITLE = "BEM-VINDO(A)";
+const DEFAULT_BOAS_VINDAS_MESSAGE = "Que você possa aproveitar ao máximo do nosso servidor!";
 
 function hasGuildAdminPermission(guild) {
   if (!guild) return false;
@@ -90,7 +92,12 @@ async function getGuildConfig(guildId) {
         modoToscoEnabled: false,
         modoToscoChannels: [],
         modoToscoFrequency: 5,
-        modoToscoMessages: DEFAULT_MODO_TOSCO_MESSAGES
+        modoToscoMessages: DEFAULT_MODO_TOSCO_MESSAGES,
+        boasVindasEnabled: false,
+        boasVindasChannelId: null,
+        boasVindasBackgroundUrl: null,
+        boasVindasTitle: DEFAULT_BOAS_VINDAS_TITLE,
+        boasVindasMessage: DEFAULT_BOAS_VINDAS_MESSAGE
       }
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
@@ -132,7 +139,12 @@ function publicGuildConfig(config) {
     modoToscoFrequency: Math.max(1, Number(config.modoToscoFrequency || 5)),
     modoToscoMessages: savedModoToscoMessages && (savedModoToscoMessages.length || hasCustomModoToscoConfig)
       ? savedModoToscoMessages
-      : DEFAULT_MODO_TOSCO_MESSAGES
+      : DEFAULT_MODO_TOSCO_MESSAGES,
+    boasVindasEnabled: config.boasVindasEnabled === true,
+    boasVindasChannelId: config.boasVindasChannelId || null,
+    boasVindasBackgroundUrl: config.boasVindasBackgroundUrl || null,
+    boasVindasTitle: config.boasVindasTitle || DEFAULT_BOAS_VINDAS_TITLE,
+    boasVindasMessage: config.boasVindasMessage || DEFAULT_BOAS_VINDAS_MESSAGE
   };
 }
 
@@ -234,6 +246,8 @@ module.exports = {
   DEFAULT_CHAMADAS_QUESTIONS,
   DEFAULT_CHAMADAS_END_MESSAGE,
   DEFAULT_MODO_TOSCO_MESSAGES,
+  DEFAULT_BOAS_VINDAS_TITLE,
+  DEFAULT_BOAS_VINDAS_MESSAGE,
   listTextChannels,
   findRobloxUser,
   findRobloxAvatar

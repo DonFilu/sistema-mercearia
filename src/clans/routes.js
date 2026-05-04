@@ -11,6 +11,8 @@ const {
   DEFAULT_CHAMADAS_MESSAGE,
   DEFAULT_CHAMADAS_END_MESSAGE,
   DEFAULT_MODO_TOSCO_MESSAGES,
+  DEFAULT_BOAS_VINDAS_TITLE,
+  DEFAULT_BOAS_VINDAS_MESSAGE,
   listTextChannels,
   findRobloxUser,
   findRobloxAvatar
@@ -426,7 +428,9 @@ router.get("/clans/guilds", requireDatabase, requireClanAuth, async (req, res) =
     chamadasEnabled: config.chamadasEnabled === true,
     chamadasChannelId: config.chamadasChannelId || null,
     modoToscoEnabled: config.modoToscoEnabled === true,
-    modoToscoChannels: config.modoToscoChannels || []
+    modoToscoChannels: config.modoToscoChannels || [],
+    boasVindasEnabled: config.boasVindasEnabled === true,
+    boasVindasChannelId: config.boasVindasChannelId || null
   })));
 
   return res.json({
@@ -439,7 +443,9 @@ router.get("/clans/guilds", requireDatabase, requireClanAuth, async (req, res) =
         chamadasEnabled: false,
         chamadasChannelId: null,
         modoToscoEnabled: false,
-        modoToscoChannels: []
+        modoToscoChannels: [],
+        boasVindasEnabled: false,
+        boasVindasChannelId: null
       }
     }))
   });
@@ -481,7 +487,9 @@ router.get("/clans/guilds/:guildId/config", requireDatabase, requireClanAuth, as
     chamadasEnabled: config.chamadasEnabled === true,
     chamadasChannelId: config.chamadasChannelId || null,
     modoToscoEnabled: config.modoToscoEnabled === true,
-    modoToscoChannels: config.modoToscoChannels || []
+    modoToscoChannels: config.modoToscoChannels || [],
+    boasVindasEnabled: config.boasVindasEnabled === true,
+    boasVindasChannelId: config.boasVindasChannelId || null
   });
 
   return res.json({ config: publicGuildConfig(config) });
@@ -651,6 +659,58 @@ router.put("/clans/guilds/:guildId/config/modo-tosco", requireDatabase, requireC
   return res.json({
     ok: true,
     mensagem: "Configuração de Modo Tosco salva com sucesso.",
+    config: publicGuildConfig(config)
+  });
+});
+
+router.put("/clans/guilds/:guildId/config/boas-vindas", requireDatabase, requireClanAuth, async (req, res) => {
+  console.log("GuildId recebido em Configuracoes Boas-vindas:", req.params.guildId);
+  const guild = findManageableGuild(req.clanAccount, req.params.guildId);
+
+  if (!guild) {
+    return res.status(403).json({ erro: "Voce nao tem permissao para configurar este servidor." });
+  }
+
+  const enabled = req.body.boasVindasEnabled === true;
+  const channelId = req.body.boasVindasChannelId ? String(req.body.boasVindasChannelId) : null;
+  const backgroundUrl = String(req.body.boasVindasBackgroundUrl || "").trim() || null;
+  const title = String(req.body.boasVindasTitle || DEFAULT_BOAS_VINDAS_TITLE).trim() || DEFAULT_BOAS_VINDAS_TITLE;
+  const message = String(req.body.boasVindasMessage || DEFAULT_BOAS_VINDAS_MESSAGE).trim() || DEFAULT_BOAS_VINDAS_MESSAGE;
+
+  if (channelId) {
+    const textChannels = await listTextChannels(req.params.guildId);
+    const exists = textChannels.some(channel => channel.id === channelId);
+
+    if (!exists) {
+      return res.status(400).json({ erro: "Canal invalido para este servidor." });
+    }
+  }
+
+  const config = await ClanGuildConfig.findOneAndUpdate(
+    { guildId: req.params.guildId },
+    {
+      $set: {
+        guildId: req.params.guildId,
+        boasVindasEnabled: enabled,
+        boasVindasChannelId: channelId,
+        boasVindasBackgroundUrl: backgroundUrl,
+        boasVindasTitle: title,
+        boasVindasMessage: message
+      }
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  console.log("Config Boas-vindas salva:", {
+    guildId: config.guildId,
+    boasVindasEnabled: config.boasVindasEnabled === true,
+    boasVindasChannelId: config.boasVindasChannelId || null,
+    temFundo: !!config.boasVindasBackgroundUrl
+  });
+
+  return res.json({
+    ok: true,
+    mensagem: "Configuração de Boas-vindas salva com sucesso.",
     config: publicGuildConfig(config)
   });
 });

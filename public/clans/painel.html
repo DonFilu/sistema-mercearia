@@ -179,6 +179,33 @@
           <button class="primary" onclick="saveModoToscoConfig()">Salvar</button>
           <div id="modoToscoSaveMessage" class="message"></div>
         </div>
+        <div id="boasVindasConfig" class="card hidden">
+          <div class="card-head">
+            <div>
+              <h2>Boas-vindas</h2>
+              <p>Envie uma imagem personalizada quando alguém entrar no servidor.</p>
+            </div>
+            <button class="ghost" onclick="closeBoasVindasConfig()">Fechar configuração</button>
+          </div>
+          <label>Servidor
+            <select id="boasVindasGuildSelect" onchange="loadBoasVindasFeatureConfig()"></select>
+          </label>
+          <label>Canal
+            <select id="boasVindasChannelSelect"></select>
+          </label>
+          <label>Link da imagem de fundo
+            <input id="boasVindasBackgroundUrl" type="url" placeholder="https://...">
+          </label>
+          <label>Tema/título
+            <input id="boasVindasTitle" type="text" value="BEM-VINDO(A)">
+          </label>
+          <label>Texto de boas-vindas
+            <textarea id="boasVindasMessage"></textarea>
+          </label>
+          <p id="boasVindasHelp"></p>
+          <button class="primary" onclick="saveBoasVindasConfig()">Salvar configuração</button>
+          <div id="boasVindasSaveMessage" class="message"></div>
+        </div>
       </section>
 
       <section id="viewServidores" class="view">
@@ -223,6 +250,15 @@
             <button id="modoToscoToggle" class="switch" aria-label="Ativar ou desativar Modo Tosco" onclick="toggleModoTosco()"></button>
           </div>
           <div id="modoToscoConfigMessage" class="message"></div>
+        </div>
+        <div class="feature">
+          <strong>Boas-vindas</strong>
+          <span>Envie uma imagem personalizada quando alguém entrar no servidor.</span>
+          <div class="toggle">
+            <span id="boasVindasToggleText">Desativado</span>
+            <button id="boasVindasToggle" class="switch" aria-label="Ativar ou desativar Boas-vindas" onclick="toggleBoasVindas()"></button>
+          </div>
+          <div id="boasVindasConfigMessage" class="message"></div>
         </div>
       </section>
     </main>
@@ -281,6 +317,7 @@
       document.getElementById("avatarGuildSelect").innerHTML = options;
       document.getElementById("chamadasGuildSelect").innerHTML = options;
       document.getElementById("modoToscoGuildSelect").innerHTML = options;
+      document.getElementById("boasVindasGuildSelect").innerHTML = options;
     }
 
     function setSelectedGuildId(guildId) {
@@ -292,6 +329,7 @@
       document.getElementById("avatarGuildSelect").value = selectedGuildId;
       document.getElementById("chamadasGuildSelect").value = selectedGuildId;
       document.getElementById("modoToscoGuildSelect").value = selectedGuildId;
+      document.getElementById("boasVindasGuildSelect").value = selectedGuildId;
       console.log("GuildId selecionado no painel", selectedGuildId);
     }
 
@@ -338,15 +376,19 @@
       const enabled = guild?.config?.avatarRobloxEnabled === true;
       const chamadasEnabled = guild?.config?.chamadasEnabled === true;
       const modoToscoEnabled = guild?.config?.modoToscoEnabled === true;
+      const boasVindasEnabled = guild?.config?.boasVindasEnabled === true;
       document.getElementById("avatarToggle").classList.toggle("on", enabled);
       document.getElementById("avatarToggleText").textContent = enabled ? "Ativado" : "Desativado";
       document.getElementById("chamadasToggle").classList.toggle("on", chamadasEnabled);
       document.getElementById("chamadasToggleText").textContent = chamadasEnabled ? "Ativado" : "Desativado";
       document.getElementById("modoToscoToggle").classList.toggle("on", modoToscoEnabled);
       document.getElementById("modoToscoToggleText").textContent = modoToscoEnabled ? "Ativado" : "Desativado";
+      document.getElementById("boasVindasToggle").classList.toggle("on", boasVindasEnabled);
+      document.getElementById("boasVindasToggleText").textContent = boasVindasEnabled ? "Ativado" : "Desativado";
       document.getElementById("configMessage").textContent = "";
       document.getElementById("chamadasConfigMessage").textContent = "";
       document.getElementById("modoToscoConfigMessage").textContent = "";
+      document.getElementById("boasVindasConfigMessage").textContent = "";
     }
 
     function renderActiveFeatures() {
@@ -355,6 +397,7 @@
       const avatarEnabled = guild?.config?.avatarRobloxEnabled === true;
       const chamadasEnabled = guild?.config?.chamadasEnabled === true;
       const modoToscoEnabled = guild?.config?.modoToscoEnabled === true;
+      const boasVindasEnabled = guild?.config?.boasVindasEnabled === true;
 
       console.log("Valor retornado pela API ao carregar Painel", {
         guildId: guild?.id || null,
@@ -363,17 +406,21 @@
         chamadasEnabled,
         chamadasChannelId: guild?.config?.chamadasChannelId || null,
         modoToscoEnabled,
-        modoToscoChannels: guild?.config?.modoToscoChannels || []
+        modoToscoChannels: guild?.config?.modoToscoChannels || [],
+        boasVindasEnabled,
+        boasVindasChannelId: guild?.config?.boasVindasChannelId || null
       });
 
-      if (!guild || (!avatarEnabled && !chamadasEnabled && !modoToscoEnabled)) {
+      if (!guild || (!avatarEnabled && !chamadasEnabled && !modoToscoEnabled && !boasVindasEnabled)) {
         container.innerHTML = "";
         document.getElementById("avatarConfig").classList.add("hidden");
         document.getElementById("chamadasConfig").classList.add("hidden");
         document.getElementById("modoToscoConfig").classList.add("hidden");
+        document.getElementById("boasVindasConfig").classList.add("hidden");
         updateAvatarConfigButton();
         updateChamadasConfigButton();
         updateModoToscoConfigButton();
+        updateBoasVindasConfigButton();
         return;
       }
 
@@ -415,10 +462,23 @@
         document.getElementById("modoToscoConfig").classList.add("hidden");
       }
 
+      if (boasVindasEnabled) {
+        cards.push(`
+        <div class="feature">
+          <strong>Boas-vindas</strong>
+          <span>${guild.name}</span>
+          <button id="boasVindasConfigToggleButton" class="primary" onclick="toggleBoasVindasConfig('${guild.id}')">Configurar</button>
+        </div>
+        `);
+      } else {
+        document.getElementById("boasVindasConfig").classList.add("hidden");
+      }
+
       container.innerHTML = cards.join("");
       updateAvatarConfigButton();
       updateChamadasConfigButton();
       updateModoToscoConfigButton();
+      updateBoasVindasConfigButton();
     }
 
     async function toggleAvatarRoblox() {
@@ -523,6 +583,42 @@
       }
     }
 
+    async function toggleBoasVindas() {
+      const guild = selectedConfigGuild();
+      if (!guild) return;
+      setSelectedGuildId(guild.id);
+      await fetchGuildConfig(guild.id);
+
+      const enabled = guild.config?.boasVindasEnabled !== true;
+      const response = await fetch(`/api/clans/guilds/${guild.id}/config/boas-vindas`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          boasVindasEnabled: enabled,
+          boasVindasChannelId: guild.config?.boasVindasChannelId || null,
+          boasVindasBackgroundUrl: guild.config?.boasVindasBackgroundUrl || "",
+          boasVindasTitle: guild.config?.boasVindasTitle || "BEM-VINDO(A)",
+          boasVindasMessage: guild.config?.boasVindasMessage || "Que você possa aproveitar ao máximo do nosso servidor!"
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) return alert(data.erro || "Erro ao salvar Boas-vindas");
+      guild.config = data.config;
+      console.log("Boas-vindas ativada/desativada", {
+        guildId: guild.id,
+        boasVindasEnabled: data.config?.boasVindasEnabled === true,
+        boasVindasChannelId: data.config?.boasVindasChannelId || null
+      });
+      setSelectedGuildId(guild.id);
+      renderConfigFeature();
+      renderActiveFeatures();
+
+      if (enabled && !guild.config?.boasVindasChannelId) {
+        await openBoasVindasConfig(guild.id);
+        document.getElementById("boasVindasConfigMessage").textContent = "Boas-vindas ativado. Escolha o canal e personalize a mensagem.";
+      }
+    }
+
     function updateAvatarConfigButton() {
       const button = document.getElementById("avatarConfigToggleButton");
       if (!button) return;
@@ -547,6 +643,14 @@
       button.textContent = isOpen ? "Fechar configuração" : "Configurar";
     }
 
+    function updateBoasVindasConfigButton() {
+      const button = document.getElementById("boasVindasConfigToggleButton");
+      if (!button) return;
+
+      const isOpen = !document.getElementById("boasVindasConfig").classList.contains("hidden");
+      button.textContent = isOpen ? "Fechar configuração" : "Configurar";
+    }
+
     function closeAvatarConfig() {
       document.getElementById("avatarConfig").classList.add("hidden");
       document.getElementById("avatarSaveMessage").textContent = "";
@@ -563,6 +667,12 @@
       document.getElementById("modoToscoConfig").classList.add("hidden");
       document.getElementById("modoToscoSaveMessage").textContent = "";
       updateModoToscoConfigButton();
+    }
+
+    function closeBoasVindasConfig() {
+      document.getElementById("boasVindasConfig").classList.add("hidden");
+      document.getElementById("boasVindasSaveMessage").textContent = "";
+      updateBoasVindasConfigButton();
     }
 
     async function toggleAvatarConfig(guildId) {
@@ -598,6 +708,17 @@
       await openModoToscoConfig(guildId);
     }
 
+    async function toggleBoasVindasConfig(guildId) {
+      const isOpen = !document.getElementById("boasVindasConfig").classList.contains("hidden");
+
+      if (isOpen && selectedGuildId === guildId) {
+        closeBoasVindasConfig();
+        return;
+      }
+
+      await openBoasVindasConfig(guildId);
+    }
+
     async function openAvatarConfig(guildId) {
       setView("inicio");
       document.getElementById("avatarConfig").classList.remove("hidden");
@@ -623,6 +744,15 @@
       updateModoToscoConfigButton();
       delete channelsByGuild[guildId];
       await loadModoToscoFeatureConfig();
+    }
+
+    async function openBoasVindasConfig(guildId) {
+      setView("inicio");
+      document.getElementById("boasVindasConfig").classList.remove("hidden");
+      setSelectedGuildId(guildId);
+      updateBoasVindasConfigButton();
+      delete channelsByGuild[guildId];
+      await loadBoasVindasFeatureConfig();
     }
 
     async function loadChannels(guildId) {
@@ -833,6 +963,73 @@
       await refreshGuildConfig(guildId);
     }
 
+    async function loadBoasVindasFeatureConfig() {
+      setSelectedGuildId(document.getElementById("boasVindasGuildSelect").value);
+      const guildId = selectedGuildId;
+      const select = document.getElementById("boasVindasChannelSelect");
+      const help = document.getElementById("boasVindasHelp");
+      const saveMessage = document.getElementById("boasVindasSaveMessage");
+
+      select.innerHTML = `<option>Carregando canais...</option>`;
+      select.disabled = true;
+      help.textContent = "";
+      saveMessage.textContent = "";
+
+      try {
+        const config = await fetchGuildConfig(guildId);
+        const result = await loadChannels(guildId);
+        const channels = result.channels || [];
+
+        if (!channels.length) {
+          select.innerHTML = `<option value="">Nenhum canal de texto encontrado</option>`;
+          help.textContent = result.mensagem || "Nenhum canal de texto foi encontrado.";
+          return;
+        }
+
+        select.innerHTML = channels.map(channel => `<option value="${channel.id}">#${channel.name}</option>`).join("");
+        select.value = config.boasVindasChannelId || "";
+        select.disabled = false;
+        document.getElementById("boasVindasBackgroundUrl").value = config.boasVindasBackgroundUrl || "";
+        document.getElementById("boasVindasTitle").value = config.boasVindasTitle || "BEM-VINDO(A)";
+        document.getElementById("boasVindasMessage").value = config.boasVindasMessage || "Que você possa aproveitar ao máximo do nosso servidor!";
+        help.textContent = "Use uma URL pública de imagem. Se ela falhar, o bot usa um fundo padrão.";
+      } catch (err) {
+        select.innerHTML = `<option value="">Canais indisponíveis</option>`;
+        help.innerHTML = `${err.message} <a href="/api/clans/bot-invite" target="_blank" rel="noopener">Convidar bot</a>`;
+      }
+    }
+
+    async function saveBoasVindasConfig() {
+      const guildId = document.getElementById("boasVindasGuildSelect").value;
+      const guild = guilds.find(item => item.id === guildId);
+      setSelectedGuildId(guildId);
+
+      const response = await fetch(`/api/clans/guilds/${guildId}/config/boas-vindas`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          boasVindasEnabled: true,
+          boasVindasChannelId: document.getElementById("boasVindasChannelSelect").value || null,
+          boasVindasBackgroundUrl: document.getElementById("boasVindasBackgroundUrl").value,
+          boasVindasTitle: document.getElementById("boasVindasTitle").value,
+          boasVindasMessage: document.getElementById("boasVindasMessage").value
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) return alert(data.erro || "Erro ao salvar Boas-vindas");
+
+      if (guild) guild.config = data.config;
+      console.log("Config Boas-vindas salva", {
+        guildId,
+        boasVindasEnabled: data.config?.boasVindasEnabled === true,
+        boasVindasChannelId: data.config?.boasVindasChannelId || null
+      });
+      document.getElementById("boasVindasSaveMessage").textContent = "Configuração de Boas-vindas salva com sucesso.";
+      renderConfigFeature();
+      renderActiveFeatures();
+      await refreshGuildConfig(guildId);
+    }
+
     async function saveAvatarChannel() {
       const guildId = document.getElementById("avatarGuildSelect").value;
       const channelId = document.getElementById("avatarChannelSelect").value;
@@ -899,7 +1096,8 @@
       const firstEnabledGuild = guilds.find(guild =>
         guild.config?.avatarRobloxEnabled === true ||
         guild.config?.chamadasEnabled === true ||
-        guild.config?.modoToscoEnabled === true
+        guild.config?.modoToscoEnabled === true ||
+        guild.config?.boasVindasEnabled === true
       );
       setSelectedGuildId(firstEnabledGuild?.id || guilds[0]?.id || null);
 

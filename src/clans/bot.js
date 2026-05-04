@@ -3,7 +3,8 @@ const mongoose = require("mongoose");
 const {
   Client,
   GatewayIntentBits,
-  EmbedBuilder
+  EmbedBuilder,
+  AttachmentBuilder
 } = require("discord.js");
 const { ClanGuildConfig } = require("./models");
 const {
@@ -14,6 +15,7 @@ const {
   DEFAULT_CHAMADAS_END_MESSAGE
 } = require("./features");
 const { registerConfiguredGuildCommands } = require("./registerCommands");
+const { createWelcomeImageBuffer } = require("./welcomeImage");
 
 let client = null;
 let starting = false;
@@ -321,6 +323,68 @@ async function handleModoToscoMessage(message) {
   }
 }
 
+async function handleGuildMemberAdd(member) {
+  console.log("Novo membro detectado para Boas-vindas:", {
+    guildId: member.guild?.id || null,
+    userId: member.user?.id || null
+  });
+
+  if (!member.guild?.id || mongoose.connection.readyState !== 1) return;
+
+  try {
+    const config = await ClanGuildConfig.findOne({ guildId: member.guild.id });
+
+    if (!config || config.boasVindasEnabled !== true) {
+      console.log("Boas-vindas ignorado: funcao desativada ou sem config.", {
+        guildId: member.guild.id
+      });
+      return;
+    }
+
+    if (!config.boasVindasChannelId) {
+      console.log("Boas-vindas ignorado: canal nao configurado.", {
+        guildId: member.guild.id
+      });
+      return;
+    }
+
+    const channel = await member.guild.channels.fetch(config.boasVindasChannelId);
+
+    if (!channel || typeof channel.send !== "function") {
+      console.log("Boas-vindas erro: canal invalido ou sem envio.", {
+        guildId: member.guild.id,
+        channelId: config.boasVindasChannelId
+      });
+      return;
+    }
+
+    const imageBuffer = createWelcomeImageBuffer(member, config);
+    const attachment = new AttachmentBuilder(imageBuffer, {
+      name: "boas-vindas.svg"
+    });
+    console.log("Imagem Boas-vindas gerada:", {
+      guildId: member.guild.id,
+      userId: member.user.id
+    });
+
+    await channel.send({
+      content: "Seja bem-vindo(a)!!",
+      files: [attachment]
+    });
+    console.log("Mensagem Boas-vindas enviada:", {
+      guildId: member.guild.id,
+      channelId: config.boasVindasChannelId,
+      userId: member.user.id
+    });
+  } catch (err) {
+    console.error("Erro em Boas-vindas:", {
+      guildId: member.guild?.id || null,
+      userId: member.user?.id || null,
+      erro: err.message
+    });
+  }
+}
+
 function saoPauloNowParts() {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
@@ -432,13 +496,14 @@ async function startClanDiscordBot() {
     client = new Client({
       intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.GuildMembers
       ]
     });
 
     client.once("ready", () => {
       console.log(`Bot Clan Cidio online como ${client.user.tag}`);
-      console.log("Listener messageCreate do Modo Tosco registrado. Intents: Guilds, GuildMessages.");
+      console.log("Listeners Clan Cidio registrados. Intents: Guilds, GuildMessages, GuildMembers.");
       startChamadasScheduler(client);
     });
 
@@ -452,6 +517,10 @@ async function startClanDiscordBot() {
     client.on("messageCreate", async message => {
       console.log("messageCreate recebido pelo bot Clan Cidio.");
       await handleModoToscoMessage(message);
+    });
+
+    client.on("guildMemberAdd", async member => {
+      await handleGuildMemberAdd(member);
     });
 
     await client.login(process.env.DISCORD_BOT_TOKEN);

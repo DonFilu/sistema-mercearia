@@ -47,7 +47,12 @@ const ClanGuildConfig = mongoose.models.ClanGuildConfig || mongoose.model(
       modoToscoMessages: [String],
       modoToscoMessageCounter: { type: Map, of: Number, default: {} },
       modoToscoLastUsers: { type: Map, of: [String], default: {} },
-      modoToscoLastReplyAt: { type: Map, of: Date, default: {} }
+      modoToscoLastReplyAt: { type: Map, of: Date, default: {} },
+      boasVindasEnabled: { type: Boolean, default: false },
+      boasVindasChannelId: { type: String, default: null },
+      boasVindasBackgroundUrl: { type: String, default: null },
+      boasVindasTitle: { type: String, default: "BEM-VINDO(A)" },
+      boasVindasMessage: { type: String, default: "Que você possa aproveitar ao máximo do nosso servidor!" }
     },
     { timestamps: true }
   )
