@@ -25,6 +25,7 @@ const {
 const router = express.Router();
 let indexesChecked = false;
 const INTERACTION_RESPONSE = 4;
+const DEFERRED_CHANNEL_MESSAGE = 5;
 const EPHEMERAL = 64;
 
 function requireDatabase(req, res, next) {
@@ -112,6 +113,21 @@ function interactionResponse(content, ephemeral = true) {
   };
 }
 
+async function updateDeferredInteraction(interaction, data) {
+  const applicationId = interaction.application_id;
+  const token = interaction.token;
+
+  if (!applicationId || !token) {
+    console.warn("Nao foi possivel responder interacao: application_id/token ausente.");
+    return;
+  }
+
+  await axios.patch(
+    `https://discord.com/api/v10/webhooks/${applicationId}/${token}/messages/@original`,
+    data
+  );
+}
+
 function verifyDiscordInteraction(req) {
   if (!process.env.DISCORD_PUBLIC_KEY) return false;
 
@@ -128,9 +144,17 @@ function verifyDiscordInteraction(req) {
       type: "spki"
     });
 
+    const bodyBuffer = Buffer.isBuffer(rawBody)
+      ? rawBody
+      : Buffer.from(String(rawBody), "utf8");
+    const signedPayload = Buffer.concat([
+      Buffer.from(String(timestamp), "utf8"),
+      bodyBuffer
+    ]);
+
     return crypto.verify(
       null,
-      Buffer.from(`${timestamp}${rawBody}`),
+      signedPayload,
       publicKey,
       Buffer.from(signature, "hex")
     );
@@ -142,6 +166,43 @@ function verifyDiscordInteraction(req) {
 
 function getInteractionOption(interaction, name) {
   return (interaction.data?.options || []).find(option => option.name === name)?.value;
+}
+
+async function sendAvatarRobloxEmbed(interaction, username) {
+  try {
+    const user = await findRobloxUser(username);
+
+    if (!user) {
+      await updateDeferredInteraction(interaction, {
+        content: "Usuario Roblox nao encontrado.",
+        embeds: []
+      });
+      return;
+    }
+
+    const avatarUrl = await findRobloxAvatar(user.id);
+    const profileUrl = `https://www.roblox.com/users/${user.id}/profile`;
+
+    await updateDeferredInteraction(interaction, {
+      content: "",
+      embeds: [
+        {
+          title: `Avatar Roblox de ${user.name}`,
+          description: `[Abrir perfil Roblox](${profileUrl})`,
+          url: profileUrl,
+          color: 5793266,
+          image: avatarUrl ? { url: avatarUrl } : undefined,
+          footer: { text: "Clan Cidio" }
+        }
+      ]
+    });
+  } catch (err) {
+    console.error("Erro no comando /avatar:", err.response?.data || err);
+    await updateDeferredInteraction(interaction, {
+      content: "Nao foi possivel buscar o avatar Roblox agora.",
+      embeds: []
+    });
+  }
 }
 
 router.get("/auth/discord", requireDiscordConfig, (req, res) => {
@@ -415,35 +476,11 @@ router.post("/discord/interactions", async (req, res) => {
     return res.json(interactionResponse("Informe um username Roblox."));
   }
 
-  try {
-    const user = await findRobloxUser(username);
+  sendAvatarRobloxEmbed(interaction, username).catch(err => {
+    console.error("Erro ao finalizar resposta /avatar:", err.response?.data || err);
+  });
 
-    if (!user) {
-      return res.json(interactionResponse("Usuario Roblox nao encontrado."));
-    }
-
-    const avatarUrl = await findRobloxAvatar(user.id);
-    const profileUrl = `https://www.roblox.com/users/${user.id}/profile`;
-
-    return res.json({
-      type: INTERACTION_RESPONSE,
-      data: {
-        embeds: [
-          {
-            title: `Avatar Roblox de ${user.name}`,
-            description: `[Abrir perfil Roblox](${profileUrl})`,
-            url: profileUrl,
-            color: 5793266,
-            image: avatarUrl ? { url: avatarUrl } : undefined,
-            footer: { text: "Clan Cidio" }
-          }
-        ]
-      }
-    });
-  } catch (err) {
-    console.error("Erro no comando /avatar:", err.response?.data || err);
-    return res.json(interactionResponse("Nao foi possivel buscar o avatar Roblox agora."));
-  }
+  return res.json({ type: DEFERRED_CHANNEL_MESSAGE });
 });
 
 module.exports = router;

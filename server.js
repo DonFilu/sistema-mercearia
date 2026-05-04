@@ -82,7 +82,7 @@ function sanitizeAfiliado(afiliado) {
 
 app.use(express.json({
   verify: (req, res, buf) => {
-    req.rawBody = buf.toString("utf8");
+    req.rawBody = Buffer.from(buf);
   }
 }));
 app.get("/", (req, res) => {
@@ -171,6 +171,7 @@ app.use(async (req, res, next) => {
   req.path === "/criar-pix" ||
   req.path.startsWith("/clans") ||
   req.path.startsWith("/api/auth/discord") ||
+  req.path.startsWith("/api/discord") ||
   req.path.startsWith("/api/clans") ||
   req.path.startsWith("/afiliado")
 ) {
