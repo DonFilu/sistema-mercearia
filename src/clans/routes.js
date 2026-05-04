@@ -7,6 +7,9 @@ const {
   findManageableGuild,
   getGuildConfig,
   publicGuildConfig,
+  normalizeQuestions,
+  DEFAULT_CHAMADAS_MESSAGE,
+  DEFAULT_CHAMADAS_END_MESSAGE,
   listTextChannels,
   findRobloxUser,
   findRobloxAvatar
@@ -418,7 +421,9 @@ router.get("/clans/guilds", requireDatabase, requireClanAuth, async (req, res) =
   console.log("Configs Avatar Roblox retornadas para o painel:", configs.map(config => ({
     guildId: config.guildId,
     avatarRobloxEnabled: config.avatarRobloxEnabled === true,
-    avatarRobloxChannelId: config.avatarRobloxChannelId || null
+    avatarRobloxChannelId: config.avatarRobloxChannelId || null,
+    chamadasEnabled: config.chamadasEnabled === true,
+    chamadasChannelId: config.chamadasChannelId || null
   })));
 
   return res.json({
@@ -427,7 +432,9 @@ router.get("/clans/guilds", requireDatabase, requireClanAuth, async (req, res) =
       config: configsByGuild[guild.id] || {
         guildId: guild.id,
         avatarRobloxEnabled: false,
-        avatarRobloxChannelId: ""
+        avatarRobloxChannelId: null,
+        chamadasEnabled: false,
+        chamadasChannelId: null
       }
     }))
   });
@@ -465,7 +472,9 @@ router.get("/clans/guilds/:guildId/config", requireDatabase, requireClanAuth, as
   console.log("Config Avatar Roblox carregada no painel:", {
     guildId: config.guildId,
     avatarRobloxEnabled: config.avatarRobloxEnabled,
-    avatarRobloxChannelId: config.avatarRobloxChannelId || ""
+    avatarRobloxChannelId: config.avatarRobloxChannelId || null,
+    chamadasEnabled: config.chamadasEnabled === true,
+    chamadasChannelId: config.chamadasChannelId || null
   });
 
   return res.json({ config: publicGuildConfig(config) });
@@ -518,6 +527,68 @@ router.put("/clans/guilds/:guildId/config/avatar-roblox", requireDatabase, requi
   return res.json({
     ok: true,
     mensagem: "Canal salvo com sucesso.",
+    config: publicGuildConfig(config)
+  });
+});
+
+router.put("/clans/guilds/:guildId/config/chamadas", requireDatabase, requireClanAuth, async (req, res) => {
+  console.log("GuildId recebido em Configuracoes Chamadas:", req.params.guildId);
+  const guild = findManageableGuild(req.clanAccount, req.params.guildId);
+
+  if (!guild) {
+    return res.status(403).json({ erro: "Voce nao tem permissao para configurar este servidor." });
+  }
+
+  const enabled = req.body.chamadasEnabled === true;
+  const channelId = req.body.chamadasChannelId ? String(req.body.chamadasChannelId) : null;
+  const timeStart = String(req.body.chamadasTimeStart || "05:00").trim();
+  const timeEnd = String(req.body.chamadasTimeEnd || "05:30").trim();
+  const message = String(req.body.chamadasMessage || DEFAULT_CHAMADAS_MESSAGE).trim() || DEFAULT_CHAMADAS_MESSAGE;
+  const endMessage = String(req.body.chamadasEndMessage || DEFAULT_CHAMADAS_END_MESSAGE).trim() || DEFAULT_CHAMADAS_END_MESSAGE;
+  const questions = normalizeQuestions(req.body.chamadasQuestions);
+
+  if (!/^\d{2}:\d{2}$/.test(timeStart) || !/^\d{2}:\d{2}$/.test(timeEnd)) {
+    return res.status(400).json({ erro: "Horarios devem estar no formato HH:mm." });
+  }
+
+  if (channelId) {
+    const channels = await listTextChannels(req.params.guildId);
+    const exists = channels.some(channel => channel.id === channelId);
+
+    if (!exists) {
+      return res.status(400).json({ erro: "Canal invalido para este servidor." });
+    }
+  }
+
+  const config = await ClanGuildConfig.findOneAndUpdate(
+    { guildId: req.params.guildId },
+    {
+      $set: {
+        guildId: req.params.guildId,
+        chamadasEnabled: enabled,
+        chamadasChannelId: channelId,
+        chamadasTimeStart: timeStart,
+        chamadasTimeEnd: timeEnd,
+        chamadasMessage: message,
+        chamadasQuestions: questions,
+        chamadasEndMessage: endMessage
+      }
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  console.log("Config Chamadas salva:", {
+    guildId: config.guildId,
+    chamadasEnabled: config.chamadasEnabled === true,
+    chamadasChannelId: config.chamadasChannelId || null,
+    chamadasTimeStart: config.chamadasTimeStart,
+    chamadasTimeEnd: config.chamadasTimeEnd,
+    perguntas: config.chamadasQuestions?.length || 0
+  });
+
+  return res.json({
+    ok: true,
+    mensagem: "Configuração de Chamadas salva com sucesso.",
     config: publicGuildConfig(config)
   });
 });

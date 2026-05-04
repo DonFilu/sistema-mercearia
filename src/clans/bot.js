@@ -6,11 +6,18 @@ const {
   EmbedBuilder
 } = require("discord.js");
 const { ClanGuildConfig } = require("./models");
-const { findRobloxUser, findRobloxAvatar } = require("./features");
+const {
+  findRobloxUser,
+  findRobloxAvatar,
+  chooseDailyQuestion,
+  DEFAULT_CHAMADAS_MESSAGE,
+  DEFAULT_CHAMADAS_END_MESSAGE
+} = require("./features");
 const { registerConfiguredGuildCommands } = require("./registerCommands");
 
 let client = null;
 let starting = false;
+let chamadasTimer = null;
 
 async function ensureDatabaseConnection() {
   if (mongoose.connection.readyState === 1) return;
@@ -120,6 +127,100 @@ async function handleAvatarCommand(interaction) {
   }
 }
 
+function saoPauloNowParts() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+
+  return {
+    dateKey: `${values.year}-${values.month}-${values.day}`,
+    timeKey: `${values.hour}:${values.minute}`
+  };
+}
+
+async function sendChannelMessage(discordClient, channelId, content) {
+  const channel = await discordClient.channels.fetch(channelId);
+
+  if (!channel || typeof channel.send !== "function") {
+    throw new Error("Canal nao encontrado ou sem suporte a envio.");
+  }
+
+  await channel.send({ content });
+}
+
+function buildChamadaMessage(config, question) {
+  const message = config.chamadasMessage || DEFAULT_CHAMADAS_MESSAGE;
+  return question ? `${message}\n\n${question}` : message;
+}
+
+async function runChamadasTick(discordClient) {
+  if (mongoose.connection.readyState !== 1) return;
+
+  const { dateKey, timeKey } = saoPauloNowParts();
+  const configs = await ClanGuildConfig.find({
+    chamadasEnabled: true
+  });
+
+  for (const config of configs) {
+    try {
+      if (!config.chamadasChannelId) continue;
+
+      if (config.chamadasTimeStart === timeKey && config.chamadasLastStartDate !== dateKey) {
+        const question = chooseDailyQuestion(config.chamadasQuestions || [], config.chamadasLastQuestion);
+        console.log("Pergunta escolhida para Chamadas:", {
+          guildId: config.guildId,
+          question: question || null
+        });
+
+        await sendChannelMessage(discordClient, config.chamadasChannelId, buildChamadaMessage(config, question));
+        config.chamadasLastQuestion = question || config.chamadasLastQuestion || null;
+        config.chamadasLastStartDate = dateKey;
+        await config.save();
+        console.log("Chamada enviada:", { guildId: config.guildId, channelId: config.chamadasChannelId });
+      }
+
+      if (config.chamadasTimeEnd === timeKey && config.chamadasLastEndDate !== dateKey) {
+        const endMessage = config.chamadasEndMessage || DEFAULT_CHAMADAS_END_MESSAGE;
+        await sendChannelMessage(discordClient, config.chamadasChannelId, endMessage);
+        config.chamadasLastEndDate = dateKey;
+        await config.save();
+        console.log("Encerramento de chamada enviado:", {
+          guildId: config.guildId,
+          channelId: config.chamadasChannelId
+        });
+      }
+    } catch (err) {
+      console.error("Erro no agendamento de Chamadas:", {
+        guildId: config.guildId,
+        channelId: config.chamadasChannelId,
+        erro: err.message
+      });
+    }
+  }
+}
+
+function startChamadasScheduler(discordClient) {
+  if (chamadasTimer) return;
+
+  console.log("Agendador de Chamadas iniciado.");
+  setTimeout(() => runChamadasTick(discordClient).catch(err => {
+    console.error("Erro no primeiro tick de Chamadas:", err);
+  }), 5000);
+
+  chamadasTimer = setInterval(() => {
+    runChamadasTick(discordClient).catch(err => {
+      console.error("Erro no tick de Chamadas:", err);
+    });
+  }, 60000);
+}
+
 async function startClanDiscordBot() {
   if (client || starting) return client;
 
@@ -140,6 +241,7 @@ async function startClanDiscordBot() {
 
     client.once("ready", () => {
       console.log(`Bot Clan Cidio online como ${client.user.tag}`);
+      startChamadasScheduler(client);
     });
 
     client.on("interactionCreate", async interaction => {

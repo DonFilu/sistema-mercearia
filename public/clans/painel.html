@@ -33,11 +33,13 @@
     h1 { margin: 0 0 10px; font-size: 30px; letter-spacing: 0; }
     h2 { margin: 0 0 8px; font-size: 22px; }
     p { color: var(--muted); line-height: 1.55; }
-    button, select { font: inherit; }
+    button, select, input, textarea { font: inherit; }
     .logout, .primary, .ghost { border: 0; border-radius: 9px; font-weight: 800; padding: 10px 13px; cursor: pointer; }
     .logout, .ghost { background: #e9eef7; color: #101828; }
     .primary { background: var(--brand); color: #fff; }
-    select { width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 11px; background: #fff; }
+    select, input, textarea { width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 11px; background: #fff; }
+    textarea { min-height: 130px; resize: vertical; line-height: 1.45; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .servers, .features { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; margin-top: 16px; }
     .server, .feature { border: 1px solid var(--line); border-radius: 10px; padding: 14px; background: #fff; }
     .server { display: flex; gap: 12px; align-items: center; }
@@ -58,6 +60,7 @@
       nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       main { padding: 16px; }
       header { align-items: flex-start; flex-direction: column; }
+      .form-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -109,6 +112,42 @@
           <button class="primary" onclick="saveAvatarChannel()">Salvar configuração</button>
           <div id="avatarSaveMessage" class="message"></div>
         </div>
+        <div id="chamadasConfig" class="card hidden">
+          <div class="card-head">
+            <div>
+              <h2>Chamadas</h2>
+              <p>Configure a mensagem diária, pergunta aleatória e encerramento automático.</p>
+            </div>
+            <button class="ghost" onclick="closeChamadasConfig()">Minimizar</button>
+          </div>
+          <label>Servidor
+            <select id="chamadasGuildSelect" onchange="loadChamadasFeatureConfig()"></select>
+          </label>
+          <label>Canal de texto
+            <select id="chamadasChannelSelect"></select>
+          </label>
+          <div class="form-grid">
+            <label>Horário da chamada
+              <input id="chamadasTimeStart" type="time" value="05:00">
+            </label>
+            <label>Horário de encerramento
+              <input id="chamadasTimeEnd" type="time" value="05:30">
+            </label>
+          </div>
+          <label>Mensagem da chamada
+            <textarea id="chamadasMessage"></textarea>
+          </label>
+          <label>Perguntas
+            <textarea id="chamadasQuestions"></textarea>
+          </label>
+          <p>Escreva uma pergunta por linha ou separe por vírgula. O bot escolherá uma aleatoriamente a cada dia.</p>
+          <label>Mensagem de encerramento
+            <textarea id="chamadasEndMessage"></textarea>
+          </label>
+          <p id="chamadasChannelHelp"></p>
+          <button class="primary" onclick="saveChamadasConfig()">Salvar</button>
+          <div id="chamadasSaveMessage" class="message"></div>
+        </div>
       </section>
 
       <section id="viewServidores" class="view">
@@ -135,6 +174,15 @@
             <button id="avatarToggle" class="switch" aria-label="Ativar ou desativar Avatar Roblox" onclick="toggleAvatarRoblox()"></button>
           </div>
           <div id="configMessage" class="message"></div>
+        </div>
+        <div class="feature">
+          <strong>Chamadas</strong>
+          <span>Envia uma chamada diária com pergunta aleatória e mensagem de encerramento.</span>
+          <div class="toggle">
+            <span id="chamadasToggleText">Desativado</span>
+            <button id="chamadasToggle" class="switch" aria-label="Ativar ou desativar Chamadas" onclick="toggleChamadas()"></button>
+          </div>
+          <div id="chamadasConfigMessage" class="message"></div>
         </div>
       </section>
     </main>
@@ -190,6 +238,7 @@
       const options = guilds.map(guild => `<option value="${guild.id}">${guild.name}</option>`).join("");
       document.getElementById("configGuildSelect").innerHTML = options;
       document.getElementById("avatarGuildSelect").innerHTML = options;
+      document.getElementById("chamadasGuildSelect").innerHTML = options;
     }
 
     function setSelectedGuildId(guildId) {
@@ -199,6 +248,7 @@
 
       document.getElementById("configGuildSelect").value = selectedGuildId;
       document.getElementById("avatarGuildSelect").value = selectedGuildId;
+      document.getElementById("chamadasGuildSelect").value = selectedGuildId;
       console.log("GuildId selecionado no painel", selectedGuildId);
     }
 
@@ -217,7 +267,9 @@
       console.log("Config Avatar Roblox carregada do banco", {
         guildId,
         avatarRobloxEnabled: data.config?.avatarRobloxEnabled === true,
-        avatarRobloxChannelId: data.config?.avatarRobloxChannelId || null
+        avatarRobloxChannelId: data.config?.avatarRobloxChannelId || null,
+        chamadasEnabled: data.config?.chamadasEnabled === true,
+        chamadasChannelId: data.config?.chamadasChannelId || null
       });
       return data.config;
     }
@@ -241,37 +293,67 @@
     function renderConfigFeature() {
       const guild = selectedConfigGuild();
       const enabled = guild?.config?.avatarRobloxEnabled === true;
+      const chamadasEnabled = guild?.config?.chamadasEnabled === true;
       document.getElementById("avatarToggle").classList.toggle("on", enabled);
       document.getElementById("avatarToggleText").textContent = enabled ? "Ativado" : "Desativado";
+      document.getElementById("chamadasToggle").classList.toggle("on", chamadasEnabled);
+      document.getElementById("chamadasToggleText").textContent = chamadasEnabled ? "Ativado" : "Desativado";
       document.getElementById("configMessage").textContent = "";
+      document.getElementById("chamadasConfigMessage").textContent = "";
     }
 
     function renderActiveFeatures() {
       const container = document.getElementById("activeFeatures");
       const guild = selectedConfigGuild();
-      const enabled = guild?.config?.avatarRobloxEnabled === true;
+      const avatarEnabled = guild?.config?.avatarRobloxEnabled === true;
+      const chamadasEnabled = guild?.config?.chamadasEnabled === true;
 
       console.log("Valor retornado pela API ao carregar Painel", {
         guildId: guild?.id || null,
-        avatarRobloxEnabled: enabled,
-        avatarRobloxChannelId: guild?.config?.avatarRobloxChannelId || null
+        avatarRobloxEnabled: avatarEnabled,
+        avatarRobloxChannelId: guild?.config?.avatarRobloxChannelId || null,
+        chamadasEnabled,
+        chamadasChannelId: guild?.config?.chamadasChannelId || null
       });
 
-      if (!guild || !enabled) {
+      if (!guild || (!avatarEnabled && !chamadasEnabled)) {
         container.innerHTML = "";
         document.getElementById("avatarConfig").classList.add("hidden");
+        document.getElementById("chamadasConfig").classList.add("hidden");
         updateAvatarConfigButton();
+        updateChamadasConfigButton();
         return;
       }
 
-      container.innerHTML = `
+      const cards = [];
+
+      if (avatarEnabled) {
+        cards.push(`
         <div class="feature">
           <strong>Avatar Roblox</strong>
           <span>${guild.name}</span>
           <button id="avatarConfigToggleButton" class="primary" onclick="toggleAvatarConfig('${guild.id}')">Configurar</button>
         </div>
-      `;
+        `);
+      } else {
+        document.getElementById("avatarConfig").classList.add("hidden");
+      }
+
+      if (chamadasEnabled) {
+        cards.push(`
+        <div class="feature">
+          <strong>Chamadas</strong>
+          <span>${guild.name}</span>
+          <button id="chamadasConfigToggleButton" class="primary" onclick="toggleChamadasConfig('${guild.id}')">Configurar</button>
+        </div>
+        `);
+      } else {
+        document.getElementById("chamadasConfig").classList.add("hidden");
+      }
+
+      container.innerHTML = cards.join("");
       updateAvatarConfigButton();
+      updateChamadasConfigButton();
     }
 
     async function toggleAvatarRoblox() {
@@ -306,6 +388,40 @@
       }
     }
 
+    async function toggleChamadas() {
+      const guild = selectedConfigGuild();
+      if (!guild) return;
+      setSelectedGuildId(guild.id);
+      await fetchGuildConfig(guild.id);
+
+      const enabled = guild.config?.chamadasEnabled !== true;
+      const response = await fetch(`/api/clans/guilds/${guild.id}/config/chamadas`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...guild.config,
+          chamadasEnabled: enabled,
+          chamadasQuestions: guild.config?.chamadasQuestions || []
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) return alert(data.erro || "Erro ao salvar Chamadas");
+      guild.config = data.config;
+      console.log("Config Chamadas salva ao ativar/desativar", {
+        guildId: guild.id,
+        chamadasEnabled: data.config?.chamadasEnabled === true,
+        chamadasChannelId: data.config?.chamadasChannelId || null
+      });
+      setSelectedGuildId(guild.id);
+      renderConfigFeature();
+      renderActiveFeatures();
+
+      if (enabled && !guild.config?.chamadasChannelId) {
+        await openChamadasConfig(guild.id);
+        document.getElementById("chamadasConfigMessage").textContent = "Chamadas ativado. Escolha canal, horários e mensagens.";
+      }
+    }
+
     function updateAvatarConfigButton() {
       const button = document.getElementById("avatarConfigToggleButton");
       if (!button) return;
@@ -314,10 +430,24 @@
       button.textContent = isOpen ? "Fechar configuração" : "Configurar";
     }
 
+    function updateChamadasConfigButton() {
+      const button = document.getElementById("chamadasConfigToggleButton");
+      if (!button) return;
+
+      const isOpen = !document.getElementById("chamadasConfig").classList.contains("hidden");
+      button.textContent = isOpen ? "Fechar configuração" : "Configurar";
+    }
+
     function closeAvatarConfig() {
       document.getElementById("avatarConfig").classList.add("hidden");
       document.getElementById("avatarSaveMessage").textContent = "";
       updateAvatarConfigButton();
+    }
+
+    function closeChamadasConfig() {
+      document.getElementById("chamadasConfig").classList.add("hidden");
+      document.getElementById("chamadasSaveMessage").textContent = "";
+      updateChamadasConfigButton();
     }
 
     async function toggleAvatarConfig(guildId) {
@@ -331,6 +461,17 @@
       await openAvatarConfig(guildId);
     }
 
+    async function toggleChamadasConfig(guildId) {
+      const isOpen = !document.getElementById("chamadasConfig").classList.contains("hidden");
+
+      if (isOpen && selectedGuildId === guildId) {
+        closeChamadasConfig();
+        return;
+      }
+
+      await openChamadasConfig(guildId);
+    }
+
     async function openAvatarConfig(guildId) {
       setView("inicio");
       document.getElementById("avatarConfig").classList.remove("hidden");
@@ -338,6 +479,15 @@
       updateAvatarConfigButton();
       delete channelsByGuild[guildId];
       await loadAvatarFeatureConfig();
+    }
+
+    async function openChamadasConfig(guildId) {
+      setView("inicio");
+      document.getElementById("chamadasConfig").classList.remove("hidden");
+      setSelectedGuildId(guildId);
+      updateChamadasConfigButton();
+      delete channelsByGuild[guildId];
+      await loadChamadasFeatureConfig();
     }
 
     async function loadChannels(guildId) {
@@ -383,6 +533,80 @@
         select.innerHTML = `<option value="">Canais indisponíveis</option>`;
         help.innerHTML = `${err.message} <a href="/api/clans/bot-invite" target="_blank" rel="noopener">Convidar bot</a>`;
       }
+    }
+
+    async function loadChamadasFeatureConfig() {
+      setSelectedGuildId(document.getElementById("chamadasGuildSelect").value);
+      const guildId = selectedGuildId;
+      const select = document.getElementById("chamadasChannelSelect");
+      const help = document.getElementById("chamadasChannelHelp");
+      const saveMessage = document.getElementById("chamadasSaveMessage");
+
+      select.innerHTML = `<option>Carregando canais...</option>`;
+      select.disabled = true;
+      help.textContent = "";
+      saveMessage.textContent = "";
+
+      try {
+        const config = await fetchGuildConfig(guildId);
+        const result = await loadChannels(guildId);
+        const channels = result.channels || [];
+
+        if (!channels.length) {
+          select.innerHTML = `<option value="">Nenhum canal de texto encontrado</option>`;
+          help.textContent = result.mensagem || "Nenhum canal de texto foi encontrado.";
+          return;
+        }
+
+        select.innerHTML = channels.map(channel => `<option value="${channel.id}">#${channel.name}</option>`).join("");
+        select.value = config.chamadasChannelId || "";
+        select.disabled = false;
+        document.getElementById("chamadasTimeStart").value = config.chamadasTimeStart || "05:00";
+        document.getElementById("chamadasTimeEnd").value = config.chamadasTimeEnd || "05:30";
+        document.getElementById("chamadasMessage").value = config.chamadasMessage || "";
+        document.getElementById("chamadasQuestions").value = (config.chamadasQuestions || []).join("\n");
+        document.getElementById("chamadasEndMessage").value = config.chamadasEndMessage || "";
+        help.textContent = "O bot enviará a chamada e o encerramento nesse canal.";
+      } catch (err) {
+        select.innerHTML = `<option value="">Canais indisponíveis</option>`;
+        help.innerHTML = `${err.message} <a href="/api/clans/bot-invite" target="_blank" rel="noopener">Convidar bot</a>`;
+      }
+    }
+
+    async function saveChamadasConfig() {
+      const guildId = document.getElementById("chamadasGuildSelect").value;
+      const channelId = document.getElementById("chamadasChannelSelect").value;
+      const guild = guilds.find(item => item.id === guildId);
+      setSelectedGuildId(guildId);
+
+      const response = await fetch(`/api/clans/guilds/${guildId}/config/chamadas`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chamadasEnabled: true,
+          chamadasChannelId: channelId || null,
+          chamadasTimeStart: document.getElementById("chamadasTimeStart").value || "05:00",
+          chamadasTimeEnd: document.getElementById("chamadasTimeEnd").value || "05:30",
+          chamadasMessage: document.getElementById("chamadasMessage").value,
+          chamadasQuestions: document.getElementById("chamadasQuestions").value,
+          chamadasEndMessage: document.getElementById("chamadasEndMessage").value
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) return alert(data.erro || "Erro ao salvar Chamadas");
+
+      if (guild) guild.config = data.config;
+      console.log("Config Chamadas salva", {
+        guildId,
+        chamadasEnabled: data.config?.chamadasEnabled === true,
+        chamadasChannelId: data.config?.chamadasChannelId || null,
+        chamadasTimeStart: data.config?.chamadasTimeStart,
+        chamadasTimeEnd: data.config?.chamadasTimeEnd
+      });
+      document.getElementById("chamadasSaveMessage").textContent = "Configuração de Chamadas salva com sucesso.";
+      renderConfigFeature();
+      renderActiveFeatures();
+      await refreshGuildConfig(guildId);
     }
 
     async function saveAvatarChannel() {
@@ -448,7 +672,10 @@
 
       fillGuildSelects();
       await Promise.all(guilds.map(guild => fetchGuildConfig(guild.id).catch(() => null)));
-      const firstEnabledGuild = guilds.find(guild => guild.config?.avatarRobloxEnabled === true);
+      const firstEnabledGuild = guilds.find(guild =>
+        guild.config?.avatarRobloxEnabled === true ||
+        guild.config?.chamadasEnabled === true
+      );
       setSelectedGuildId(firstEnabledGuild?.id || guilds[0]?.id || null);
 
       renderServers();

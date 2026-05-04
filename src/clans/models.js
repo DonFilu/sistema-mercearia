@@ -30,7 +30,17 @@ const ClanGuildConfig = mongoose.models.ClanGuildConfig || mongoose.model(
     {
       guildId: { type: String, required: true, unique: true, index: true },
       avatarRobloxEnabled: { type: Boolean, default: false },
-      avatarRobloxChannelId: { type: String, default: null }
+      avatarRobloxChannelId: { type: String, default: null },
+      chamadasEnabled: { type: Boolean, default: false },
+      chamadasChannelId: { type: String, default: null },
+      chamadasTimeStart: { type: String, default: "05:00" },
+      chamadasTimeEnd: { type: String, default: "05:30" },
+      chamadasMessage: String,
+      chamadasQuestions: [String],
+      chamadasEndMessage: String,
+      chamadasLastQuestion: String,
+      chamadasLastStartDate: String,
+      chamadasLastEndDate: String
     },
     { timestamps: true }
   )
