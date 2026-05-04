@@ -26,7 +26,13 @@ function findManageableGuild(account, guildId) {
 async function getGuildConfig(guildId) {
   return ClanGuildConfig.findOneAndUpdate(
     { guildId },
-    { $setOnInsert: { guildId } },
+    {
+      $setOnInsert: {
+        guildId,
+        avatarRobloxEnabled: false,
+        avatarRobloxChannelId: null
+      }
+    },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
 }
@@ -34,8 +40,8 @@ async function getGuildConfig(guildId) {
 function publicGuildConfig(config) {
   return {
     guildId: config.guildId,
-    avatarRobloxEnabled: !!config.avatarRobloxEnabled,
-    avatarRobloxChannelId: config.avatarRobloxChannelId || ""
+    avatarRobloxEnabled: config.avatarRobloxEnabled === true,
+    avatarRobloxChannelId: config.avatarRobloxChannelId || null
   };
 }
 

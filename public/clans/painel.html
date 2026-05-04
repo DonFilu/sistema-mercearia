@@ -138,6 +138,7 @@
     let account = null;
     let guilds = [];
     let channelsByGuild = {};
+    let selectedGuildId = null;
 
     function setView(view) {
       const titles = {
@@ -185,27 +186,44 @@
       document.getElementById("avatarGuildSelect").innerHTML = options;
     }
 
+    function setSelectedGuildId(guildId) {
+      selectedGuildId = guildId || guilds[0]?.id || null;
+
+      if (!selectedGuildId) return;
+
+      document.getElementById("configGuildSelect").value = selectedGuildId;
+      document.getElementById("avatarGuildSelect").value = selectedGuildId;
+      console.log("GuildId selecionado no painel", selectedGuildId);
+    }
+
     function selectedConfigGuild() {
-      const guildId = document.getElementById("configGuildSelect").value;
+      const guildId = selectedGuildId || document.getElementById("configGuildSelect").value;
       return guilds.find(guild => guild.id === guildId);
     }
 
     async function fetchGuildConfig(guildId) {
+      console.log("Buscando config real no banco", { guildId });
       const response = await fetch(`/api/clans/guilds/${guildId}/config`);
       if (!response.ok) throw new Error("Erro ao carregar configuraÃ§Ã£o");
       const data = await response.json();
       const guild = guilds.find(item => item.id === guildId);
       if (guild) guild.config = data.config;
-      console.log("Config Avatar Roblox carregada no painel", data.config);
+      console.log("Config Avatar Roblox carregada do banco", {
+        guildId,
+        avatarRobloxEnabled: data.config?.avatarRobloxEnabled === true,
+        avatarRobloxChannelId: data.config?.avatarRobloxChannelId || null
+      });
       return data.config;
     }
 
     async function loadSelectedConfigGuild() {
+      setSelectedGuildId(document.getElementById("configGuildSelect").value);
       const guild = selectedConfigGuild();
       if (!guild) return;
 
       try {
         await fetchGuildConfig(guild.id);
+        console.log("Valor retornado pela API ao carregar ConfiguraÃ§Ãµes", guild.config);
       } catch (err) {
         document.getElementById("configMessage").textContent = err.message;
       }
@@ -216,37 +234,46 @@
 
     function renderConfigFeature() {
       const guild = selectedConfigGuild();
-      const enabled = !!guild?.config?.avatarRobloxEnabled;
+      const enabled = guild?.config?.avatarRobloxEnabled === true;
       document.getElementById("avatarToggle").classList.toggle("on", enabled);
       document.getElementById("avatarToggleText").textContent = enabled ? "Ativado" : "Desativado";
       document.getElementById("configMessage").textContent = "";
     }
 
     function renderActiveFeatures() {
-      const enabledGuilds = guilds.filter(guild => guild.config?.avatarRobloxEnabled);
       const container = document.getElementById("activeFeatures");
+      const guild = selectedConfigGuild();
+      const enabled = guild?.config?.avatarRobloxEnabled === true;
 
-      if (!enabledGuilds.length) {
+      console.log("Valor retornado pela API ao carregar Painel", {
+        guildId: guild?.id || null,
+        avatarRobloxEnabled: enabled,
+        avatarRobloxChannelId: guild?.config?.avatarRobloxChannelId || null
+      });
+
+      if (!guild || !enabled) {
         container.innerHTML = "";
+        document.getElementById("avatarConfig").classList.add("hidden");
         return;
       }
 
-      container.innerHTML = enabledGuilds.map(guild => `
+      container.innerHTML = `
         <div class="feature">
           <strong>Avatar Roblox</strong>
           <span>${guild.name}</span>
           <button class="primary" onclick="openAvatarConfig('${guild.id}')">Configurar</button>
         </div>
-      `).join("");
+      `;
     }
 
     async function toggleAvatarRoblox() {
       const guild = selectedConfigGuild();
       if (!guild) return;
+      setSelectedGuildId(guild.id);
       await fetchGuildConfig(guild.id);
 
-      const enabled = !guild.config?.avatarRobloxEnabled;
-      const channelId = guild.config?.avatarRobloxChannelId || "";
+      const enabled = guild.config?.avatarRobloxEnabled !== true;
+      const channelId = guild.config?.avatarRobloxChannelId || null;
 
       const response = await fetch(`/api/clans/guilds/${guild.id}/config/avatar-roblox`, {
         method: "PUT",
@@ -256,9 +283,12 @@
       const data = await response.json();
       if (!response.ok) return alert(data.erro || "Erro ao salvar");
       guild.config = data.config;
-      console.log("Config Avatar Roblox salva ao ativar/desativar", data.config);
-      document.getElementById("configGuildSelect").value = guild.id;
-      document.getElementById("avatarGuildSelect").value = guild.id;
+      console.log("Config Avatar Roblox salva ao ativar/desativar", {
+        guildId: guild.id,
+        avatarRobloxEnabled: data.config?.avatarRobloxEnabled === true,
+        avatarRobloxChannelId: data.config?.avatarRobloxChannelId || null
+      });
+      setSelectedGuildId(guild.id);
       renderConfigFeature();
       renderActiveFeatures();
 
@@ -271,8 +301,7 @@
     async function openAvatarConfig(guildId) {
       setView("inicio");
       document.getElementById("avatarConfig").classList.remove("hidden");
-      document.getElementById("avatarGuildSelect").value = guildId;
-      document.getElementById("configGuildSelect").value = guildId;
+      setSelectedGuildId(guildId);
       delete channelsByGuild[guildId];
       await loadAvatarFeatureConfig();
     }
@@ -287,7 +316,8 @@
     }
 
     async function loadAvatarFeatureConfig() {
-      const guildId = document.getElementById("avatarGuildSelect").value;
+      setSelectedGuildId(document.getElementById("avatarGuildSelect").value);
+      const guildId = selectedGuildId;
       const guild = guilds.find(item => item.id === guildId);
       const select = document.getElementById("avatarChannelSelect");
       const help = document.getElementById("avatarChannelHelp");
@@ -300,6 +330,7 @@
 
       try {
         await fetchGuildConfig(guildId);
+        console.log("Valor retornado pela API ao carregar Painel", guild?.config);
         const result = await loadChannels(guildId);
         const channels = result.channels || [];
         const currentGuild = guilds.find(item => item.id === guildId);
@@ -323,6 +354,7 @@
     async function saveAvatarChannel() {
       const guildId = document.getElementById("avatarGuildSelect").value;
       const channelId = document.getElementById("avatarChannelSelect").value;
+      setSelectedGuildId(guildId);
 
       if (!channelId) {
         document.getElementById("avatarSaveMessage").textContent = "Escolha um canal de texto antes de salvar.";
@@ -338,9 +370,12 @@
       if (!response.ok) return alert(data.erro || "Erro ao salvar canal");
       const guild = guilds.find(item => item.id === guildId);
       if (guild) guild.config = data.config;
-      console.log("Canal Avatar Roblox salvo", data.config);
-      document.getElementById("configGuildSelect").value = guildId;
-      document.getElementById("avatarGuildSelect").value = guildId;
+      console.log("Canal Avatar Roblox salvo", {
+        guildId,
+        avatarRobloxEnabled: data.config?.avatarRobloxEnabled === true,
+        avatarRobloxChannelId: data.config?.avatarRobloxChannelId || null
+      });
+      setSelectedGuildId(guildId);
       document.getElementById("avatarSaveMessage").textContent = "Canal salvo com sucesso.";
       renderConfigFeature();
       renderActiveFeatures();
@@ -377,9 +412,11 @@
         guilds = (await guildsResponse.json()).guilds || [];
       }
 
-      await Promise.all(guilds.map(guild => fetchGuildConfig(guild.id).catch(() => null)));
-
       fillGuildSelects();
+      await Promise.all(guilds.map(guild => fetchGuildConfig(guild.id).catch(() => null)));
+      const firstEnabledGuild = guilds.find(guild => guild.config?.avatarRobloxEnabled === true);
+      setSelectedGuildId(firstEnabledGuild?.id || guilds[0]?.id || null);
+
       renderServers();
       renderConfigFeature();
       renderActiveFeatures();

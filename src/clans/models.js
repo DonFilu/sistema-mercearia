@@ -30,7 +30,7 @@ const ClanGuildConfig = mongoose.models.ClanGuildConfig || mongoose.model(
     {
       guildId: { type: String, required: true, unique: true, index: true },
       avatarRobloxEnabled: { type: Boolean, default: false },
-      avatarRobloxChannelId: String
+      avatarRobloxChannelId: { type: String, default: null }
     },
     { timestamps: true }
   )

@@ -338,14 +338,12 @@ router.get("/clans/guilds", requireDatabase, requireClanAuth, async (req, res) =
       permissions: guild.permissions
     }));
 
-  const configs = await ClanGuildConfig.find({
-    guildId: { $in: manageable.map(guild => guild.id) }
-  });
+  const configs = await Promise.all(manageable.map(guild => getGuildConfig(guild.id)));
   const configsByGuild = Object.fromEntries(configs.map(config => [config.guildId, publicGuildConfig(config)]));
-  console.log("Configs Avatar Roblox carregadas no painel:", configs.map(config => ({
+  console.log("Configs Avatar Roblox retornadas para o painel:", configs.map(config => ({
     guildId: config.guildId,
-    avatarRobloxEnabled: config.avatarRobloxEnabled,
-    avatarRobloxChannelId: config.avatarRobloxChannelId || ""
+    avatarRobloxEnabled: config.avatarRobloxEnabled === true,
+    avatarRobloxChannelId: config.avatarRobloxChannelId || null
   })));
 
   return res.json({
@@ -399,14 +397,15 @@ router.get("/clans/guilds/:guildId/config", requireDatabase, requireClanAuth, as
 });
 
 router.put("/clans/guilds/:guildId/config/avatar-roblox", requireDatabase, requireClanAuth, async (req, res) => {
+  console.log("GuildId recebido em Configuracoes Avatar Roblox:", req.params.guildId);
   const guild = findManageableGuild(req.clanAccount, req.params.guildId);
 
   if (!guild) {
     return res.status(403).json({ erro: "Voce nao tem permissao para configurar este servidor." });
   }
 
-  const enabled = !!req.body.avatarRobloxEnabled;
-  const channelId = String(req.body.avatarRobloxChannelId || "");
+  const enabled = req.body.avatarRobloxEnabled === true;
+  const channelId = req.body.avatarRobloxChannelId ? String(req.body.avatarRobloxChannelId) : null;
 
   if (channelId) {
     const channels = await listTextChannels(req.params.guildId);
@@ -430,8 +429,8 @@ router.put("/clans/guilds/:guildId/config/avatar-roblox", requireDatabase, requi
   );
   console.log("Config Avatar Roblox salva:", {
     guildId: config.guildId,
-    avatarRobloxEnabled: config.avatarRobloxEnabled,
-    avatarRobloxChannelId: config.avatarRobloxChannelId || "",
+    avatarRobloxEnabled: config.avatarRobloxEnabled === true,
+    avatarRobloxChannelId: config.avatarRobloxChannelId || null,
     canalSalvo: !!channelId
   });
 
