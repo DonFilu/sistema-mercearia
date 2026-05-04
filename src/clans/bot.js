@@ -18,6 +18,7 @@ const { registerConfiguredGuildCommands } = require("./registerCommands");
 let client = null;
 let starting = false;
 let chamadasTimer = null;
+const modoToscoRuntimeState = new Map();
 
 async function ensureDatabaseConnection() {
   if (mongoose.connection.readyState === 1) return;
@@ -144,6 +145,24 @@ function pickRandom(items) {
   return items[Math.floor(Math.random() * items.length)];
 }
 
+function modoToscoStateKey(guildId, channelId) {
+  return `${guildId}:${channelId}`;
+}
+
+function getModoToscoRuntimeState(guildId, channelId) {
+  const key = modoToscoStateKey(guildId, channelId);
+
+  if (!modoToscoRuntimeState.has(key)) {
+    modoToscoRuntimeState.set(key, {
+      counter: 0,
+      users: [],
+      lastReplyAt: 0
+    });
+  }
+
+  return modoToscoRuntimeState.get(key);
+}
+
 function ensureModoToscoRuntimeMaps(config) {
   if (!config.modoToscoMessageCounter) config.modoToscoMessageCounter = new Map();
   if (!config.modoToscoLastUsers) config.modoToscoLastUsers = new Map();
@@ -216,6 +235,10 @@ async function handleModoToscoMessage(message) {
       ? config.modoToscoMessages
       : [];
 
+    console.log("Modo Tosco mensagens disponiveis:", {
+      total: responses.length
+    });
+
     if (!responses.length) {
       console.log("Modo Tosco ignorado: lista de mensagens vazia.");
       return;
@@ -224,9 +247,11 @@ async function handleModoToscoMessage(message) {
     ensureModoToscoRuntimeMaps(config);
 
     const now = new Date();
-    const lastReplyAt = mapGet(config.modoToscoLastReplyAt, message.channelId, null);
+    const runtimeState = getModoToscoRuntimeState(message.guildId, message.channelId);
+    const savedLastReplyAt = mapGet(config.modoToscoLastReplyAt, message.channelId, null);
+    const lastReplyAt = runtimeState.lastReplyAt || (savedLastReplyAt ? new Date(savedLastReplyAt).getTime() : 0);
 
-    if (lastReplyAt && now.getTime() - new Date(lastReplyAt).getTime() < 5000) {
+    if (lastReplyAt && now.getTime() - lastReplyAt < 5000) {
       console.log("Modo Tosco ignorado: cooldown ativo.", {
         channelId: message.channelId,
         lastReplyAt
@@ -234,10 +259,12 @@ async function handleModoToscoMessage(message) {
       return;
     }
 
-    const recentUsers = mapGet(config.modoToscoLastUsers, message.channelId, [])
+    const savedUsers = mapGet(config.modoToscoLastUsers, message.channelId, []);
+    const recentUsers = (runtimeState.users.length ? runtimeState.users : savedUsers)
       .filter(userId => userId !== message.author.id);
     const updatedUsers = [message.author.id, ...recentUsers.filter(userId => userId !== message.author.id)].slice(0, 10);
-    const currentCounter = Number(mapGet(config.modoToscoMessageCounter, message.channelId, 0)) + 1;
+    const savedCounter = Number(mapGet(config.modoToscoMessageCounter, message.channelId, 0));
+    const currentCounter = (runtimeState.counter || savedCounter) + 1;
     const frequency = Math.max(1, Number(config.modoToscoFrequency || 5));
     const target = frequency;
 
@@ -248,9 +275,11 @@ async function handleModoToscoMessage(message) {
     });
 
     mapSet(config.modoToscoLastUsers, message.channelId, updatedUsers);
+    runtimeState.users = updatedUsers;
 
     if (currentCounter < target) {
       mapSet(config.modoToscoMessageCounter, message.channelId, currentCounter);
+      runtimeState.counter = currentCounter;
       config.markModified("modoToscoLastUsers");
       config.markModified("modoToscoMessageCounter");
       await config.save();
@@ -259,6 +288,8 @@ async function handleModoToscoMessage(message) {
 
     mapSet(config.modoToscoMessageCounter, message.channelId, 0);
     mapSet(config.modoToscoLastReplyAt, message.channelId, now);
+    runtimeState.counter = 0;
+    runtimeState.lastReplyAt = now.getTime();
     config.markModified("modoToscoLastUsers");
     config.markModified("modoToscoMessageCounter");
     config.markModified("modoToscoLastReplyAt");
@@ -401,13 +432,13 @@ async function startClanDiscordBot() {
     client = new Client({
       intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
+        GatewayIntentBits.GuildMessages
       ]
     });
 
     client.once("ready", () => {
       console.log(`Bot Clan Cidio online como ${client.user.tag}`);
+      console.log("Listener messageCreate do Modo Tosco registrado. Intents: Guilds, GuildMessages.");
       startChamadasScheduler(client);
     });
 
@@ -419,6 +450,7 @@ async function startClanDiscordBot() {
     });
 
     client.on("messageCreate", async message => {
+      console.log("messageCreate recebido pelo bot Clan Cidio.");
       await handleModoToscoMessage(message);
     });
 
