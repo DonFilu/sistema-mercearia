@@ -40,6 +40,12 @@
     select, input, textarea { width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 11px; background: #fff; }
     textarea { min-height: 130px; resize: vertical; line-height: 1.45; }
     .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .channel-picker { border: 1px solid var(--line); border-radius: 9px; padding: 8px; background: #fff; display: grid; gap: 6px; max-height: 260px; overflow: auto; }
+    .channel-option { border: 1px solid transparent; border-radius: 8px; background: #f8fafc; color: var(--text); text-align: left; padding: 10px 11px; cursor: pointer; font-weight: 800; }
+    .channel-option:hover { border-color: var(--brand); }
+    .channel-option.selected { background: #eef2ff; border-color: var(--brand); color: #3730a3; }
+    .channel-option::before { content: "□"; display: inline-block; width: 22px; color: var(--muted); }
+    .channel-option.selected::before { content: "✓"; color: var(--brand); }
     .servers, .features { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; margin-top: 16px; }
     .server, .feature { border: 1px solid var(--line); border-radius: 10px; padding: 14px; background: #fff; }
     .server { display: flex; gap: 12px; align-items: center; }
@@ -160,7 +166,7 @@
             <select id="modoToscoGuildSelect" onchange="loadModoToscoFeatureConfig()"></select>
           </label>
           <label>Canais permitidos
-            <select id="modoToscoChannelSelect" multiple size="6"></select>
+            <div id="modoToscoChannelPicker" class="channel-picker"></div>
           </label>
           <label>Enviar resposta a cada X mensagens
             <input id="modoToscoFrequency" type="number" min="1" max="1000" value="5">
@@ -227,6 +233,7 @@
     let guilds = [];
     let channelsByGuild = {};
     let selectedGuildId = null;
+    let modoToscoSelectedChannels = new Set();
 
     function setView(view) {
       const titles = {
@@ -740,12 +747,11 @@
     async function loadModoToscoFeatureConfig() {
       setSelectedGuildId(document.getElementById("modoToscoGuildSelect").value);
       const guildId = selectedGuildId;
-      const select = document.getElementById("modoToscoChannelSelect");
+      const picker = document.getElementById("modoToscoChannelPicker");
       const help = document.getElementById("modoToscoHelp");
       const saveMessage = document.getElementById("modoToscoSaveMessage");
 
-      select.innerHTML = `<option>Carregando canais...</option>`;
-      select.disabled = true;
+      picker.innerHTML = `<p>Carregando canais...</p>`;
       help.textContent = "";
       saveMessage.textContent = "";
 
@@ -753,32 +759,51 @@
         const config = await fetchGuildConfig(guildId);
         const result = await loadChannels(guildId);
         const channels = result.channels || [];
-        const selectedChannels = new Set(config.modoToscoChannels || []);
+        modoToscoSelectedChannels = new Set(config.modoToscoChannels || []);
 
         if (!channels.length) {
-          select.innerHTML = `<option value="">Nenhum canal de texto encontrado</option>`;
+          picker.innerHTML = `<p>Nenhum canal de texto encontrado</p>`;
           help.textContent = result.mensagem || "Nenhum canal de texto foi encontrado.";
           return;
         }
 
-        select.innerHTML = channels.map(channel =>
-          `<option value="${channel.id}" ${selectedChannels.has(channel.id) ? "selected" : ""}>#${channel.name}</option>`
-        ).join("");
-        select.disabled = false;
+        renderModoToscoChannelPicker(channels);
         document.getElementById("modoToscoFrequency").value = config.modoToscoFrequency || 5;
         document.getElementById("modoToscoMessages").value = (config.modoToscoMessages || []).join("\n");
-        help.textContent = "Use Ctrl ou toque múltiplo para selecionar mais de um canal.";
+        help.textContent = "Clique em um canal para marcar ou desmarcar. Você pode escolher vários.";
       } catch (err) {
-        select.innerHTML = `<option value="">Canais indisponíveis</option>`;
+        picker.innerHTML = `<p>Canais indisponíveis</p>`;
         help.innerHTML = `${err.message} <a href="/api/clans/bot-invite" target="_blank" rel="noopener">Convidar bot</a>`;
       }
     }
 
+    function renderModoToscoChannelPicker(channels) {
+      const picker = document.getElementById("modoToscoChannelPicker");
+      picker.innerHTML = channels.map(channel => `
+        <button
+          type="button"
+          class="channel-option ${modoToscoSelectedChannels.has(channel.id) ? "selected" : ""}"
+          data-channel-id="${channel.id}"
+        >#${channel.name}</button>
+      `).join("");
+    }
+
+    function toggleModoToscoChannel(channelId) {
+      if (modoToscoSelectedChannels.has(channelId)) {
+        modoToscoSelectedChannels.delete(channelId);
+      } else {
+        modoToscoSelectedChannels.add(channelId);
+      }
+
+      document.querySelectorAll("#modoToscoChannelPicker .channel-option").forEach(button => {
+        button.classList.toggle("selected", modoToscoSelectedChannels.has(button.dataset.channelId));
+      });
+      console.log("Canais Modo Tosco selecionados:", Array.from(modoToscoSelectedChannels));
+    }
+
     async function saveModoToscoConfig() {
       const guildId = document.getElementById("modoToscoGuildSelect").value;
-      const channelIds = Array.from(document.getElementById("modoToscoChannelSelect").selectedOptions)
-        .map(option => option.value)
-        .filter(Boolean);
+      const channelIds = Array.from(modoToscoSelectedChannels);
       const guild = guilds.find(item => item.id === guildId);
       setSelectedGuildId(guildId);
 
@@ -887,6 +912,13 @@
       await fetch("/api/clans/logout", { method: "POST" });
       window.location.href = "/clans";
     }
+
+    document.getElementById("modoToscoChannelPicker").addEventListener("click", event => {
+      const button = event.target.closest(".channel-option");
+      if (!button) return;
+      event.preventDefault();
+      toggleModoToscoChannel(button.dataset.channelId);
+    });
 
     loadAccount();
   </script>

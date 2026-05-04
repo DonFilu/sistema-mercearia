@@ -610,7 +610,7 @@ router.put("/clans/guilds/:guildId/config/modo-tosco", requireDatabase, requireC
 
   const enabled = req.body.modoToscoEnabled === true;
   const channels = Array.isArray(req.body.modoToscoChannels)
-    ? req.body.modoToscoChannels.map(channelId => String(channelId)).filter(Boolean)
+    ? [...new Set(req.body.modoToscoChannels.map(channelId => String(channelId)).filter(Boolean))]
     : [];
   const frequency = Math.max(1, Math.min(1000, Number(req.body.modoToscoFrequency || 5)));
   const messages = normalizeQuestions(req.body.modoToscoMessages);
@@ -643,6 +643,7 @@ router.put("/clans/guilds/:guildId/config/modo-tosco", requireDatabase, requireC
     guildId: config.guildId,
     modoToscoEnabled: config.modoToscoEnabled === true,
     canais: config.modoToscoChannels || [],
+    totalCanais: config.modoToscoChannels?.length || 0,
     modoToscoFrequency: config.modoToscoFrequency,
     mensagens: config.modoToscoMessages?.length || 0
   });

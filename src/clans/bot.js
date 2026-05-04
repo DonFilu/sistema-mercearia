@@ -11,8 +11,7 @@ const {
   findRobloxAvatar,
   chooseDailyQuestion,
   DEFAULT_CHAMADAS_MESSAGE,
-  DEFAULT_CHAMADAS_END_MESSAGE,
-  DEFAULT_MODO_TOSCO_MESSAGES
+  DEFAULT_CHAMADAS_END_MESSAGE
 } = require("./features");
 const { registerConfiguredGuildCommands } = require("./registerCommands");
 
@@ -145,45 +144,124 @@ function pickRandom(items) {
   return items[Math.floor(Math.random() * items.length)];
 }
 
+function ensureModoToscoRuntimeMaps(config) {
+  if (!config.modoToscoMessageCounter) config.modoToscoMessageCounter = new Map();
+  if (!config.modoToscoLastUsers) config.modoToscoLastUsers = new Map();
+  if (!config.modoToscoLastReplyAt) config.modoToscoLastReplyAt = new Map();
+}
+
 async function handleModoToscoMessage(message) {
-  if (!message.guildId || message.author?.bot) return;
-  if (mongoose.connection.readyState !== 1) return;
+  console.log("Modo Tosco mensagem recebida:", {
+    guildId: message.guildId || null,
+    channelId: message.channelId || null,
+    authorId: message.author?.id || null,
+    bot: !!message.author?.bot
+  });
+
+  if (!message.guildId) {
+    console.log("Modo Tosco ignorado: mensagem fora de servidor.");
+    return;
+  }
+
+  if (message.author?.bot) {
+    console.log("Modo Tosco ignorado: autor e bot.");
+    return;
+  }
+
+  if (mongoose.connection.readyState !== 1) {
+    console.log("Modo Tosco ignorado: banco desconectado.");
+    return;
+  }
 
   try {
     const config = await ClanGuildConfig.findOne({ guildId: message.guildId });
 
-    if (!config || config.modoToscoEnabled !== true) return;
-    if (!Array.isArray(config.modoToscoChannels) || !config.modoToscoChannels.includes(message.channelId)) return;
+    if (!config) {
+      console.log("Modo Tosco ignorado: config inexistente.", {
+        guildId: message.guildId,
+        channelId: message.channelId
+      });
+      return;
+    }
+
+    const allowedChannels = Array.isArray(config.modoToscoChannels) ? config.modoToscoChannels : [];
+    console.log("Modo Tosco config carregada:", {
+      guildId: message.guildId,
+      channelId: message.channelId,
+      modoToscoEnabled: config.modoToscoEnabled === true,
+      canaisPermitidos: allowedChannels,
+      frequencia: config.modoToscoFrequency,
+      mensagens: config.modoToscoMessages?.length || 0
+    });
+
+    if (config.modoToscoEnabled !== true) {
+      console.log("Modo Tosco ignorado: funcao desativada.");
+      return;
+    }
+
+    if (!allowedChannels.length) {
+      console.log("Modo Tosco ignorado: modoToscoChannels vazio.");
+      return;
+    }
+
+    if (!allowedChannels.includes(message.channelId)) {
+      console.log("Modo Tosco ignorado: canal nao permitido.", {
+        channelId: message.channelId,
+        canaisPermitidos: allowedChannels
+      });
+      return;
+    }
 
     const responses = Array.isArray(config.modoToscoMessages) && config.modoToscoMessages.length
       ? config.modoToscoMessages
-      : DEFAULT_MODO_TOSCO_MESSAGES;
+      : [];
 
-    if (!responses.length) return;
+    if (!responses.length) {
+      console.log("Modo Tosco ignorado: lista de mensagens vazia.");
+      return;
+    }
+
+    ensureModoToscoRuntimeMaps(config);
 
     const now = new Date();
     const lastReplyAt = mapGet(config.modoToscoLastReplyAt, message.channelId, null);
 
-    if (lastReplyAt && now.getTime() - new Date(lastReplyAt).getTime() < 5000) return;
+    if (lastReplyAt && now.getTime() - new Date(lastReplyAt).getTime() < 5000) {
+      console.log("Modo Tosco ignorado: cooldown ativo.", {
+        channelId: message.channelId,
+        lastReplyAt
+      });
+      return;
+    }
 
     const recentUsers = mapGet(config.modoToscoLastUsers, message.channelId, [])
       .filter(userId => userId !== message.author.id);
     const updatedUsers = [message.author.id, ...recentUsers.filter(userId => userId !== message.author.id)].slice(0, 10);
     const currentCounter = Number(mapGet(config.modoToscoMessageCounter, message.channelId, 0)) + 1;
     const frequency = Math.max(1, Number(config.modoToscoFrequency || 5));
-    const variation = Math.max(0, Math.min(2, Math.floor(frequency / 5)));
-    const target = frequency + (variation ? Math.floor(Math.random() * (variation + 1)) : 0);
+    const target = frequency;
+
+    console.log("Modo Tosco contador:", {
+      channelId: message.channelId,
+      contadorAtual: currentCounter,
+      frequencia: frequency
+    });
 
     mapSet(config.modoToscoLastUsers, message.channelId, updatedUsers);
 
     if (currentCounter < target) {
       mapSet(config.modoToscoMessageCounter, message.channelId, currentCounter);
+      config.markModified("modoToscoLastUsers");
+      config.markModified("modoToscoMessageCounter");
       await config.save();
       return;
     }
 
     mapSet(config.modoToscoMessageCounter, message.channelId, 0);
     mapSet(config.modoToscoLastReplyAt, message.channelId, now);
+    config.markModified("modoToscoLastUsers");
+    config.markModified("modoToscoMessageCounter");
+    config.markModified("modoToscoLastReplyAt");
     await config.save();
 
     const selectedUserId = pickRandom(updatedUsers);
@@ -197,6 +275,11 @@ async function handleModoToscoMessage(message) {
 
     await message.channel.send({
       content: `<@${selectedUserId}> ${selectedMessage}`
+    });
+    console.log("Modo Tosco resposta enviada:", {
+      guildId: message.guildId,
+      channelId: message.channelId,
+      selectedUserId
     });
   } catch (err) {
     console.error("Erro no Modo Tosco:", {
