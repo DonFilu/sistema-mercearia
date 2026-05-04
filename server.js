@@ -1,21 +1,10 @@
 ﻿const express = require("express");
 const mongoose = require("mongoose");
 const path = require("path");
-const fs = require("fs");
 require("dotenv").config();
 const axios = require("axios");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
-
-let restaurantesRouter = null;
-let RestauranteConta = null;
-
-try {
-  restaurantesRouter = require("./src/restaurantes/routes");
-  RestauranteConta = require("./src/restaurantes/models").RestauranteConta;
-} catch (err) {
-  console.warn("Modulo Cidio Restaurantes indisponivel:", err.message);
-}
 
 const app = express();
 const JWT_SECRET =
@@ -83,44 +72,8 @@ function sanitizeAfiliado(afiliado) {
 
 app.use(express.json());
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "landing.html"));
-});
-
-app.get("/mercearias", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
 });
-
-app.get("/restaurantes", (req, res) => {
-  const file = path.join(__dirname, "public", "restaurantes", "index.html");
-
-  if (!fs.existsSync(file)) {
-    return res.status(503).send("Cidio Restaurantes nao esta disponivel neste deploy.");
-  }
-
-  res.sendFile(file);
-});
-
-app.get("/restaurantes/cardapio/:slug", (req, res) => {
-  const file = path.join(__dirname, "public", "restaurantes", "cardapio.html");
-
-  if (!fs.existsSync(file)) {
-    return res.status(503).send("Cardapio do Cidio Restaurantes nao esta disponivel neste deploy.");
-  }
-
-  res.sendFile(file);
-});
-
-app.use("/restaurantes", express.static(path.join(__dirname, "public", "restaurantes")));
-
-if (restaurantesRouter) {
-  app.use("/restaurantes/api", restaurantesRouter);
-} else {
-  app.use("/restaurantes/api", (req, res) => {
-    res.status(503).json({
-      erro: "Modulo Cidio Restaurantes nao encontrado no deploy. Envie a pasta src/restaurantes."
-    });
-  });
-}
 
 // depois disso:
 app.use(express.static(path.join(__dirname, "public")));
@@ -168,7 +121,6 @@ app.use(async (req, res, next) => {
   req.path === "/register" ||
   req.path === "/webhook" ||
   req.path === "/criar-pix" ||
-  req.path.startsWith("/restaurantes") ||
   req.path.startsWith("/afiliado")
 ) {
   return next();
@@ -1202,33 +1154,6 @@ app.post("/webhook", async (req, res) => {
       pagamento.payment_method_id === "pix"
     ) {
       const userId = pagamento.external_reference;
-
-      if (String(userId || "").startsWith("restaurante:")) {
-        if (!RestauranteConta) {
-          console.warn("Pagamento restaurante recebido, mas modulo Restaurantes nao esta disponivel.");
-          return res.sendStatus(200);
-        }
-
-        const restauranteId = String(userId).replace("restaurante:", "");
-        const restaurante = await RestauranteConta.findById(restauranteId);
-
-        if (restaurante) {
-          const hoje = new Date();
-          const base = restaurante.dataExpiracao && restaurante.dataExpiracao > hoje
-            ? restaurante.dataExpiracao
-            : hoje;
-
-          restaurante.dataExpiracao = new Date(
-            base.getTime() + 30 * 24 * 60 * 60 * 1000
-          );
-          restaurante.planoAtivo = true;
-          restaurante.primeiroPagamento = true;
-          await restaurante.save();
-          console.log("Plano restaurante atualizado:", restaurante.nomeRestaurante);
-        }
-
-        return res.sendStatus(200);
-      }
 
       const user = await User.findById(userId);
 
