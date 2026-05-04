@@ -236,6 +236,8 @@
       const data = await response.json();
       if (!response.ok) return alert(data.erro || "Erro ao salvar");
       guild.config = data.config;
+      document.getElementById("configGuildSelect").value = guild.id;
+      document.getElementById("avatarGuildSelect").value = guild.id;
       renderConfigFeature();
       renderActiveFeatures();
     }
@@ -244,6 +246,7 @@
       setView("inicio");
       document.getElementById("avatarConfig").classList.remove("hidden");
       document.getElementById("avatarGuildSelect").value = guildId;
+      document.getElementById("configGuildSelect").value = guildId;
       delete channelsByGuild[guildId];
       await loadAvatarFeatureConfig();
     }
@@ -307,7 +310,20 @@
       if (!response.ok) return alert(data.erro || "Erro ao salvar canal");
       const guild = guilds.find(item => item.id === guildId);
       if (guild) guild.config = data.config;
+      document.getElementById("configGuildSelect").value = guildId;
+      document.getElementById("avatarGuildSelect").value = guildId;
       document.getElementById("avatarSaveMessage").textContent = "Canal salvo com sucesso.";
+      renderConfigFeature();
+      renderActiveFeatures();
+      await refreshGuildConfig(guildId);
+    }
+
+    async function refreshGuildConfig(guildId) {
+      const response = await fetch(`/api/clans/guilds/${guildId}/config`);
+      if (!response.ok) return;
+      const data = await response.json();
+      const guild = guilds.find(item => item.id === guildId);
+      if (guild) guild.config = data.config;
       renderConfigFeature();
       renderActiveFeatures();
     }

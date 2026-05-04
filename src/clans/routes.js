@@ -365,6 +365,7 @@ router.post("/clans/logout", (req, res) => {
 
 router.post("/discord/interactions", async (req, res) => {
   if (!verifyDiscordInteraction(req)) {
+    console.warn("Interacao Discord recusada: assinatura invalida ou DISCORD_PUBLIC_KEY ausente.");
     return res.status(401).send("invalid request signature");
   }
 
@@ -385,12 +386,18 @@ router.post("/discord/interactions", async (req, res) => {
   const guildId = interaction.guild_id;
   const channelId = interaction.channel_id;
   const username = String(getInteractionOption(interaction, "username") || "").trim();
+  console.log("Comando /avatar recebido:", { guildId, channelId, username });
 
   if (!guildId) {
     return res.json(interactionResponse("Este comando so pode ser usado em servidores."));
   }
 
   const config = await ClanGuildConfig.findOne({ guildId });
+  console.log("Config Avatar Roblox:", config ? {
+    guildId: config.guildId,
+    avatarRobloxEnabled: config.avatarRobloxEnabled,
+    avatarRobloxChannelId: config.avatarRobloxChannelId
+  } : null);
 
   if (!config || !config.avatarRobloxEnabled) {
     return res.json(interactionResponse("Avatar Roblox esta desativado neste servidor."));
