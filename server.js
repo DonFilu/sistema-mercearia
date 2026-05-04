@@ -8,10 +8,12 @@ const jwt = require("jsonwebtoken");
 
 let clansRouter = null;
 let hasValidClanSession = null;
+let registerConfiguredGuildCommands = null;
 
 try {
   clansRouter = require("./src/clans/routes");
   hasValidClanSession = require("./src/clans/security").hasValidClanSession;
+  registerConfiguredGuildCommands = require("./src/clans/registerCommands").registerConfiguredGuildCommands;
 } catch (err) {
   console.warn("Modulo Clan Cidio indisponivel:", err.message);
 }
@@ -131,7 +133,17 @@ const MONGO_URI = process.env.MONGODB_URI;
 mongoose.connect(MONGO_URI, {
   serverSelectionTimeoutMS: 8000
 })
-.then(() => console.log("ðŸŸ¢ Mongo conectado"))
+.then(async () => {
+  console.log("ðŸŸ¢ Mongo conectado");
+
+  if (registerConfiguredGuildCommands) {
+    try {
+      await registerConfiguredGuildCommands();
+    } catch (err) {
+      console.warn("Nao foi possivel registrar comandos Clan Cidio:", err.response?.data || err.message);
+    }
+  }
+})
 .catch(err => console.log("âŒ Erro Mongo:", err));
 
 /* =============================

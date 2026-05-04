@@ -21,6 +21,7 @@ const {
   clearSession,
   verifyToken
 } = require("./security");
+const { registerGuildAvatarCommand } = require("./registerCommands");
 
 const router = express.Router();
 let indexesChecked = false;
@@ -341,6 +342,11 @@ router.get("/clans/guilds", requireDatabase, requireClanAuth, async (req, res) =
     guildId: { $in: manageable.map(guild => guild.id) }
   });
   const configsByGuild = Object.fromEntries(configs.map(config => [config.guildId, publicGuildConfig(config)]));
+  console.log("Configs Avatar Roblox carregadas no painel:", configs.map(config => ({
+    guildId: config.guildId,
+    avatarRobloxEnabled: config.avatarRobloxEnabled,
+    avatarRobloxChannelId: config.avatarRobloxChannelId || ""
+  })));
 
   return res.json({
     guilds: manageable.map(guild => ({
@@ -383,6 +389,12 @@ router.get("/clans/guilds/:guildId/config", requireDatabase, requireClanAuth, as
   }
 
   const config = await getGuildConfig(req.params.guildId);
+  console.log("Config Avatar Roblox carregada no painel:", {
+    guildId: config.guildId,
+    avatarRobloxEnabled: config.avatarRobloxEnabled,
+    avatarRobloxChannelId: config.avatarRobloxChannelId || ""
+  });
+
   return res.json({ config: publicGuildConfig(config) });
 });
 
@@ -396,11 +408,7 @@ router.put("/clans/guilds/:guildId/config/avatar-roblox", requireDatabase, requi
   const enabled = !!req.body.avatarRobloxEnabled;
   const channelId = String(req.body.avatarRobloxChannelId || "");
 
-  if (enabled && !channelId) {
-    return res.status(400).json({ erro: "Escolha um canal para ativar Avatar Roblox." });
-  }
-
-  if (enabled) {
+  if (channelId) {
     const channels = await listTextChannels(req.params.guildId);
     const exists = channels.some(channel => channel.id === channelId);
 
@@ -412,12 +420,26 @@ router.put("/clans/guilds/:guildId/config/avatar-roblox", requireDatabase, requi
   const config = await ClanGuildConfig.findOneAndUpdate(
     { guildId: req.params.guildId },
     {
-      guildId: req.params.guildId,
-      avatarRobloxEnabled: enabled,
-      avatarRobloxChannelId: enabled ? channelId : ""
+      $set: {
+        guildId: req.params.guildId,
+        avatarRobloxEnabled: enabled,
+        avatarRobloxChannelId: channelId
+      }
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
+  console.log("Config Avatar Roblox salva:", {
+    guildId: config.guildId,
+    avatarRobloxEnabled: config.avatarRobloxEnabled,
+    avatarRobloxChannelId: config.avatarRobloxChannelId || "",
+    canalSalvo: !!channelId
+  });
+
+  if (enabled) {
+    registerGuildAvatarCommand(req.params.guildId).catch(err => {
+      console.error("Erro ao registrar /avatar no servidor:", err.response?.data || err.message);
+    });
+  }
 
   return res.json({
     ok: true,
@@ -462,6 +484,7 @@ router.post("/discord/interactions", async (req, res) => {
   console.log("Comando /avatar recebido:", { guildId, channelId, username });
 
   if (!guildId) {
+    console.log("Comando /avatar bloqueado: sem guildId.");
     return res.json(interactionResponse("Este comando so pode ser usado em servidores."));
   }
 
@@ -473,15 +496,22 @@ router.post("/discord/interactions", async (req, res) => {
   } : null);
 
   if (!config || !config.avatarRobloxEnabled) {
-    return res.json(interactionResponse("Avatar Roblox esta desativado neste servidor."));
+    console.log("Comando /avatar bloqueado: Avatar Roblox desativado.", { guildId, channelId });
+    return res.json(interactionResponse("Avatar Roblox está desativado neste servidor."));
   }
 
   if (!config.avatarRobloxChannelId) {
-    return res.json(interactionResponse("O canal do Avatar Roblox ainda nao foi configurado no painel."));
+    console.log("Comando /avatar bloqueado: canal nao configurado.", { guildId, channelId });
+    return res.json(interactionResponse("O canal do Avatar Roblox ainda não foi configurado no painel."));
   }
 
   if (config.avatarRobloxChannelId !== channelId) {
-    return res.json(interactionResponse("Este comando so pode ser usado no canal configurado para Avatar Roblox."));
+    console.log("Comando /avatar bloqueado: canal errado.", {
+      guildId,
+      channelId,
+      avatarRobloxChannelId: config.avatarRobloxChannelId
+    });
+    return res.json(interactionResponse("Este comando só pode ser usado no canal configurado para Avatar Roblox."));
   }
 
   if (!username) {
