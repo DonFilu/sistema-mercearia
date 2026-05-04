@@ -77,16 +77,21 @@ async function listTextChannels(guildId) {
 }
 
 async function findRobloxUser(username) {
-  const response = await axios.post("https://users.roblox.com/v1/usernames/users", {
-    usernames: [username],
-    excludeBannedUsers: false
-  });
+  const response = await axios.post(
+    "https://users.roblox.com/v1/usernames/users",
+    {
+      usernames: [username],
+      excludeBannedUsers: false
+    },
+    { timeout: 5000 }
+  );
 
   return response.data?.data?.[0] || null;
 }
 
 async function findRobloxAvatar(userId) {
   const response = await axios.get("https://thumbnails.roblox.com/v1/users/avatar", {
+    timeout: 5000,
     params: {
       userIds: userId,
       size: "420x420",

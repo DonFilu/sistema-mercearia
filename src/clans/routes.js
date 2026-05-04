@@ -174,7 +174,7 @@ async function sendAvatarRobloxEmbed(interaction, username) {
 
     if (!user) {
       await updateDeferredInteraction(interaction, {
-        content: "Usuario Roblox nao encontrado.",
+        content: "Usuário Roblox não encontrado.",
         embeds: []
       });
       return;
@@ -187,10 +187,22 @@ async function sendAvatarRobloxEmbed(interaction, username) {
       content: "",
       embeds: [
         {
-          title: `Avatar Roblox de ${user.name}`,
-          description: `[Abrir perfil Roblox](${profileUrl})`,
+          title: "Avatar Roblox",
+          description: `Avatar de ${user.name}`,
           url: profileUrl,
           color: 5793266,
+          fields: [
+            {
+              name: "Nome",
+              value: user.name,
+              inline: true
+            },
+            {
+              name: "ID",
+              value: String(user.id),
+              inline: true
+            }
+          ],
           image: avatarUrl ? { url: avatarUrl } : undefined,
           footer: { text: "Clan Cidio" }
         }
@@ -199,7 +211,7 @@ async function sendAvatarRobloxEmbed(interaction, username) {
   } catch (err) {
     console.error("Erro no comando /avatar:", err.response?.data || err);
     await updateDeferredInteraction(interaction, {
-      content: "Nao foi possivel buscar o avatar Roblox agora.",
+      content: "Erro ao buscar avatar, tente novamente.",
       embeds: []
     });
   }
@@ -473,7 +485,7 @@ router.post("/discord/interactions", async (req, res) => {
   }
 
   if (!username) {
-    return res.json(interactionResponse("Informe um username Roblox."));
+    return res.json(interactionResponse("O nome de usuário é obrigatório."));
   }
 
   sendAvatarRobloxEmbed(interaction, username).catch(err => {
