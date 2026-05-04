@@ -171,6 +171,7 @@ function getInteractionOption(interaction, name) {
 
 async function sendAvatarRobloxEmbed(interaction, username) {
   try {
+    console.log("Início da busca Roblox:", { username });
     const user = await findRobloxUser(username);
 
     if (!user) {
@@ -183,6 +184,7 @@ async function sendAvatarRobloxEmbed(interaction, username) {
 
     const avatarUrl = await findRobloxAvatar(user.id);
     const profileUrl = `https://www.roblox.com/users/${user.id}/profile`;
+    console.log("Avatar Roblox encontrado com sucesso:", { username: user.name, userId: user.id });
 
     await updateDeferredInteraction(interaction, {
       content: "",
@@ -215,6 +217,79 @@ async function sendAvatarRobloxEmbed(interaction, username) {
       content: "Erro ao buscar avatar, tente novamente.",
       embeds: []
     });
+  }
+}
+
+async function editAvatarError(interaction, content) {
+  try {
+    await updateDeferredInteraction(interaction, {
+      content,
+      embeds: []
+    });
+  } catch (err) {
+    console.error("Erro ao enviar resposta de falha /avatar:", err.response?.data || err.message);
+  }
+}
+
+async function executeAvatarInteraction(interaction) {
+  const guildId = interaction.guild_id;
+  const channelId = interaction.channel_id;
+  const username = String(getInteractionOption(interaction, "username") || "").trim();
+  console.log("Comando /avatar deferido recebido:", { guildId, channelId });
+  console.log("Username recebido no /avatar:", { username });
+
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      console.log("Comando /avatar bloqueado: banco desconectado.", { guildId, channelId });
+      await editAvatarError(interaction, "Banco de dados conectando. Tente novamente em alguns segundos.");
+      return;
+    }
+
+    if (!guildId) {
+      console.log("Comando /avatar bloqueado: sem guildId.");
+      await editAvatarError(interaction, "Este comando so pode ser usado em servidores.");
+      return;
+    }
+
+    if (!username) {
+      console.log("Comando /avatar bloqueado: username vazio.", { guildId, channelId });
+      await editAvatarError(interaction, "O nome de usuário é obrigatório.");
+      return;
+    }
+
+    const config = await ClanGuildConfig.findOne({ guildId });
+    console.log("Config Avatar Roblox usada no comando:", config ? {
+      guildId: config.guildId,
+      avatarRobloxEnabled: config.avatarRobloxEnabled === true,
+      avatarRobloxChannelId: config.avatarRobloxChannelId || null
+    } : null);
+
+    if (!config || config.avatarRobloxEnabled !== true) {
+      console.log("Comando /avatar bloqueado: Avatar Roblox desativado.", { guildId, channelId });
+      await editAvatarError(interaction, "Avatar Roblox está desativado neste servidor.");
+      return;
+    }
+
+    if (!config.avatarRobloxChannelId) {
+      console.log("Comando /avatar bloqueado: canal nao configurado.", { guildId, channelId });
+      await editAvatarError(interaction, "O canal do Avatar Roblox ainda não foi configurado no painel.");
+      return;
+    }
+
+    if (config.avatarRobloxChannelId !== channelId) {
+      console.log("Comando /avatar bloqueado: canal errado.", {
+        guildId,
+        channelId,
+        avatarRobloxChannelId: config.avatarRobloxChannelId
+      });
+      await editAvatarError(interaction, "Este comando só pode ser usado no canal configurado para Avatar Roblox.");
+      return;
+    }
+
+    await sendAvatarRobloxEmbed(interaction, username);
+  } catch (err) {
+    console.error("Erro inesperado no /avatar:", err.response?.data || err);
+    await editAvatarError(interaction, "Erro ao buscar avatar, tente novamente.");
   }
 }
 
@@ -469,10 +544,6 @@ router.post("/discord/interactions", async (req, res) => {
     return res.json({ type: 1 });
   }
 
-  if (mongoose.connection.readyState !== 1) {
-    return res.json(interactionResponse("Banco de dados conectando. Tente novamente em alguns segundos."));
-  }
-
   if (interaction.type !== 2 || interaction.data?.name !== "avatar") {
     return res.json(interactionResponse("Comando nao reconhecido."));
   }
@@ -480,44 +551,9 @@ router.post("/discord/interactions", async (req, res) => {
   const guildId = interaction.guild_id;
   const channelId = interaction.channel_id;
   const username = String(getInteractionOption(interaction, "username") || "").trim();
-  console.log("Comando /avatar recebido:", { guildId, channelId, username });
+  console.log("Comando /avatar recebido, enviando defer imediato:", { guildId, channelId, username });
 
-  if (!guildId) {
-    console.log("Comando /avatar bloqueado: sem guildId.");
-    return res.json(interactionResponse("Este comando so pode ser usado em servidores."));
-  }
-
-  const config = await ClanGuildConfig.findOne({ guildId });
-  console.log("Config Avatar Roblox:", config ? {
-    guildId: config.guildId,
-    avatarRobloxEnabled: config.avatarRobloxEnabled,
-    avatarRobloxChannelId: config.avatarRobloxChannelId
-  } : null);
-
-  if (!config || !config.avatarRobloxEnabled) {
-    console.log("Comando /avatar bloqueado: Avatar Roblox desativado.", { guildId, channelId });
-    return res.json(interactionResponse("Avatar Roblox está desativado neste servidor."));
-  }
-
-  if (!config.avatarRobloxChannelId) {
-    console.log("Comando /avatar bloqueado: canal nao configurado.", { guildId, channelId });
-    return res.json(interactionResponse("O canal do Avatar Roblox ainda não foi configurado no painel."));
-  }
-
-  if (config.avatarRobloxChannelId !== channelId) {
-    console.log("Comando /avatar bloqueado: canal errado.", {
-      guildId,
-      channelId,
-      avatarRobloxChannelId: config.avatarRobloxChannelId
-    });
-    return res.json(interactionResponse("Este comando só pode ser usado no canal configurado para Avatar Roblox."));
-  }
-
-  if (!username) {
-    return res.json(interactionResponse("O nome de usuário é obrigatório."));
-  }
-
-  sendAvatarRobloxEmbed(interaction, username).catch(err => {
+  executeAvatarInteraction(interaction).catch(err => {
     console.error("Erro ao finalizar resposta /avatar:", err.response?.data || err);
   });
 
