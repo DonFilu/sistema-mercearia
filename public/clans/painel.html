@@ -14,115 +14,43 @@
       --line: #d8e0ea;
       --brand: #5865f2;
       --sidebar: #111827;
+      --ok: #067647;
     }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: Inter, Arial, Helvetica, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-    }
-    .layout {
-      min-height: 100vh;
-      display: grid;
-      grid-template-columns: 260px 1fr;
-    }
-    aside {
-      background: var(--sidebar);
-      color: #fff;
-      padding: 22px;
-      display: flex;
-      flex-direction: column;
-      gap: 22px;
-    }
+    body { margin: 0; min-height: 100vh; font-family: Inter, Arial, Helvetica, sans-serif; background: var(--bg); color: var(--text); }
+    .layout { min-height: 100vh; display: grid; grid-template-columns: 260px 1fr; }
+    aside { background: var(--sidebar); color: #fff; padding: 22px; display: flex; flex-direction: column; gap: 22px; }
     .brand { font-size: 20px; font-weight: 900; }
     nav { display: grid; gap: 8px; }
-    nav button, nav a {
-      width: 100%;
-      border: 0;
-      border-radius: 9px;
-      padding: 11px 12px;
-      text-align: left;
-      color: #d1d5db;
-      background: transparent;
-      text-decoration: none;
-      font: inherit;
-      cursor: pointer;
-    }
-    nav button.active, nav button:hover, nav a:hover {
-      background: rgba(255,255,255,.10);
-      color: #fff;
-    }
+    nav button, nav a { width: 100%; border: 0; border-radius: 9px; padding: 11px 12px; text-align: left; color: #d1d5db; background: transparent; text-decoration: none; font: inherit; cursor: pointer; }
+    nav button.active, nav button:hover, nav a:hover { background: rgba(255,255,255,.10); color: #fff; }
     main { padding: 24px; }
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 18px;
-    }
-    .user {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: var(--muted);
-    }
-    .avatar {
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      background: #e9eef7;
-      object-fit: cover;
-    }
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 22px;
-      box-shadow: 0 12px 32px rgba(16,24,40,.08);
-    }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+    .user { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+    .avatar { width: 38px; height: 38px; border-radius: 50%; background: #e9eef7; object-fit: cover; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 22px; box-shadow: 0 12px 32px rgba(16,24,40,.08); margin-bottom: 16px; }
     .view { display: none; }
     .view.active { display: block; }
     h1 { margin: 0 0 10px; font-size: 30px; letter-spacing: 0; }
+    h2 { margin: 0 0 8px; font-size: 22px; }
     p { color: var(--muted); line-height: 1.55; }
-    .servers {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: 12px;
-      margin-top: 16px;
-    }
-    .server {
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 14px;
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      background: #fff;
-    }
-    .server img, .server-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
-      background: #e9eef7;
-      display: grid;
-      place-items: center;
-      font-weight: 900;
-      color: var(--brand);
-      flex: 0 0 auto;
-    }
-    .server strong { display: block; }
-    .server span { color: var(--muted); font-size: 13px; word-break: break-all; }
-    .logout {
-      border: 0;
-      border-radius: 9px;
-      background: #e9eef7;
-      color: #101828;
-      font: inherit;
-      font-weight: 800;
-      padding: 10px 13px;
-      cursor: pointer;
-    }
+    button, select { font: inherit; }
+    .logout, .primary, .ghost { border: 0; border-radius: 9px; font-weight: 800; padding: 10px 13px; cursor: pointer; }
+    .logout, .ghost { background: #e9eef7; color: #101828; }
+    .primary { background: var(--brand); color: #fff; }
+    select { width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 11px; background: #fff; }
+    .servers, .features { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; margin-top: 16px; }
+    .server, .feature { border: 1px solid var(--line); border-radius: 10px; padding: 14px; background: #fff; }
+    .server { display: flex; gap: 12px; align-items: center; }
+    .server img, .server-icon { width: 48px; height: 48px; border-radius: 12px; background: #e9eef7; display: grid; place-items: center; font-weight: 900; color: var(--brand); flex: 0 0 auto; }
+    .server strong, .feature strong { display: block; }
+    .server span, .feature span { color: var(--muted); font-size: 13px; word-break: break-all; }
+    .toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+    .switch { width: 54px; height: 30px; border-radius: 999px; border: 0; background: #cbd5e1; padding: 3px; cursor: pointer; }
+    .switch::before { content: ""; display: block; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .18s ease; }
+    .switch.on { background: var(--brand); }
+    .switch.on::before { transform: translateX(24px); }
+    .message { color: var(--ok); min-height: 22px; font-size: 14px; margin-top: 10px; }
+    .hidden { display: none; }
     @media (max-width: 820px) {
       .layout { grid-template-columns: 1fr; }
       aside { position: sticky; top: 0; z-index: 2; }
@@ -137,17 +65,17 @@
     <aside>
       <div class="brand">Clan Cidio</div>
       <nav>
-        <button id="tabInicio" class="active" onclick="setView('inicio')">Início</button>
+        <button id="tabInicio" class="active" onclick="setView('inicio')">Painel de controle</button>
         <button id="tabServidores" onclick="setView('servidores')">Servidores</button>
-        <a href="/api/clans/bot-invite" target="_blank" rel="noopener">Convidar bot</a>
         <button id="tabConfig" onclick="setView('config')">Configurações</button>
+        <a href="/api/clans/bot-invite" target="_blank" rel="noopener">Convidar bot</a>
       </nav>
     </aside>
     <main>
       <header>
         <div>
-          <h1 id="pageTitle">Painel</h1>
-          <p id="pageSubtitle">Gerencie seu Clan Cidio.</p>
+          <h1 id="pageTitle">Painel de controle</h1>
+          <p id="pageSubtitle">Ative funções em Configurações para começar.</p>
         </div>
         <div class="user">
           <img id="avatar" class="avatar" alt="">
@@ -159,14 +87,27 @@
       <section id="viewInicio" class="view active">
         <div class="card">
           <h1>Painel de Controle — Clan Cidio</h1>
-          <p>Em breve você poderá configurar seu servidor por aqui.</p>
+          <p>Ative funções em Configurações para começar.</p>
+        </div>
+        <div id="activeFeatures" class="features"></div>
+        <div id="avatarConfig" class="card hidden">
+          <h2>Avatar Roblox</h2>
+          <p>Escolha o canal onde o bot poderá responder ao comando /avatar.</p>
+          <label>Servidor
+            <select id="avatarGuildSelect" onchange="loadAvatarFeatureConfig()"></select>
+          </label>
+          <label>Canal de texto
+            <select id="avatarChannelSelect"></select>
+          </label>
+          <button class="primary" onclick="saveAvatarChannel()">Salvar configuração</button>
+          <div id="avatarSaveMessage" class="message"></div>
         </div>
       </section>
 
       <section id="viewServidores" class="view">
         <div class="card">
           <h1>Servidores</h1>
-          <p>Servidores retornados pela sua conta Discord.</p>
+          <p>Somente servidores onde você é dono, administrador ou tem permissão Gerenciar Servidor podem ser configurados.</p>
           <div id="servers" class="servers"></div>
         </div>
       </section>
@@ -174,7 +115,19 @@
       <section id="viewConfig" class="view">
         <div class="card">
           <h1>Configurações</h1>
-          <p>Em breve você poderá conectar permissões, canais e automações do bot por aqui.</p>
+          <p>Selecione o servidor e ative as funções desejadas.</p>
+          <label>Servidor
+            <select id="configGuildSelect" onchange="renderConfigFeature()"></select>
+          </label>
+        </div>
+        <div class="feature">
+          <strong>Avatar Roblox</strong>
+          <span>Permite usar /avatar username para mostrar o avatar Roblox de um jogador.</span>
+          <div class="toggle">
+            <span id="avatarToggleText">Desativado</span>
+            <button id="avatarToggle" class="switch" aria-label="Ativar ou desativar Avatar Roblox" onclick="toggleAvatarRoblox()"></button>
+          </div>
+          <div id="configMessage" class="message"></div>
         </div>
       </section>
     </main>
@@ -182,12 +135,14 @@
 
   <script>
     let account = null;
+    let guilds = [];
+    let channelsByGuild = {};
 
     function setView(view) {
       const titles = {
-        inicio: ["Painel", "Gerencie seu Clan Cidio."],
-        servidores: ["Servidores", "Veja os servidores conectados à sua conta Discord."],
-        config: ["Configurações", "Prepare as próximas integrações do seu servidor."]
+        inicio: ["Painel de controle", "Ative funções em Configurações para começar."],
+        servidores: ["Servidores", "Veja os servidores que você pode configurar."],
+        config: ["Configurações", "Ative ou desative funções por servidor."]
       };
 
       document.querySelectorAll(".view").forEach(el => el.classList.remove("active"));
@@ -205,11 +160,10 @@
     }
 
     function renderServers() {
-      const guilds = account.guilds || [];
       const container = document.getElementById("servers");
 
       if (!guilds.length) {
-        container.innerHTML = "<p>Nenhum servidor retornado pelo Discord.</p>";
+        container.innerHTML = "<p>Nenhum servidor configurável retornado pelo Discord.</p>";
         return;
       }
 
@@ -224,9 +178,111 @@
       `).join("");
     }
 
+    function fillGuildSelects() {
+      const options = guilds.map(guild => `<option value="${guild.id}">${guild.name}</option>`).join("");
+      document.getElementById("configGuildSelect").innerHTML = options;
+      document.getElementById("avatarGuildSelect").innerHTML = options;
+    }
+
+    function selectedConfigGuild() {
+      const guildId = document.getElementById("configGuildSelect").value;
+      return guilds.find(guild => guild.id === guildId);
+    }
+
+    function renderConfigFeature() {
+      const guild = selectedConfigGuild();
+      const enabled = !!guild?.config?.avatarRobloxEnabled;
+      document.getElementById("avatarToggle").classList.toggle("on", enabled);
+      document.getElementById("avatarToggleText").textContent = enabled ? "Ativado" : "Desativado";
+      document.getElementById("configMessage").textContent = "";
+    }
+
+    function renderActiveFeatures() {
+      const enabledGuilds = guilds.filter(guild => guild.config?.avatarRobloxEnabled);
+      const container = document.getElementById("activeFeatures");
+
+      if (!enabledGuilds.length) {
+        container.innerHTML = "";
+        return;
+      }
+
+      container.innerHTML = enabledGuilds.map(guild => `
+        <div class="feature">
+          <strong>Avatar Roblox</strong>
+          <span>${guild.name}</span>
+          <button class="primary" onclick="openAvatarConfig('${guild.id}')">Configurar</button>
+        </div>
+      `).join("");
+    }
+
+    async function toggleAvatarRoblox() {
+      const guild = selectedConfigGuild();
+      if (!guild) return;
+      const enabled = !guild.config?.avatarRobloxEnabled;
+      const channelId = guild.config?.avatarRobloxChannelId || "";
+
+      if (enabled && !channelId) {
+        await openAvatarConfig(guild.id);
+        document.getElementById("configMessage").textContent = "Escolha um canal antes de ativar.";
+        return;
+      }
+
+      const response = await fetch(`/api/clans/guilds/${guild.id}/config/avatar-roblox`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatarRobloxEnabled: enabled, avatarRobloxChannelId: channelId })
+      });
+      const data = await response.json();
+      if (!response.ok) return alert(data.erro || "Erro ao salvar");
+      guild.config = data.config;
+      renderConfigFeature();
+      renderActiveFeatures();
+    }
+
+    async function openAvatarConfig(guildId) {
+      setView("inicio");
+      document.getElementById("avatarConfig").classList.remove("hidden");
+      document.getElementById("avatarGuildSelect").value = guildId;
+      await loadAvatarFeatureConfig();
+    }
+
+    async function loadChannels(guildId) {
+      if (channelsByGuild[guildId]) return channelsByGuild[guildId];
+      const response = await fetch(`/api/clans/guilds/${guildId}/channels`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.erro || "Erro ao carregar canais");
+      channelsByGuild[guildId] = data.channels;
+      return data.channels;
+    }
+
+    async function loadAvatarFeatureConfig() {
+      const guildId = document.getElementById("avatarGuildSelect").value;
+      const guild = guilds.find(item => item.id === guildId);
+      const channels = await loadChannels(guildId);
+      document.getElementById("avatarChannelSelect").innerHTML = channels.map(channel => `<option value="${channel.id}">#${channel.name}</option>`).join("");
+      document.getElementById("avatarChannelSelect").value = guild?.config?.avatarRobloxChannelId || "";
+      document.getElementById("avatarSaveMessage").textContent = "";
+    }
+
+    async function saveAvatarChannel() {
+      const guildId = document.getElementById("avatarGuildSelect").value;
+      const channelId = document.getElementById("avatarChannelSelect").value;
+      const response = await fetch(`/api/clans/guilds/${guildId}/config/avatar-roblox`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatarRobloxEnabled: true, avatarRobloxChannelId: channelId })
+      });
+      const data = await response.json();
+      if (!response.ok) return alert(data.erro || "Erro ao salvar canal");
+      const guild = guilds.find(item => item.id === guildId);
+      if (guild) guild.config = data.config;
+      document.getElementById("avatarSaveMessage").textContent = "Canal salvo com sucesso.";
+      renderConfigFeature();
+      renderActiveFeatures();
+    }
+
     async function loadAccount() {
       const response = await fetch("/api/clans/me");
-
       if (!response.ok) {
         window.location.href = "/clans";
         return;
@@ -236,7 +292,18 @@
       account = data.account;
       document.getElementById("username").textContent = account.username || account.email || "Discord";
       document.getElementById("avatar").src = account.avatar || "";
+
+      const guildsResponse = await fetch("/api/clans/guilds");
+      if (!guildsResponse.ok) {
+        guilds = [];
+      } else {
+        guilds = (await guildsResponse.json()).guilds || [];
+      }
+
+      fillGuildSelects();
       renderServers();
+      renderConfigFeature();
+      renderActiveFeatures();
     }
 
     async function logout() {

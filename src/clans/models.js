@@ -24,6 +24,19 @@ const ClanAccount = mongoose.models.ClanAccount || mongoose.model(
   )
 );
 
+const ClanGuildConfig = mongoose.models.ClanGuildConfig || mongoose.model(
+  "ClanGuildConfig",
+  new mongoose.Schema(
+    {
+      guildId: { type: String, required: true, unique: true, index: true },
+      avatarRobloxEnabled: { type: Boolean, default: false },
+      avatarRobloxChannelId: String
+    },
+    { timestamps: true }
+  )
+);
+
 module.exports = {
-  ClanAccount
+  ClanAccount,
+  ClanGuildConfig
 };

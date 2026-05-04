@@ -4,7 +4,8 @@
   "description": "Sistema de mercearia online",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "clans:register-commands": "node src/clans/registerCommands.js"
   },
   "dependencies": {
     "axios": "^1.14.0",
