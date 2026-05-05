@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Clan Cidio</title>
+  <link rel="stylesheet" href="/clans/clan-cidio-loader.css">
   <style>
     * { box-sizing: border-box; }
     :root {
@@ -76,9 +77,10 @@
     <section class="card">
       <h2>Entre com Discord para começar</h2>
       <p>Use sua conta Discord para acessar seu painel e listar seus servidores.</p>
-      <a class="discord" href="/api/auth/discord">Entrar com Discord</a>
+      <a class="discord" href="/api/auth/discord" onclick="if (window.ClanCidioLoader) window.ClanCidioLoader.pulse(1200)">Entrar com Discord</a>
       <div class="note">O Clan Cidio é separado do sistema de mercearias.</div>
     </section>
   </main>
+  <script src="/clans/clan-cidio-loader.js"></script>
 </body>
 </html>

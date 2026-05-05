@@ -1,0 +1,74 @@
+.clan-cidio-loader-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, .46);
+  backdrop-filter: blur(4px);
+}
+
+.clan-cidio-loader-overlay.is-visible {
+  display: flex;
+}
+
+.clan-cidio-loader-card {
+  width: min(320px, 100%);
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 18px;
+  padding: 24px 22px;
+  background: rgba(17, 24, 39, .94);
+  color: #fff;
+  text-align: center;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .32);
+}
+
+.clan-cidio-loader-sprite {
+  width: 148px;
+  height: 148px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background-image: url("/loading.png");
+  background-repeat: no-repeat;
+  background-size: 300% 200%;
+  background-position: 0 0;
+  clip-path: circle(47% at 50% 45%);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, .36);
+  animation: clan-cidio-whistle 1.2s steps(1, end) infinite;
+}
+
+.clan-cidio-loader-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.clan-cidio-loader-subtitle {
+  margin: 7px 0 0;
+  color: #cbd5e1;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+@keyframes clan-cidio-whistle {
+  0%, 16.66% { background-position: 0 0; }
+  16.67%, 33.33% { background-position: 50% 0; }
+  33.34%, 50% { background-position: 100% 0; }
+  50.01%, 66.66% { background-position: 0 100%; }
+  66.67%, 83.33% { background-position: 50% 100%; }
+  83.34%, 100% { background-position: 100% 100%; }
+}
+
+@media (max-width: 520px) {
+  .clan-cidio-loader-card {
+    padding: 22px 18px;
+  }
+
+  .clan-cidio-loader-sprite {
+    width: 124px;
+    height: 124px;
+  }
+}

@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Painel Clan Cidio</title>
+  <link rel="stylesheet" href="/clans/clan-cidio-loader.css">
   <style>
     * { box-sizing: border-box; }
     :root {
@@ -396,6 +397,7 @@
     </main>
   </div>
 
+  <script src="/clans/clan-cidio-loader.js"></script>
   <script>
     let account = null;
     let guilds = [];
@@ -419,6 +421,7 @@
       if (tab) tab.classList.add("active");
       document.getElementById("pageTitle").textContent = titles[view][0];
       document.getElementById("pageSubtitle").textContent = titles[view][1];
+      if (window.ClanCidioLoader) window.ClanCidioLoader.pulse(360);
     }
 
     function serverIcon(server) {
