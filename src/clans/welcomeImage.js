@@ -166,6 +166,39 @@ function drawCenteredText(ctx, text, y, maxWidth, startSize, minSize, color, wei
   }
 }
 
+function drawVisibleText(ctx, text, y, maxWidth, size) {
+  try {
+    const value = safeText(text);
+    const finalSize = fitText(ctx, value, maxWidth, size, 18, "bold");
+
+    ctx.save();
+    ctx.font = `bold ${finalSize}px Arial`;
+    ctx.fillStyle = "#FFFFFF";
+    ctx.strokeStyle = "rgba(0,0,0,0.9)";
+    ctx.lineWidth = Math.max(3, Math.round(finalSize / 12));
+    ctx.shadowColor = "rgba(0,0,0,0.9)";
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 2;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.strokeText(value, WIDTH / 2, y);
+    ctx.fillText(value, WIDTH / 2, y);
+    console.log("[Boas-vindas] texto desenhado", {
+      texto: value,
+      x: WIDTH / 2,
+      y,
+      font: ctx.font
+    });
+    ctx.restore();
+  } catch (err) {
+    console.warn("[Boas-vindas] erro ao desenhar texto:", {
+      texto: text,
+      erro: err.message
+    });
+  }
+}
+
 async function createWelcomeImageBuffer(member, config) {
   const user = member.user;
   const canvas = createCanvas(WIDTH, HEIGHT);
@@ -178,7 +211,7 @@ async function createWelcomeImageBuffer(member, config) {
   const username = safeText(user.username || member.displayName, "novo membro");
   const message = safeText(
     config.boasVindasMessage,
-    "QUE VOCÊ POSSA APROVEITAR AO MÁXIMO A ALCATEIA!"
+    "QUE VOC\u00ca POSSA APROVEITAR AO M\u00c1XIMO A ALCATEIA!"
   );
   console.log("[Boas-vindas] dados de texto", {
     title,
@@ -222,18 +255,9 @@ async function createWelcomeImageBuffer(member, config) {
     data: { x: canvas.width / 2, y: 430 }
   });
 
-  drawCenteredText(ctx, title, 250, 940, 52, 34, "#FFFFFF", "bold");
-  drawCenteredText(ctx, `@${username}`, 310, 940, 38, 24, "#FFFFFF", "bold");
-  drawCenteredText(
-    ctx,
-    message,
-    365,
-    980,
-    32,
-    20,
-    "#FFFFFF",
-    "bold"
-  );
+  drawVisibleText(ctx, title, 250, 940, 52);
+  drawVisibleText(ctx, `@${username}`, 310, 940, 38);
+  drawVisibleText(ctx, message, 365, 980, 32);
 
   const dateText = formatSaoPauloDate();
   ctx.save();

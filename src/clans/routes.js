@@ -585,6 +585,17 @@ router.put("/clans/guilds/:guildId/config/chamadas", requireDatabase, requireCla
     }
   }
 
+  const previousConfig = await ClanGuildConfig.findOne({ guildId: req.params.guildId });
+  const resetStartDate = !previousConfig ||
+    previousConfig.chamadasChannelId !== channelId ||
+    previousConfig.chamadasTimeStart !== timeStart ||
+    previousConfig.chamadasMessage !== message ||
+    JSON.stringify(previousConfig.chamadasQuestions || []) !== JSON.stringify(questions || []);
+  const resetEndDate = !previousConfig ||
+    previousConfig.chamadasChannelId !== channelId ||
+    previousConfig.chamadasTimeEnd !== timeEnd ||
+    previousConfig.chamadasEndMessage !== endMessage;
+
   const config = await ClanGuildConfig.findOneAndUpdate(
     { guildId: req.params.guildId },
     {
@@ -596,7 +607,9 @@ router.put("/clans/guilds/:guildId/config/chamadas", requireDatabase, requireCla
         chamadasTimeEnd: timeEnd,
         chamadasMessage: message,
         chamadasQuestions: questions,
-        chamadasEndMessage: endMessage
+        chamadasEndMessage: endMessage,
+        ...(resetStartDate ? { chamadasLastStartDate: null } : {}),
+        ...(resetEndDate ? { chamadasLastEndDate: null } : {})
       }
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
@@ -608,7 +621,9 @@ router.put("/clans/guilds/:guildId/config/chamadas", requireDatabase, requireCla
     chamadasChannelId: config.chamadasChannelId || null,
     chamadasTimeStart: config.chamadasTimeStart,
     chamadasTimeEnd: config.chamadasTimeEnd,
-    perguntas: config.chamadasQuestions?.length || 0
+    perguntas: config.chamadasQuestions?.length || 0,
+    resetStartDate,
+    resetEndDate
   });
 
   return res.json({
@@ -715,7 +730,9 @@ router.put("/clans/guilds/:guildId/config/boas-vindas", requireDatabase, require
     guildId: config.guildId,
     boasVindasEnabled: config.boasVindasEnabled === true,
     boasVindasChannelId: config.boasVindasChannelId || null,
-    temFundo: !!config.boasVindasBackgroundUrl
+    temFundo: !!config.boasVindasBackgroundUrl,
+    boasVindasTitle: config.boasVindasTitle || null,
+    boasVindasMessage: config.boasVindasMessage || null
   });
 
   return res.json({

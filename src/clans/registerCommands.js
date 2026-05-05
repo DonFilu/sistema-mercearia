@@ -51,6 +51,25 @@ async function registerGlobalAvatarCommand() {
   console.log("Comandos Clan Cidio registrados globalmente.");
 }
 
+async function deleteGlobalClanCommands() {
+  const { applicationId, token } = discordCommandConfig();
+  const names = new Set(CLAN_COMMANDS.map(command => command.name));
+  const response = await axios.get(
+    `https://discord.com/api/v10/applications/${applicationId}/commands`,
+    { headers: commandHeaders(token), timeout: 10000 }
+  );
+  const commands = Array.isArray(response.data) ? response.data : [];
+  const clanCommands = commands.filter(command => names.has(command.name));
+
+  for (const command of clanCommands) {
+    await axios.delete(
+      `https://discord.com/api/v10/applications/${applicationId}/commands/${command.id}`,
+      { headers: commandHeaders(token), timeout: 10000 }
+    );
+    console.log("Comando global antigo removido:", command.name);
+  }
+}
+
 async function registerGuildAvatarCommand(guildId) {
   if (!guildId) return;
 
@@ -75,11 +94,15 @@ function envGuildIds() {
 async function registerAvatarCommands(guildIds = []) {
   const uniqueGuildIds = [...new Set([...envGuildIds(), ...guildIds].filter(Boolean))];
 
+  if (process.env.DISCORD_KEEP_GLOBAL_COMMANDS !== "true") {
+    await deleteGlobalClanCommands();
+  }
+
   for (const guildId of uniqueGuildIds) {
     await registerGuildAvatarCommand(guildId);
   }
 
-  if (process.env.DISCORD_SKIP_GLOBAL_COMMANDS !== "true") {
+  if (process.env.DISCORD_REGISTER_GLOBAL_COMMANDS === "true") {
     await registerGlobalAvatarCommand();
   }
 }
@@ -104,5 +127,6 @@ module.exports = {
   CLAN_COMMANDS,
   registerAvatarCommands,
   registerConfiguredGuildCommands,
-  registerGuildAvatarCommand
+  registerGuildAvatarCommand,
+  deleteGlobalClanCommands
 };
