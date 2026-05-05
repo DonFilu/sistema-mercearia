@@ -1,8 +1,46 @@
 const axios = require("axios");
-const { createCanvas, loadImage } = require("@napi-rs/canvas");
+const fs = require("fs");
+const { createCanvas, loadImage, GlobalFonts } = require("@napi-rs/canvas");
 
 const WIDTH = 1200;
 const HEIGHT = 520;
+const FONT_FAMILY = "CidioWelcome";
+let fontsRegistered = false;
+
+function registerWelcomeFonts() {
+  if (fontsRegistered) return;
+  fontsRegistered = true;
+
+  if (!GlobalFonts || typeof GlobalFonts.registerFromPath !== "function") {
+    console.warn("[Boas-vindas] GlobalFonts indisponivel; usando fallback do canvas.");
+    return;
+  }
+
+  const candidates = [
+    "C:\\Windows\\Fonts\\arialbd.ttf",
+    "C:\\Windows\\Fonts\\Arial.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
+  ];
+
+  for (const file of candidates) {
+    try {
+      if (!fs.existsSync(file)) continue;
+      GlobalFonts.registerFromPath(file, FONT_FAMILY);
+      console.log("[Boas-vindas] fonte registrada:", file);
+      return;
+    } catch (err) {
+      console.warn("[Boas-vindas] erro ao registrar fonte:", {
+        file,
+        erro: err.message
+      });
+    }
+  }
+
+  console.warn("[Boas-vindas] nenhuma fonte local registrada; usando fallback do canvas.");
+}
 
 function isPublicImageUrl(value) {
   if (!value) return false;
@@ -39,6 +77,10 @@ function safeText(value, fallback = "") {
 
 function fontWeight(value) {
   return value === "normal" ? "normal" : "bold";
+}
+
+function canvasFont(size, weight = "bold") {
+  return `${fontWeight(weight)} ${size}px ${FONT_FAMILY}, Arial, sans-serif`;
 }
 
 async function loadImageFromUrl(url, label) {
@@ -129,7 +171,7 @@ function fitText(ctx, text, maxWidth, startSize, minSize, weight = "bold") {
   let size = startSize;
 
   while (size > minSize) {
-    ctx.font = `${fontWeight(weight)} ${size}px Arial`;
+    ctx.font = canvasFont(size, weight);
     if (ctx.measureText(text).width <= maxWidth) break;
     size -= 2;
   }
@@ -142,7 +184,7 @@ function drawCenteredText(ctx, text, y, maxWidth, startSize, minSize, color, wei
     const value = safeText(text);
     const size = fitText(ctx, value, maxWidth, startSize, minSize, weight);
     ctx.save();
-    ctx.font = `${fontWeight(weight)} ${size}px Arial`;
+    ctx.font = canvasFont(size, weight);
     ctx.fillStyle = color || "#FFFFFF";
     ctx.shadowColor = "rgba(0,0,0,0.9)";
     ctx.shadowBlur = 8;
@@ -172,10 +214,10 @@ function drawVisibleText(ctx, text, y, maxWidth, size) {
     const finalSize = fitText(ctx, value, maxWidth, size, 18, "bold");
 
     ctx.save();
-    ctx.font = `bold ${finalSize}px Arial`;
+    ctx.font = canvasFont(finalSize, "bold");
     ctx.fillStyle = "#FFFFFF";
     ctx.strokeStyle = "rgba(0,0,0,0.9)";
-    ctx.lineWidth = Math.max(3, Math.round(finalSize / 12));
+    ctx.lineWidth = Math.max(4, Math.round(finalSize / 10));
     ctx.shadowColor = "rgba(0,0,0,0.9)";
     ctx.shadowBlur = 8;
     ctx.shadowOffsetX = 0;
@@ -200,6 +242,8 @@ function drawVisibleText(ctx, text, y, maxWidth, size) {
 }
 
 async function createWelcomeImageBuffer(member, config) {
+  registerWelcomeFonts();
+
   const user = member.user;
   const canvas = createCanvas(WIDTH, HEIGHT);
   const ctx = canvas.getContext("2d");
@@ -225,55 +269,56 @@ async function createWelcomeImageBuffer(member, config) {
     drawFallbackBackground(ctx);
   }
 
-  ctx.fillStyle = "rgba(0, 0, 0, 0.52)";
+  ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-  ctx.save();
-  ctx.shadowColor = "rgba(0, 0, 0, 0.42)";
-  ctx.shadowBlur = 28;
-  ctx.shadowOffsetY = 16;
-  ctx.fillStyle = "rgba(11, 18, 32, 0.62)";
-  roundRect(ctx, 70, 54, 1060, 412, 34);
-  ctx.fill();
-  ctx.restore();
+  const bottomGradient = ctx.createLinearGradient(0, 175, 0, HEIGHT);
+  bottomGradient.addColorStop(0, "rgba(0, 0, 0, 0)");
+  bottomGradient.addColorStop(0.42, "rgba(0, 0, 0, 0.58)");
+  bottomGradient.addColorStop(1, "rgba(0, 0, 0, 0.82)");
+  ctx.fillStyle = bottomGradient;
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
   ctx.save();
   ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
   ctx.beginPath();
-  ctx.arc(600, 145, 94, 0, Math.PI * 2);
+  ctx.arc(600, 130, 96, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.arc(600, 145, 86, 0, Math.PI * 2);
+  ctx.arc(600, 130, 86, 0, Math.PI * 2);
   ctx.clip();
-  drawCoverImage(ctx, avatar, 514, 59, 172, 172);
+  drawCoverImage(ctx, avatar, 514, 44, 172, 172);
   ctx.restore();
 
   console.log("[Boas-vindas] posicoes do texto", {
-    titulo: { x: canvas.width / 2, y: 250 },
-    username: { x: canvas.width / 2, y: 310 },
-    mensagem: { x: canvas.width / 2, y: 365 },
-    data: { x: canvas.width / 2, y: 430 }
+    titulo: { x: canvas.width / 2, y: 270 },
+    username: { x: canvas.width / 2, y: 328 },
+    mensagem: { x: canvas.width / 2, y: 382 },
+    data: { x: 80, y: 470 }
   });
 
-  drawVisibleText(ctx, title, 250, 940, 52);
-  drawVisibleText(ctx, `@${username}`, 310, 940, 38);
-  drawVisibleText(ctx, message, 365, 980, 32);
+  drawVisibleText(ctx, title, 270, 980, 68);
+  drawVisibleText(ctx, username, 328, 940, 38);
+  drawVisibleText(ctx, message, 382, 1060, 32);
 
   const dateText = formatSaoPauloDate();
   ctx.save();
-  ctx.font = "bold 20px Arial";
+  ctx.font = canvasFont(26, "bold");
   ctx.fillStyle = "#FFFFFF";
+  ctx.strokeStyle = "rgba(0,0,0,0.9)";
+  ctx.lineWidth = 4;
   ctx.shadowColor = "rgba(0,0,0,0.9)";
   ctx.shadowBlur = 8;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 2;
-  ctx.textAlign = "center";
+  ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText(dateText, canvas.width / 2, 430);
+  ctx.strokeText(dateText, 80, 470);
+  ctx.fillText(dateText, 80, 470);
   console.log("[Boas-vindas] texto desenhado", {
     texto: dateText,
-    x: canvas.width / 2,
-    y: 430,
+    x: 80,
+    y: 470,
     font: ctx.font
   });
   ctx.restore();
