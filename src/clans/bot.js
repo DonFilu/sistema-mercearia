@@ -13,7 +13,8 @@ const {
   findRobloxAvatar,
   chooseDailyQuestion,
   DEFAULT_CHAMADAS_MESSAGE,
-  DEFAULT_CHAMADAS_END_MESSAGE
+  DEFAULT_CHAMADAS_END_MESSAGE,
+  DEFAULT_SAIDAS_MESSAGE
 } = require("./features");
 const { registerConfiguredGuildCommands } = require("./registerCommands");
 const { createWelcomeImageBuffer } = require("./welcomeImage");
@@ -511,6 +512,89 @@ async function sendBoasVindasForMember(member, source = "manual") {
   }
 }
 
+function buildSaidasMessage(template, member) {
+  const username = member.user?.username || member.displayName || "Usuario";
+  return String(template || DEFAULT_SAIDAS_MESSAGE)
+    .replaceAll("{username}", username)
+    .trim() || DEFAULT_SAIDAS_MESSAGE.replaceAll("{username}", username);
+}
+
+async function handleGuildMemberRemove(member) {
+  console.log("[Saidas] membro saiu", {
+    guildId: member.guild?.id || null,
+    userId: member.user?.id || null,
+    username: member.user?.username || null
+  });
+
+  if (!member.guild?.id) {
+    console.log("[Saidas] ignorado: membro sem guildId.");
+    return;
+  }
+
+  if (mongoose.connection.readyState !== 1) {
+    console.log("[Saidas] ignorado: banco desconectado.");
+    return;
+  }
+
+  try {
+    const config = await ClanGuildConfig.findOne({ guildId: member.guild.id });
+    console.log("[Saidas] config carregada", config ? {
+      guildId: config.guildId,
+      saidasEnabled: config.saidasEnabled === true,
+      saidasChannelId: config.saidasChannelId || null,
+      saidasMessage: config.saidasMessage || null
+    } : null);
+
+    if (!config || config.saidasEnabled !== true) {
+      console.log("[Saidas] ignorado: funcao desativada ou sem config.", {
+        guildId: member.guild.id
+      });
+      return;
+    }
+
+    const channelId = config.saidasChannelId ? String(config.saidasChannelId) : null;
+
+    if (!channelId) {
+      console.log("[Saidas] ignorado: canal nao configurado.", {
+        guildId: member.guild.id
+      });
+      return;
+    }
+
+    const channel = await member.guild.channels.fetch(channelId);
+    console.log("[Saidas] canal encontrado", {
+      guildId: member.guild.id,
+      channelId,
+      found: !!channel,
+      sendFunction: typeof channel?.send === "function"
+    });
+
+    if (!channel || typeof channel.send !== "function") {
+      console.log("[Saidas] erro: canal invalido ou sem envio.", {
+        guildId: member.guild.id,
+        channelId
+      });
+      return;
+    }
+
+    const content = buildSaidasMessage(config.saidasMessage, member);
+    await channel.send({ content });
+    console.log("[Saidas] mensagem enviada", {
+      guildId: member.guild.id,
+      channelId,
+      userId: member.user?.id || null,
+      content
+    });
+  } catch (err) {
+    console.error("[Saidas] erro completo:", err);
+    console.error("[Saidas] erro resumido:", {
+      guildId: member.guild?.id || null,
+      userId: member.user?.id || null,
+      erro: err.message
+    });
+  }
+}
+
 function saoPauloNowParts() {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
@@ -715,6 +799,10 @@ async function startClanDiscordBot() {
     client.on("guildMemberAdd", async member => {
       console.log("[Boas-vindas] membro entrou", member.guild.id, member.user.username);
       await handleGuildMemberAdd(member);
+    });
+
+    client.on("guildMemberRemove", async member => {
+      await handleGuildMemberRemove(member);
     });
 
     await client.login(process.env.DISCORD_BOT_TOKEN);

@@ -52,7 +52,10 @@ const ClanGuildConfig = mongoose.models.ClanGuildConfig || mongoose.model(
       boasVindasChannelId: { type: String, default: null },
       boasVindasBackgroundUrl: { type: String, default: null },
       boasVindasTitle: { type: String, default: "BEM-VINDO(A)" },
-      boasVindasMessage: { type: String, default: "Que você possa aproveitar ao máximo do nosso servidor!" }
+      boasVindasMessage: { type: String, default: "Que você possa aproveitar ao máximo do nosso servidor!" },
+      saidasEnabled: { type: Boolean, default: false },
+      saidasChannelId: { type: String, default: null },
+      saidasMessage: { type: String, default: "{username} saiu do servidor" }
     },
     { timestamps: true }
   )

@@ -13,6 +13,7 @@ const {
   DEFAULT_MODO_TOSCO_MESSAGES,
   DEFAULT_BOAS_VINDAS_TITLE,
   DEFAULT_BOAS_VINDAS_MESSAGE,
+  DEFAULT_SAIDAS_MESSAGE,
   listTextChannels,
   findRobloxUser,
   findRobloxAvatar
@@ -440,7 +441,9 @@ router.get("/clans/guilds", requireDatabase, requireClanAuth, async (req, res) =
     modoToscoEnabled: config.modoToscoEnabled === true,
     modoToscoChannels: config.modoToscoChannels || [],
     boasVindasEnabled: config.boasVindasEnabled === true,
-    boasVindasChannelId: config.boasVindasChannelId || null
+    boasVindasChannelId: config.boasVindasChannelId || null,
+    saidasEnabled: config.saidasEnabled === true,
+    saidasChannelId: config.saidasChannelId || null
   })));
 
   return res.json({
@@ -455,7 +458,10 @@ router.get("/clans/guilds", requireDatabase, requireClanAuth, async (req, res) =
         modoToscoEnabled: false,
         modoToscoChannels: [],
         boasVindasEnabled: false,
-        boasVindasChannelId: null
+        boasVindasChannelId: null,
+        saidasEnabled: false,
+        saidasChannelId: null,
+        saidasMessage: DEFAULT_SAIDAS_MESSAGE
       }
     }))
   });
@@ -499,7 +505,9 @@ router.get("/clans/guilds/:guildId/config", requireDatabase, requireClanAuth, as
     modoToscoEnabled: config.modoToscoEnabled === true,
     modoToscoChannels: config.modoToscoChannels || [],
     boasVindasEnabled: config.boasVindasEnabled === true,
-    boasVindasChannelId: config.boasVindasChannelId || null
+    boasVindasChannelId: config.boasVindasChannelId || null,
+    saidasEnabled: config.saidasEnabled === true,
+    saidasChannelId: config.saidasChannelId || null
   });
 
   return res.json({ config: publicGuildConfig(config) });
@@ -738,6 +746,54 @@ router.put("/clans/guilds/:guildId/config/boas-vindas", requireDatabase, require
   return res.json({
     ok: true,
     mensagem: "Configuração de Boas-vindas salva com sucesso.",
+    config: publicGuildConfig(config)
+  });
+});
+
+router.put("/clans/guilds/:guildId/config/saidas", requireDatabase, requireClanAuth, async (req, res) => {
+  console.log("GuildId recebido em Configuracoes Saidas:", req.params.guildId);
+  const guild = findManageableGuild(req.clanAccount, req.params.guildId);
+
+  if (!guild) {
+    return res.status(403).json({ erro: "Voce nao tem permissao para configurar este servidor." });
+  }
+
+  const enabled = req.body.saidasEnabled === true;
+  const channelId = req.body.saidasChannelId ? String(req.body.saidasChannelId) : null;
+  const message = String(req.body.saidasMessage || DEFAULT_SAIDAS_MESSAGE).trim() || DEFAULT_SAIDAS_MESSAGE;
+
+  if (channelId) {
+    const textChannels = await listTextChannels(req.params.guildId);
+    const exists = textChannels.some(channel => channel.id === channelId);
+
+    if (!exists) {
+      return res.status(400).json({ erro: "Canal invalido para este servidor." });
+    }
+  }
+
+  const config = await ClanGuildConfig.findOneAndUpdate(
+    { guildId: req.params.guildId },
+    {
+      $set: {
+        guildId: req.params.guildId,
+        saidasEnabled: enabled,
+        saidasChannelId: channelId,
+        saidasMessage: message
+      }
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  console.log("Config Saidas salva:", {
+    guildId: config.guildId,
+    saidasEnabled: config.saidasEnabled === true,
+    saidasChannelId: config.saidasChannelId || null,
+    saidasMessage: config.saidasMessage || null
+  });
+
+  return res.json({
+    ok: true,
+    mensagem: "Configuracao de Saidas salva com sucesso.",
     config: publicGuildConfig(config)
   });
 });

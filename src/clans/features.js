@@ -54,6 +54,7 @@ const DEFAULT_MODO_TOSCO_MESSAGES = [
 ];
 const DEFAULT_BOAS_VINDAS_TITLE = "BEM-VINDO(A)";
 const DEFAULT_BOAS_VINDAS_MESSAGE = "Que você possa aproveitar ao máximo do nosso servidor!";
+const DEFAULT_SAIDAS_MESSAGE = "{username} saiu do servidor";
 
 function hasGuildAdminPermission(guild) {
   if (!guild) return false;
@@ -97,7 +98,10 @@ async function getGuildConfig(guildId) {
         boasVindasChannelId: null,
         boasVindasBackgroundUrl: null,
         boasVindasTitle: DEFAULT_BOAS_VINDAS_TITLE,
-        boasVindasMessage: DEFAULT_BOAS_VINDAS_MESSAGE
+        boasVindasMessage: DEFAULT_BOAS_VINDAS_MESSAGE,
+        saidasEnabled: false,
+        saidasChannelId: null,
+        saidasMessage: DEFAULT_SAIDAS_MESSAGE
       }
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
@@ -144,7 +148,10 @@ function publicGuildConfig(config) {
     boasVindasChannelId: config.boasVindasChannelId || null,
     boasVindasBackgroundUrl: config.boasVindasBackgroundUrl || null,
     boasVindasTitle: config.boasVindasTitle || DEFAULT_BOAS_VINDAS_TITLE,
-    boasVindasMessage: config.boasVindasMessage || DEFAULT_BOAS_VINDAS_MESSAGE
+    boasVindasMessage: config.boasVindasMessage || DEFAULT_BOAS_VINDAS_MESSAGE,
+    saidasEnabled: config.saidasEnabled === true,
+    saidasChannelId: config.saidasChannelId || null,
+    saidasMessage: config.saidasMessage || DEFAULT_SAIDAS_MESSAGE
   };
 }
 
@@ -250,6 +257,7 @@ module.exports = {
   DEFAULT_MODO_TOSCO_MESSAGES,
   DEFAULT_BOAS_VINDAS_TITLE,
   DEFAULT_BOAS_VINDAS_MESSAGE,
+  DEFAULT_SAIDAS_MESSAGE,
   listTextChannels,
   findRobloxUser,
   findRobloxAvatar
