@@ -317,6 +317,40 @@ async function handleUnmuteCommand(interaction) {
   }));
 }
 
+async function handleBanCommand(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+  const config = await loadModerationConfig(interaction.guildId);
+  if (!config) return interaction.editReply("Moderacao esta desativada neste servidor.");
+  if (!hasModerationStaffPermission(interaction.member, config, [PermissionFlagsBits.BanMembers])) {
+    return interaction.editReply("Voce nao tem permissao para usar este comando.");
+  }
+
+  const user = interaction.options.getUser("usuario");
+  if (!user || user.bot) return interaction.editReply("Escolha um usuario valido que nao seja bot.");
+  if (user.id === interaction.user.id) return interaction.editReply("Voce nao pode banir a si mesmo.");
+
+  const target = await interaction.guild.members.fetch(user.id).catch(() => null);
+  if (target && !canModerateTarget(interaction.member, target)) {
+    return interaction.editReply("Nao consigo banir esse usuario. Verifique hierarquia de cargos e permissoes do bot.");
+  }
+
+  const me = interaction.guild.members.me || await interaction.guild.members.fetchMe().catch(() => null);
+  if (!me?.permissions?.has(PermissionFlagsBits.BanMembers)) {
+    return interaction.editReply("O bot nao tem permissao para banir membros.");
+  }
+
+  const motivo = interaction.options.getString("motivo") || "Sem motivo informado";
+  await interaction.guild.members.ban(user.id, { reason: motivo });
+  await interaction.editReply(`<@${user.id}> foi banido. Motivo: ${motivo}`);
+  await sendModerationLog(interaction.guild, config, "Usuario banido", [
+    { name: "Usuario", value: `<@${user.id}>`, inline: true },
+    { name: "Moderador", value: `<@${interaction.user.id}>`, inline: true },
+    { name: "Motivo", value: motivo },
+    { name: "ID do usuario", value: user.id }
+  ], config.moderacaoLogsChannelId);
+  console.log("[Moderacao] usuario banido", { guildId: interaction.guildId, userId: user.id, moderatorId: interaction.user.id });
+}
+
 function mapGet(map, key, fallback) {
   if (!map) return fallback;
   return typeof map.get === "function" ? map.get(key) ?? fallback : map[key] ?? fallback;
@@ -1187,6 +1221,11 @@ async function startClanDiscordBot() {
 
       if (interaction.commandName === "unmute") {
         await handleUnmuteCommand(interaction);
+        return;
+      }
+
+      if (interaction.commandName === "ban") {
+        await handleBanCommand(interaction);
       }
       } catch (err) {
         console.error("[Moderacao] erro completo em interactionCreate:", err);

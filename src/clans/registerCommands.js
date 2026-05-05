@@ -76,6 +76,11 @@ const UNMUTE_COMMAND = {
   description: "Remove o silencio de um usuario",
   options: [USER_OPTION, MOTIVO_OPTION]
 };
+const BAN_COMMAND = {
+  name: "ban",
+  description: "Bane um usuario do servidor",
+  options: [USER_OPTION, MOTIVO_OPTION]
+};
 const CLAN_COMMANDS = [
   AVATAR_COMMAND,
   TESTAR_BOAS_VINDAS_COMMAND,
@@ -84,7 +89,8 @@ const CLAN_COMMANDS = [
   CLEARWARNS_COMMAND,
   REMOVEWARN_COMMAND,
   MUTE_COMMAND,
-  UNMUTE_COMMAND
+  UNMUTE_COMMAND,
+  BAN_COMMAND
 ];
 
 function discordCommandConfig() {
