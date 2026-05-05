@@ -37,6 +37,10 @@ function safeText(value, fallback = "") {
     .trim();
 }
 
+function fontWeight(value) {
+  return value === "normal" ? "normal" : "bold";
+}
+
 async function loadImageFromUrl(url, label) {
   if (!isPublicImageUrl(url)) {
     throw new Error(`${label} sem URL publica valida.`);
@@ -121,11 +125,11 @@ function drawFallbackBackground(ctx) {
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 }
 
-function fitText(ctx, text, maxWidth, startSize, minSize, weight = "800") {
+function fitText(ctx, text, maxWidth, startSize, minSize, weight = "bold") {
   let size = startSize;
 
   while (size > minSize) {
-    ctx.font = `${weight} ${size}px Arial, sans-serif`;
+    ctx.font = `${fontWeight(weight)} ${size}px Arial`;
     if (ctx.measureText(text).width <= maxWidth) break;
     size -= 2;
   }
@@ -133,15 +137,21 @@ function fitText(ctx, text, maxWidth, startSize, minSize, weight = "800") {
   return size;
 }
 
-function drawCenteredText(ctx, text, y, maxWidth, startSize, minSize, color, weight = "800") {
+function drawCenteredText(ctx, text, y, maxWidth, startSize, minSize, color, weight = "bold") {
   try {
     const value = safeText(text);
     const size = fitText(ctx, value, maxWidth, startSize, minSize, weight);
-    ctx.font = `${weight} ${size}px Arial, sans-serif`;
+    ctx.save();
+    ctx.font = `${fontWeight(weight)} ${size}px Arial`;
     ctx.fillStyle = color;
+    ctx.shadowColor = "rgba(0, 0, 0, 0.95)";
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 2;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(value, WIDTH / 2, y);
+    ctx.restore();
   } catch (err) {
     console.warn("[Boas-vindas] erro ao desenhar texto:", {
       texto: text,
@@ -158,6 +168,17 @@ async function createWelcomeImageBuffer(member, config) {
     loadBackground(config.boasVindasBackgroundUrl),
     loadDiscordAvatar(user)
   ]);
+  const title = safeText(config.boasVindasTitle, "BEM-VINDO(A)");
+  const username = safeText(user.username || member.displayName, "novo membro");
+  const message = safeText(
+    config.boasVindasMessage,
+    "QUE VOCÊ POSSA APROVEITAR AO MÁXIMO A ALCATEIA!"
+  );
+  console.log("[Boas-vindas] dados de texto", {
+    title,
+    username,
+    message
+  });
 
   if (background) {
     drawCoverImage(ctx, background, 0, 0, WIDTH, HEIGHT);
@@ -188,25 +209,30 @@ async function createWelcomeImageBuffer(member, config) {
   drawCoverImage(ctx, avatar, 514, 59, 172, 172);
   ctx.restore();
 
-  drawCenteredText(ctx, config.boasVindasTitle || "BEM-VINDO(A)", 288, 940, 60, 34, "#ffffff", "900");
-  drawCenteredText(ctx, `@${user.username || member.displayName || "novo membro"}`, 344, 940, 34, 24, "#dbe4ff", "800");
+  drawCenteredText(ctx, title, 288, 940, 56, 34, "#FFFFFF", "bold");
+  drawCenteredText(ctx, `@${username}`, 344, 940, 34, 24, "#FFFFFF", "bold");
   drawCenteredText(
     ctx,
-    config.boasVindasMessage || "Que você possa aproveitar ao máximo do nosso servidor!",
+    message,
     398,
     980,
-    28,
+    30,
     20,
-    "#ffffff",
-    "700"
+    "#FFFFFF",
+    "bold"
   );
 
-  ctx.font = "20px Arial, sans-serif";
-  ctx.fillStyle = "#cbd5e1";
+  ctx.save();
+  ctx.font = "bold 20px Arial";
+  ctx.fillStyle = "#FFFFFF";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.95)";
+  ctx.shadowBlur = 10;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 2;
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
   ctx.fillText(formatSaoPauloDate(), 1100, 444);
-
+  ctx.restore();
   const buffer = canvas.toBuffer("image/png");
   console.log("[Boas-vindas] buffer PNG gerado com sucesso:", {
     bytes: buffer.length

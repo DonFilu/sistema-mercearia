@@ -407,6 +407,10 @@ async function sendBoasVindasForMember(member, source = "manual") {
       boasVindasChannelId: config.boasVindasChannelId ? String(config.boasVindasChannelId) : null,
       temFundo: !!config.boasVindasBackgroundUrl
     } : null);
+    console.log("[Boas-vindas] titulo/mensagem", config ? {
+      title: config.boasVindasTitle || "BEM-VINDO(A)",
+      message: config.boasVindasMessage || "QUE VOCE POSSA APROVEITAR AO MAXIMO A ALCATEIA!"
+    } : null);
 
     if (!config || config.boasVindasEnabled !== true) {
       console.log("[Boas-vindas] ignorado: funcao desativada ou sem config.", {
@@ -601,25 +605,17 @@ function startChamadasScheduler(discordClient) {
   }, 60000);
 }
 
-function shouldEnableGuildMembersIntent() {
-  return process.env.DISCORD_ENABLE_GUILD_MEMBERS === "true" ||
-    process.env.DISCORD_ENABLE_GUILD_MEMBERS_INTENT === "true";
-}
-
-function createClanClient(enableGuildMembers = false) {
+function createClanClient() {
   const intents = [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMembers
   ];
-
-  if (enableGuildMembers) {
-    intents.push(GatewayIntentBits.GuildMembers);
-  }
 
   console.log("Iniciando bot Clan Cidio com intents:", {
     Guilds: true,
     GuildMessages: true,
-    GuildMembers: enableGuildMembers
+    GuildMembers: true
   });
 
   return new Client({ intents });
@@ -644,7 +640,7 @@ async function startClanDiscordBot() {
       console.warn("Falha ao registrar comandos Clan Cidio; bot vai iniciar mesmo assim:", err.response?.data || err.message);
     }
 
-    client = createClanClient(shouldEnableGuildMembersIntent());
+    client = createClanClient();
 
     client.once("ready", () => {
       console.log(`Bot Clan Cidio online como ${client.user.tag}`);
@@ -671,6 +667,7 @@ async function startClanDiscordBot() {
     });
 
     client.on("guildMemberAdd", async member => {
+      console.log("[Boas-vindas] membro entrou", member.guild.id, member.user.username);
       await handleGuildMemberAdd(member);
     });
 
