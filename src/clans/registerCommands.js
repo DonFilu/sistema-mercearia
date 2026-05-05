@@ -17,9 +17,74 @@ const TESTAR_BOAS_VINDAS_COMMAND = {
   name: "testar-boasvindas",
   description: "Testa a mensagem de boas-vindas no canal configurado."
 };
+const USER_OPTION = {
+  name: "usuario",
+  description: "Usuario alvo",
+  type: 6,
+  required: true
+};
+const MOTIVO_OPTION = {
+  name: "motivo",
+  description: "Motivo",
+  type: 3,
+  required: true
+};
+const WARN_COMMAND = {
+  name: "warn",
+  description: "Aplica uma advertencia em um usuario",
+  options: [USER_OPTION, MOTIVO_OPTION]
+};
+const WARNINGS_COMMAND = {
+  name: "warnings",
+  description: "Mostra advertencias de um usuario",
+  options: [USER_OPTION]
+};
+const CLEARWARNS_COMMAND = {
+  name: "clearwarns",
+  description: "Remove todas as advertencias de um usuario",
+  options: [USER_OPTION]
+};
+const REMOVEWARN_COMMAND = {
+  name: "removewarn",
+  description: "Remove uma advertencia pelo ID",
+  options: [
+    USER_OPTION,
+    {
+      name: "id",
+      description: "ID da advertencia",
+      type: 3,
+      required: true
+    }
+  ]
+};
+const MUTE_COMMAND = {
+  name: "mute",
+  description: "Silencia um usuario com timeout",
+  options: [
+    USER_OPTION,
+    {
+      name: "tempo",
+      description: "Tempo em minutos",
+      type: 4,
+      required: true
+    },
+    MOTIVO_OPTION
+  ]
+};
+const UNMUTE_COMMAND = {
+  name: "unmute",
+  description: "Remove o silencio de um usuario",
+  options: [USER_OPTION, MOTIVO_OPTION]
+};
 const CLAN_COMMANDS = [
   AVATAR_COMMAND,
-  TESTAR_BOAS_VINDAS_COMMAND
+  TESTAR_BOAS_VINDAS_COMMAND,
+  WARN_COMMAND,
+  WARNINGS_COMMAND,
+  CLEARWARNS_COMMAND,
+  REMOVEWARN_COMMAND,
+  MUTE_COMMAND,
+  UNMUTE_COMMAND
 ];
 
 function discordCommandConfig() {

@@ -55,6 +55,46 @@ const DEFAULT_MODO_TOSCO_MESSAGES = [
 const DEFAULT_BOAS_VINDAS_TITLE = "BEM-VINDO(A)";
 const DEFAULT_BOAS_VINDAS_MESSAGE = "Que você possa aproveitar ao máximo do nosso servidor!";
 const DEFAULT_SAIDAS_MESSAGE = "{username} saiu do servidor";
+const DEFAULT_MODERACAO_CONFIG = {
+  moderacaoEnabled: false,
+  moderacaoLogsEnabled: false,
+  moderacaoLogsChannelId: null,
+  warnEnabled: false,
+  warnLogsChannelId: null,
+  warnMessage: "{user} recebeu uma advertencia. Motivo: {motivo}",
+  muteEnabled: false,
+  muteLogsChannelId: null,
+  muteMaxTime: 1440,
+  muteMessage: "{user} foi silenciado por {tempo}. Motivo: {motivo}",
+  unmuteMessage: "{user} teve o silencio removido. Motivo: {motivo}",
+  antiSpamEnabled: false,
+  antiSpamChannels: [],
+  antiSpamIgnoredRoles: [],
+  antiSpamMaxMessages: 5,
+  antiSpamIntervalSeconds: 5,
+  antiSpamAction: "delete",
+  antiSpamTimeoutMinutes: 5,
+  antiLinkEnabled: false,
+  antiLinkChannels: [],
+  antiLinkAllowedRoles: [],
+  antiLinkAllowedDomains: [],
+  antiLinkAction: "delete",
+  antiLinkMessage: "{user}, links nao sao permitidos neste canal.",
+  badWordsEnabled: false,
+  badWordsChannels: [],
+  badWordsIgnoredRoles: [],
+  badWordsList: [],
+  badWordsAction: "delete",
+  badWordsMessage: "{user}, sua mensagem foi removida por conter palavra proibida.",
+  autoRoleEnabled: false,
+  autoRoleId: null,
+  autoRoleRemoveOnLeave: false,
+  verificationEnabled: false,
+  verificationChannelId: null,
+  verificationRoleId: null,
+  verificationMessage: "Clique no botao abaixo para verificar sua conta e liberar acesso ao servidor.",
+  moderationStaffRoles: []
+};
 
 function hasGuildAdminPermission(guild) {
   if (!guild) return false;
@@ -101,7 +141,8 @@ async function getGuildConfig(guildId) {
         boasVindasMessage: DEFAULT_BOAS_VINDAS_MESSAGE,
         saidasEnabled: false,
         saidasChannelId: null,
-        saidasMessage: DEFAULT_SAIDAS_MESSAGE
+        saidasMessage: DEFAULT_SAIDAS_MESSAGE,
+        ...DEFAULT_MODERACAO_CONFIG
       }
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
@@ -151,7 +192,45 @@ function publicGuildConfig(config) {
     boasVindasMessage: config.boasVindasMessage || DEFAULT_BOAS_VINDAS_MESSAGE,
     saidasEnabled: config.saidasEnabled === true,
     saidasChannelId: config.saidasChannelId || null,
-    saidasMessage: config.saidasMessage || DEFAULT_SAIDAS_MESSAGE
+    saidasMessage: config.saidasMessage || DEFAULT_SAIDAS_MESSAGE,
+    moderacaoEnabled: config.moderacaoEnabled === true,
+    moderacaoLogsEnabled: config.moderacaoLogsEnabled === true,
+    moderacaoLogsChannelId: config.moderacaoLogsChannelId || null,
+    warnEnabled: config.warnEnabled === true,
+    warnLogsChannelId: config.warnLogsChannelId || null,
+    warnMessage: config.warnMessage || DEFAULT_MODERACAO_CONFIG.warnMessage,
+    muteEnabled: config.muteEnabled === true,
+    muteLogsChannelId: config.muteLogsChannelId || null,
+    muteMaxTime: Math.max(1, Number(config.muteMaxTime || DEFAULT_MODERACAO_CONFIG.muteMaxTime)),
+    muteMessage: config.muteMessage || DEFAULT_MODERACAO_CONFIG.muteMessage,
+    unmuteMessage: config.unmuteMessage || DEFAULT_MODERACAO_CONFIG.unmuteMessage,
+    antiSpamEnabled: config.antiSpamEnabled === true,
+    antiSpamChannels: Array.isArray(config.antiSpamChannels) ? config.antiSpamChannels : [],
+    antiSpamIgnoredRoles: Array.isArray(config.antiSpamIgnoredRoles) ? config.antiSpamIgnoredRoles : [],
+    antiSpamMaxMessages: Math.max(1, Number(config.antiSpamMaxMessages || DEFAULT_MODERACAO_CONFIG.antiSpamMaxMessages)),
+    antiSpamIntervalSeconds: Math.max(1, Number(config.antiSpamIntervalSeconds || DEFAULT_MODERACAO_CONFIG.antiSpamIntervalSeconds)),
+    antiSpamAction: config.antiSpamAction || DEFAULT_MODERACAO_CONFIG.antiSpamAction,
+    antiSpamTimeoutMinutes: Math.max(1, Number(config.antiSpamTimeoutMinutes || DEFAULT_MODERACAO_CONFIG.antiSpamTimeoutMinutes)),
+    antiLinkEnabled: config.antiLinkEnabled === true,
+    antiLinkChannels: Array.isArray(config.antiLinkChannels) ? config.antiLinkChannels : [],
+    antiLinkAllowedRoles: Array.isArray(config.antiLinkAllowedRoles) ? config.antiLinkAllowedRoles : [],
+    antiLinkAllowedDomains: Array.isArray(config.antiLinkAllowedDomains) ? config.antiLinkAllowedDomains : [],
+    antiLinkAction: config.antiLinkAction || DEFAULT_MODERACAO_CONFIG.antiLinkAction,
+    antiLinkMessage: config.antiLinkMessage || DEFAULT_MODERACAO_CONFIG.antiLinkMessage,
+    badWordsEnabled: config.badWordsEnabled === true,
+    badWordsChannels: Array.isArray(config.badWordsChannels) ? config.badWordsChannels : [],
+    badWordsIgnoredRoles: Array.isArray(config.badWordsIgnoredRoles) ? config.badWordsIgnoredRoles : [],
+    badWordsList: Array.isArray(config.badWordsList) ? config.badWordsList : [],
+    badWordsAction: config.badWordsAction || DEFAULT_MODERACAO_CONFIG.badWordsAction,
+    badWordsMessage: config.badWordsMessage || DEFAULT_MODERACAO_CONFIG.badWordsMessage,
+    autoRoleEnabled: config.autoRoleEnabled === true,
+    autoRoleId: config.autoRoleId || null,
+    autoRoleRemoveOnLeave: config.autoRoleRemoveOnLeave === true,
+    verificationEnabled: config.verificationEnabled === true,
+    verificationChannelId: config.verificationChannelId || null,
+    verificationRoleId: config.verificationRoleId || null,
+    verificationMessage: config.verificationMessage || DEFAULT_MODERACAO_CONFIG.verificationMessage,
+    moderationStaffRoles: Array.isArray(config.moderationStaffRoles) ? config.moderationStaffRoles : []
   };
 }
 
@@ -215,6 +294,35 @@ async function listTextChannels(guildId) {
     }));
 }
 
+async function listGuildRoles(guildId) {
+  if (!process.env.DISCORD_BOT_TOKEN) {
+    const err = new Error("Token do bot nao configurado. Configure DISCORD_BOT_TOKEN no deploy.");
+    err.status = 500;
+    throw err;
+  }
+
+  try {
+    const response = await axios.get(`${DISCORD_API}/guilds/${guildId}/roles`, {
+      headers: {
+        Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`
+      }
+    });
+
+    return (response.data || [])
+      .filter(role => role.name !== "@everyone")
+      .sort((a, b) => (b.position || 0) - (a.position || 0))
+      .map(role => ({
+        id: role.id,
+        name: role.name,
+        position: role.position || 0
+      }));
+  } catch (err) {
+    const friendly = new Error(err.response?.data?.message || "Erro ao consultar cargos no Discord.");
+    friendly.status = err.response?.status || 500;
+    throw friendly;
+  }
+}
+
 async function findRobloxUser(username) {
   const response = await axios.post(
     "https://users.roblox.com/v1/usernames/users",
@@ -258,7 +366,9 @@ module.exports = {
   DEFAULT_BOAS_VINDAS_TITLE,
   DEFAULT_BOAS_VINDAS_MESSAGE,
   DEFAULT_SAIDAS_MESSAGE,
+  DEFAULT_MODERACAO_CONFIG,
   listTextChannels,
+  listGuildRoles,
   findRobloxUser,
   findRobloxAvatar
 };

@@ -5,9 +5,12 @@ const {
   GatewayIntentBits,
   EmbedBuilder,
   AttachmentBuilder,
-  PermissionFlagsBits
+  PermissionFlagsBits,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle
 } = require("discord.js");
-const { ClanGuildConfig } = require("./models");
+const { ClanGuildConfig, ClanWarn } = require("./models");
 const {
   findRobloxUser,
   findRobloxAvatar,
@@ -23,6 +26,7 @@ let client = null;
 let starting = false;
 let chamadasTimer = null;
 const modoToscoRuntimeState = new Map();
+const moderationSpamState = new Map();
 
 async function ensureDatabaseConnection() {
   if (mongoose.connection.readyState === 1) return;
@@ -177,6 +181,133 @@ async function handleTestarBoasVindasCommand(interaction) {
   }
 }
 
+async function handleWarnCommand(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+  const config = await loadModerationConfig(interaction.guildId);
+  if (!config || config.warnEnabled !== true) return interaction.editReply("Sistema de warns esta desativado neste servidor.");
+  const moderator = interaction.member;
+  if (!hasModerationStaffPermission(moderator, config, [PermissionFlagsBits.ManageMessages])) {
+    return interaction.editReply("Voce nao tem permissao para usar este comando.");
+  }
+
+  const user = interaction.options.getUser("usuario");
+  const motivo = interaction.options.getString("motivo") || "Sem motivo informado";
+  const warnId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  await ClanWarn.create({
+    guildId: interaction.guildId,
+    warnId,
+    userId: user.id,
+    moderatorId: interaction.user.id,
+    motivo,
+    data: new Date()
+  });
+
+  const content = replaceTemplate(config.warnMessage, {
+    user: `<@${user.id}>`,
+    motivo,
+    warnId
+  });
+  await interaction.editReply(content);
+  await sendModerationLog(interaction.guild, config, "Advertencia aplicada", [
+    { name: "Usuario", value: `<@${user.id}>`, inline: true },
+    { name: "Moderador", value: `<@${interaction.user.id}>`, inline: true },
+    { name: "Motivo", value: motivo },
+    { name: "Warn ID", value: warnId }
+  ], config.warnLogsChannelId || config.moderacaoLogsChannelId);
+  console.log("[Moderacao] warn aplicado", { guildId: interaction.guildId, userId: user.id, warnId });
+}
+
+async function handleWarningsCommand(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+  const config = await loadModerationConfig(interaction.guildId);
+  if (!config || config.warnEnabled !== true) return interaction.editReply("Sistema de warns esta desativado neste servidor.");
+  const member = interaction.member;
+  if (!hasModerationStaffPermission(member, config, [PermissionFlagsBits.ManageMessages])) {
+    return interaction.editReply("Voce nao tem permissao para usar este comando.");
+  }
+
+  const user = interaction.options.getUser("usuario");
+  const warns = await ClanWarn.find({ guildId: interaction.guildId, userId: user.id }).sort({ createdAt: -1 }).limit(10);
+  if (!warns.length) return interaction.editReply(`${user.username} nao tem advertencias.`);
+  return interaction.editReply(warns.map(warn => `ID ${warn.warnId}: ${warn.motivo || "Sem motivo"} (${formatDateTime(warn.data)})`).join("\n"));
+}
+
+async function handleClearWarnsCommand(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+  const config = await loadModerationConfig(interaction.guildId);
+  if (!config || config.warnEnabled !== true) return interaction.editReply("Sistema de warns esta desativado neste servidor.");
+  if (!hasModerationStaffPermission(interaction.member, config, [PermissionFlagsBits.ManageMessages])) {
+    return interaction.editReply("Voce nao tem permissao para usar este comando.");
+  }
+
+  const user = interaction.options.getUser("usuario");
+  const result = await ClanWarn.deleteMany({ guildId: interaction.guildId, userId: user.id });
+  await interaction.editReply(`${result.deletedCount || 0} advertencias removidas de ${user.username}.`);
+}
+
+async function handleRemoveWarnCommand(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+  const config = await loadModerationConfig(interaction.guildId);
+  if (!config || config.warnEnabled !== true) return interaction.editReply("Sistema de warns esta desativado neste servidor.");
+  if (!hasModerationStaffPermission(interaction.member, config, [PermissionFlagsBits.ManageMessages])) {
+    return interaction.editReply("Voce nao tem permissao para usar este comando.");
+  }
+
+  const user = interaction.options.getUser("usuario");
+  const warnId = interaction.options.getString("id");
+  const result = await ClanWarn.deleteOne({ guildId: interaction.guildId, userId: user.id, warnId });
+  await interaction.editReply(result.deletedCount ? `Warn ${warnId} removido.` : "Warn nao encontrado.");
+}
+
+async function handleMuteCommand(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+  const config = await loadModerationConfig(interaction.guildId);
+  if (!config || config.muteEnabled !== true) return interaction.editReply("Sistema de mute esta desativado neste servidor.");
+  if (!hasModerationStaffPermission(interaction.member, config, [PermissionFlagsBits.ModerateMembers])) {
+    return interaction.editReply("Voce nao tem permissao para usar este comando.");
+  }
+
+  const user = interaction.options.getUser("usuario");
+  const target = await interaction.guild.members.fetch(user.id).catch(() => null);
+  if (!target) return interaction.editReply("Usuario nao encontrado no servidor.");
+
+  const motivo = interaction.options.getString("motivo") || "Sem motivo informado";
+  const requestedMinutes = Math.max(1, interaction.options.getInteger("tempo") || 1);
+  const minutes = Math.min(requestedMinutes, Math.max(1, Number(config.muteMaxTime || 1440)));
+  await target.timeout(minutes * 60 * 1000, motivo);
+  const content = replaceTemplate(config.muteMessage, {
+    user: `<@${user.id}>`,
+    tempo: durationLabel(minutes),
+    motivo
+  });
+  await interaction.editReply(content);
+  await sendModerationLog(interaction.guild, config, "Usuario silenciado", [
+    { name: "Usuario", value: `<@${user.id}>`, inline: true },
+    { name: "Moderador", value: `<@${interaction.user.id}>`, inline: true },
+    { name: "Tempo", value: durationLabel(minutes), inline: true },
+    { name: "Motivo", value: motivo }
+  ], config.muteLogsChannelId || config.moderacaoLogsChannelId);
+}
+
+async function handleUnmuteCommand(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+  const config = await loadModerationConfig(interaction.guildId);
+  if (!config || config.muteEnabled !== true) return interaction.editReply("Sistema de mute esta desativado neste servidor.");
+  if (!hasModerationStaffPermission(interaction.member, config, [PermissionFlagsBits.ModerateMembers])) {
+    return interaction.editReply("Voce nao tem permissao para usar este comando.");
+  }
+
+  const user = interaction.options.getUser("usuario");
+  const target = await interaction.guild.members.fetch(user.id).catch(() => null);
+  if (!target) return interaction.editReply("Usuario nao encontrado no servidor.");
+
+  const motivo = interaction.options.getString("motivo") || "Sem motivo informado";
+  await target.timeout(null, motivo);
+  await interaction.editReply(replaceTemplate(config.unmuteMessage, {
+    user: `<@${user.id}>`,
+    motivo
+  }));
+}
 
 function mapGet(map, key, fallback) {
   if (!map) return fallback;
@@ -193,6 +324,79 @@ function mapSet(map, key, value) {
 
 function pickRandom(items) {
   return items[Math.floor(Math.random() * items.length)];
+}
+
+function replaceTemplate(template, values) {
+  return String(template || "").replace(/\{(\w+)\}/g, (_, key) => values[key] ?? "");
+}
+
+function formatDateTime(date = new Date()) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    dateStyle: "short",
+    timeStyle: "short"
+  }).format(date);
+}
+
+function hasAnyRole(member, roleIds = []) {
+  if (!member || !Array.isArray(roleIds) || !roleIds.length) return false;
+  return roleIds.some(roleId => member.roles?.cache?.has(roleId));
+}
+
+function isAdmin(member) {
+  return member?.permissions?.has(PermissionFlagsBits.Administrator);
+}
+
+function hasModerationStaffPermission(member, config, requiredPermissions = []) {
+  if (!member) return false;
+  if (isAdmin(member)) return true;
+  if (hasAnyRole(member, config.moderationStaffRoles || [])) return true;
+  return requiredPermissions.some(permission => member.permissions?.has(permission));
+}
+
+function channelAllowed(channelId, configuredChannels = []) {
+  return !Array.isArray(configuredChannels) || !configuredChannels.length || configuredChannels.includes(channelId);
+}
+
+function durationLabel(minutes) {
+  const value = Math.max(1, Number(minutes || 1));
+  return value >= 60 ? `${Math.round(value / 60)}h` : `${value}min`;
+}
+
+async function sendModerationLog(guild, config, title, fields = [], explicitChannelId = null) {
+  try {
+    const channelId = explicitChannelId || config.moderacaoLogsChannelId;
+    if (!channelId) return;
+
+    const channel = await guild.channels.fetch(channelId).catch(() => null);
+    if (!channel || typeof channel.send !== "function") return;
+
+    const embed = new EmbedBuilder()
+      .setTitle(title)
+      .setColor(0xef4444)
+      .setTimestamp(new Date())
+      .setFooter({ text: "Clan Cidio Moderacao" });
+
+    const safeFields = fields
+      .filter(field => field?.name)
+      .map(field => ({
+        name: field.name,
+        value: String(field.value || "Conteudo indisponivel").slice(0, 1024),
+        inline: field.inline === true
+      }));
+
+    if (safeFields.length) embed.addFields(safeFields);
+    await channel.send({ embeds: [embed] });
+    console.log("[Moderacao] log enviado", { guildId: guild.id, channelId, title });
+  } catch (err) {
+    console.error("[Moderacao] erro ao enviar log:", err);
+  }
+}
+
+async function loadModerationConfig(guildId) {
+  if (mongoose.connection.readyState !== 1) return null;
+  const config = await ClanGuildConfig.findOne({ guildId });
+  return config?.moderacaoEnabled === true ? config : null;
 }
 
 function modoToscoStateKey(guildId, channelId) {
@@ -371,6 +575,118 @@ async function handleModoToscoMessage(message) {
   }
 }
 
+async function applyModerationMessageAction(message, config, action, reason, userMessage) {
+  try {
+    if (message.deletable) await message.delete().catch(() => null);
+    if (userMessage) {
+      const notice = await message.channel.send({ content: userMessage }).catch(() => null);
+      if (notice) setTimeout(() => notice.delete().catch(() => null), 6000);
+    }
+
+    if (action === "warn") {
+      await ClanWarn.create({
+        guildId: message.guildId,
+        warnId: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+        userId: message.author.id,
+        moderatorId: message.client.user.id,
+        motivo: reason,
+        data: new Date()
+      });
+    }
+
+    if (action === "timeout") {
+      const minutes = Math.max(1, Number(config.antiSpamTimeoutMinutes || 5));
+      await message.member?.timeout(minutes * 60 * 1000, reason).catch(err => {
+        console.error("[Moderacao] erro ao aplicar timeout automatico:", err);
+      });
+    }
+
+    await sendModerationLog(message.guild, config, "Acao automatica aplicada", [
+      { name: "Usuario", value: `<@${message.author.id}>`, inline: true },
+      { name: "Canal", value: `<#${message.channelId}>`, inline: true },
+      { name: "Acao", value: action },
+      { name: "Motivo", value: reason }
+    ]);
+    console.log("[Moderacao] acao automatica aplicada", { guildId: message.guildId, userId: message.author.id, action, reason });
+  } catch (err) {
+    console.error("[Moderacao] erro completo na acao automatica:", err);
+  }
+}
+
+function containsBlockedLink(content, allowedDomains = []) {
+  const matches = String(content || "").match(/https?:\/\/[^\s]+|(?:www\.)[^\s]+/gi) || [];
+  if (!matches.length) return false;
+  const allowed = new Set((allowedDomains || []).map(domain => String(domain).toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "")));
+  return matches.some(raw => {
+    try {
+      const url = new URL(raw.startsWith("http") ? raw : `https://${raw}`);
+      const host = url.hostname.toLowerCase().replace(/^www\./, "");
+      return ![...allowed].some(domain => host === domain || host.endsWith(`.${domain}`));
+    } catch (err) {
+      return true;
+    }
+  });
+}
+
+async function handleModerationMessage(message) {
+  if (!message.guildId || message.author?.bot) return;
+  const config = await loadModerationConfig(message.guildId);
+  if (!config) return;
+  if (isAdmin(message.member)) return;
+
+  if (config.antiSpamEnabled === true && channelAllowed(message.channelId, config.antiSpamChannels)) {
+    if (!hasAnyRole(message.member, config.antiSpamIgnoredRoles || [])) {
+      const key = `${message.guildId}:${message.channelId}:${message.author.id}`;
+      const now = Date.now();
+      const interval = Math.max(1, Number(config.antiSpamIntervalSeconds || 5)) * 1000;
+      const current = (moderationSpamState.get(key) || []).filter(time => now - time <= interval);
+      current.push(now);
+      moderationSpamState.set(key, current);
+      console.log("[Moderacao] anti-spam checado", {
+        guildId: message.guildId,
+        channelId: message.channelId,
+        userId: message.author.id,
+        total: current.length
+      });
+
+      if (current.length >= Math.max(1, Number(config.antiSpamMaxMessages || 5))) {
+        moderationSpamState.set(key, []);
+        await applyModerationMessageAction(message, config, config.antiSpamAction || "delete", "Anti-spam", null);
+        return;
+      }
+    }
+  }
+
+  if (config.antiLinkEnabled === true && channelAllowed(message.channelId, config.antiLinkChannels)) {
+    if (!hasAnyRole(message.member, config.antiLinkAllowedRoles || []) && containsBlockedLink(message.content, config.antiLinkAllowedDomains || [])) {
+      await applyModerationMessageAction(
+        message,
+        config,
+        config.antiLinkAction || "delete",
+        "Anti-link",
+        replaceTemplate(config.antiLinkMessage, { user: `<@${message.author.id}>` })
+      );
+      return;
+    }
+  }
+
+  if (config.badWordsEnabled === true && channelAllowed(message.channelId, config.badWordsChannels)) {
+    if (!hasAnyRole(message.member, config.badWordsIgnoredRoles || [])) {
+      const content = String(message.content || "").toLowerCase();
+      const found = (config.badWordsList || []).find(word => word && content.includes(String(word).toLowerCase()));
+      if (found) {
+        await applyModerationMessageAction(
+          message,
+          config,
+          config.badWordsAction || "delete",
+          `Palavra proibida: ${found}`,
+          replaceTemplate(config.badWordsMessage, { user: `<@${message.author.id}>` })
+        );
+      }
+    }
+  }
+}
+
 async function handleGuildMemberAdd(member) {
   console.log("[Boas-vindas] EVENTO RECEBIDO", member.guild?.id || null, member.user?.id || null);
   console.log("[Boas-vindas] guildMemberAdd recebido", {
@@ -380,6 +696,19 @@ async function handleGuildMemberAdd(member) {
   });
 
   await sendBoasVindasForMember(member, "guildMemberAdd");
+
+  try {
+    const config = await loadModerationConfig(member.guild.id);
+    if (!config || config.autoRoleEnabled !== true || !config.autoRoleId) return;
+    await member.roles.add(config.autoRoleId, "Clan Cidio auto-role");
+    await sendModerationLog(member.guild, config, "Cargo automatico adicionado", [
+      { name: "Usuario", value: `<@${member.user.id}>`, inline: true },
+      { name: "Cargo", value: `<@&${config.autoRoleId}>`, inline: true }
+    ]);
+    console.log("[Moderacao] cargo automatico adicionado", { guildId: member.guild.id, userId: member.user.id, roleId: config.autoRoleId });
+  } catch (err) {
+    console.error("[Moderacao] erro ao adicionar cargo automatico:", err);
+  }
 }
 
 async function sendBoasVindasForMember(member, source = "manual") {
@@ -739,13 +1068,17 @@ function createClanClient() {
   const intents = [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.GuildMembers
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildModeration
   ];
 
   console.log("Iniciando bot Clan Cidio com intents:", {
     Guilds: true,
     GuildMessages: true,
-    GuildMembers: true
+    MessageContent: true,
+    GuildMembers: true,
+    GuildModeration: true
   });
 
   return new Client({ intents });
@@ -779,6 +1112,21 @@ async function startClanDiscordBot() {
     });
 
     client.on("interactionCreate", async interaction => {
+      if (interaction.isButton?.() && interaction.customId === "clan_verify") {
+        const config = await loadModerationConfig(interaction.guildId);
+        if (!config || config.verificationEnabled !== true || !config.verificationRoleId) {
+          await interaction.reply({ content: "Verificacao indisponivel neste servidor.", ephemeral: true });
+          return;
+        }
+        await interaction.member.roles.add(config.verificationRoleId, "Clan Cidio verificacao");
+        await interaction.reply({ content: "Conta verificada com sucesso.", ephemeral: true });
+        await sendModerationLog(interaction.guild, config, "Usuario verificado", [
+          { name: "Usuario", value: `<@${interaction.user.id}>`, inline: true },
+          { name: "Cargo", value: `<@&${config.verificationRoleId}>`, inline: true }
+        ]);
+        return;
+      }
+
       if (!interaction.isChatInputCommand()) return;
 
       if (interaction.commandName === "avatar") {
@@ -788,12 +1136,139 @@ async function startClanDiscordBot() {
 
       if (interaction.commandName === "testar-boasvindas") {
         await handleTestarBoasVindasCommand(interaction);
+        return;
+      }
+
+      if (interaction.commandName === "warn") {
+        await handleWarnCommand(interaction);
+        return;
+      }
+
+      if (interaction.commandName === "warnings") {
+        await handleWarningsCommand(interaction);
+        return;
+      }
+
+      if (interaction.commandName === "clearwarns") {
+        await handleClearWarnsCommand(interaction);
+        return;
+      }
+
+      if (interaction.commandName === "removewarn") {
+        await handleRemoveWarnCommand(interaction);
+        return;
+      }
+
+      if (interaction.commandName === "mute") {
+        await handleMuteCommand(interaction);
+        return;
+      }
+
+      if (interaction.commandName === "unmute") {
+        await handleUnmuteCommand(interaction);
       }
     });
 
     client.on("messageCreate", async message => {
       console.log("messageCreate recebido pelo bot Clan Cidio.");
+      await handleModerationMessage(message);
       await handleModoToscoMessage(message);
+    });
+
+    client.on("messageDelete", async message => {
+      if (!message.guildId || message.author?.bot) return;
+      const config = await loadModerationConfig(message.guildId);
+      if (!config || config.moderacaoLogsEnabled !== true) return;
+      await sendModerationLog(message.guild, config, "Mensagem deletada", [
+        { name: "Usuario", value: message.author ? `<@${message.author.id}>` : "Conteudo indisponivel", inline: true },
+        { name: "Canal", value: `<#${message.channelId}>`, inline: true },
+        { name: "Conteudo", value: message.content || "Conteudo indisponivel" },
+        { name: "ID do usuario", value: message.author?.id || "Conteudo indisponivel", inline: true },
+        { name: "ID da mensagem", value: message.id || "Conteudo indisponivel", inline: true },
+        { name: "Data", value: formatDateTime(new Date()) }
+      ]);
+    });
+
+    client.on("messageUpdate", async (oldMessage, newMessage) => {
+      if (!newMessage.guildId || newMessage.author?.bot) return;
+      if ((oldMessage.content || "") === (newMessage.content || "")) return;
+      const config = await loadModerationConfig(newMessage.guildId);
+      if (!config || config.moderacaoLogsEnabled !== true) return;
+      await sendModerationLog(newMessage.guild, config, "Mensagem editada", [
+        { name: "Usuario", value: `<@${newMessage.author.id}>`, inline: true },
+        { name: "Canal", value: `<#${newMessage.channelId}>`, inline: true },
+        { name: "Antes", value: oldMessage.content || "Conteudo indisponivel" },
+        { name: "Depois", value: newMessage.content || "Conteudo indisponivel" },
+        { name: "ID do usuario", value: newMessage.author.id, inline: true },
+        { name: "ID da mensagem", value: newMessage.id, inline: true },
+        { name: "Data", value: formatDateTime(new Date()) }
+      ]);
+    });
+
+    client.on("guildBanAdd", async ban => {
+      const config = await loadModerationConfig(ban.guild.id);
+      if (!config || config.moderacaoLogsEnabled !== true) return;
+      await sendModerationLog(ban.guild, config, "Membro banido", [
+        { name: "Usuario", value: `<@${ban.user.id}>`, inline: true },
+        { name: "ID do usuario", value: ban.user.id, inline: true },
+        { name: "Data", value: formatDateTime(new Date()) }
+      ]);
+    });
+
+    client.on("guildBanRemove", async ban => {
+      const config = await loadModerationConfig(ban.guild.id);
+      if (!config || config.moderacaoLogsEnabled !== true) return;
+      await sendModerationLog(ban.guild, config, "Membro desbanido", [
+        { name: "Usuario", value: `<@${ban.user.id}>`, inline: true },
+        { name: "ID do usuario", value: ban.user.id, inline: true },
+        { name: "Data", value: formatDateTime(new Date()) }
+      ]);
+    });
+
+    client.on("channelCreate", async channel => {
+      if (!channel.guild) return;
+      const config = await loadModerationConfig(channel.guild.id);
+      if (!config || config.moderacaoLogsEnabled !== true) return;
+      await sendModerationLog(channel.guild, config, "Canal criado", [
+        { name: "Canal", value: `${channel.name || channel.id}`, inline: true },
+        { name: "ID", value: channel.id, inline: true }
+      ]);
+    });
+
+    client.on("channelDelete", async channel => {
+      if (!channel.guild) return;
+      const config = await loadModerationConfig(channel.guild.id);
+      if (!config || config.moderacaoLogsEnabled !== true) return;
+      await sendModerationLog(channel.guild, config, "Canal deletado", [
+        { name: "Canal", value: `${channel.name || channel.id}`, inline: true },
+        { name: "ID", value: channel.id, inline: true }
+      ]);
+    });
+
+    client.on("channelUpdate", async (oldChannel, newChannel) => {
+      if (!newChannel.guild) return;
+      const config = await loadModerationConfig(newChannel.guild.id);
+      if (!config || config.moderacaoLogsEnabled !== true) return;
+      await sendModerationLog(newChannel.guild, config, "Canal editado", [
+        { name: "Antes", value: oldChannel.name || oldChannel.id, inline: true },
+        { name: "Depois", value: newChannel.name || newChannel.id, inline: true },
+        { name: "ID", value: newChannel.id, inline: true }
+      ]);
+    });
+
+    client.on("guildMemberUpdate", async (oldMember, newMember) => {
+      const config = await loadModerationConfig(newMember.guild.id);
+      if (!config || config.moderacaoLogsEnabled !== true) return;
+      const oldRoles = new Set(oldMember.roles.cache.keys());
+      const newRoles = new Set(newMember.roles.cache.keys());
+      const added = [...newRoles].filter(roleId => !oldRoles.has(roleId));
+      const removed = [...oldRoles].filter(roleId => !newRoles.has(roleId));
+      if (!added.length && !removed.length) return;
+      await sendModerationLog(newMember.guild, config, "Cargo adicionado/removido", [
+        { name: "Usuario", value: `<@${newMember.user.id}>`, inline: true },
+        { name: "Adicionados", value: added.map(roleId => `<@&${roleId}>`).join(", ") || "Nenhum" },
+        { name: "Removidos", value: removed.map(roleId => `<@&${roleId}>`).join(", ") || "Nenhum" }
+      ]);
     });
 
     client.on("guildMemberAdd", async member => {

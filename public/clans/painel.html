@@ -227,6 +227,71 @@
           <button class="primary" onclick="saveSaidasConfig()">Salvar configuracao</button>
           <div id="saidasSaveMessage" class="message"></div>
         </div>
+        <div id="moderacaoConfig" class="card hidden">
+          <div class="card-head">
+            <div>
+              <h2>Moderacao</h2>
+              <p>Controle logs, advertencias, punicoes, anti-spam e seguranca do servidor.</p>
+            </div>
+            <button class="ghost" onclick="closeModeracaoConfig()">Fechar configuracao</button>
+          </div>
+          <label>Servidor
+            <select id="moderacaoGuildSelect" onchange="loadModeracaoFeatureConfig()"></select>
+          </label>
+          <div class="form-grid">
+            <label><input id="moderacaoLogsEnabled" type="checkbox"> Logs ativos</label>
+            <label>Canal de logs <select id="moderacaoLogsChannelId"></select></label>
+            <label><input id="warnEnabled" type="checkbox"> Warns ativos</label>
+            <label>Canal de warns <select id="warnLogsChannelId"></select></label>
+            <label><input id="muteEnabled" type="checkbox"> Timeout/Mute ativo</label>
+            <label>Canal de mute <select id="muteLogsChannelId"></select></label>
+          </div>
+          <label>Mensagem de warn <textarea id="warnMessage"></textarea></label>
+          <div class="form-grid">
+            <label>Tempo maximo de mute (min) <input id="muteMaxTime" type="number" min="1" value="1440"></label>
+            <label>Anti-spam max mensagens <input id="antiSpamMaxMessages" type="number" min="1" value="5"></label>
+            <label>Anti-spam intervalo (s) <input id="antiSpamIntervalSeconds" type="number" min="1" value="5"></label>
+            <label>Timeout anti-spam (min) <input id="antiSpamTimeoutMinutes" type="number" min="1" value="5"></label>
+          </div>
+          <label>Mensagem de mute <textarea id="muteMessage"></textarea></label>
+          <label>Mensagem de unmute <textarea id="unmuteMessage"></textarea></label>
+          <div class="form-grid">
+            <label><input id="antiSpamEnabled" type="checkbox"> Anti-Spam</label>
+            <label>Acao anti-spam
+              <select id="antiSpamAction"><option value="delete">apagar mensagens</option><option value="warn">warn</option><option value="timeout">timeout</option></select>
+            </label>
+            <label><input id="antiLinkEnabled" type="checkbox"> Anti-Link</label>
+            <label>Acao anti-link
+              <select id="antiLinkAction"><option value="delete">apagar mensagem</option><option value="warn">warn</option><option value="timeout">timeout</option></select>
+            </label>
+            <label><input id="badWordsEnabled" type="checkbox"> Palavras proibidas</label>
+            <label>Acao palavras
+              <select id="badWordsAction"><option value="delete">apagar mensagem</option><option value="warn">warn</option><option value="timeout">timeout</option></select>
+            </label>
+          </div>
+          <label>Dominios permitidos anti-link <textarea id="antiLinkAllowedDomains"></textarea></label>
+          <label>Mensagem anti-link <textarea id="antiLinkMessage"></textarea></label>
+          <label>Palavras proibidas <textarea id="badWordsList"></textarea></label>
+          <label>Mensagem palavras proibidas <textarea id="badWordsMessage"></textarea></label>
+          <div class="form-grid">
+            <label><input id="autoRoleEnabled" type="checkbox"> Cargos automaticos</label>
+            <label>Cargo automatico <select id="autoRoleId"></select></label>
+            <label><input id="autoRoleRemoveOnLeave" type="checkbox"> Remover ao sair</label>
+            <label><input id="verificationEnabled" type="checkbox"> Verificacao</label>
+            <label>Canal verificacao <select id="verificationChannelId"></select></label>
+            <label>Cargo verificado <select id="verificationRoleId"></select></label>
+          </div>
+          <label>Mensagem de verificacao <textarea id="verificationMessage"></textarea></label>
+          <p>Canais monitorados anti-spam</p><div id="antiSpamChannelsPicker" class="channel-picker"></div>
+          <p>Canais monitorados anti-link</p><div id="antiLinkChannelsPicker" class="channel-picker"></div>
+          <p>Canais monitorados palavras proibidas</p><div id="badWordsChannelsPicker" class="channel-picker"></div>
+          <p>Cargos staff/moderacao</p><div id="moderationStaffRolesPicker" class="channel-picker"></div>
+          <p>Cargos ignorados anti-spam</p><div id="antiSpamIgnoredRolesPicker" class="channel-picker"></div>
+          <p>Cargos permitidos anti-link</p><div id="antiLinkAllowedRolesPicker" class="channel-picker"></div>
+          <p>Cargos ignorados palavras proibidas</p><div id="badWordsIgnoredRolesPicker" class="channel-picker"></div>
+          <button class="primary" onclick="saveModeracaoConfig()">Salvar Moderacao</button>
+          <div id="moderacaoSaveMessage" class="message"></div>
+        </div>
       </section>
 
       <section id="viewServidores" class="view">
@@ -290,6 +355,15 @@
           </div>
           <div id="saidasConfigMessage" class="message"></div>
         </div>
+        <div class="feature">
+          <strong>Moderacao</strong>
+          <span>Controle logs, advertencias, punicoes, anti-spam e seguranca do servidor.</span>
+          <div class="toggle">
+            <span id="moderacaoToggleText">Desativado</span>
+            <button id="moderacaoToggle" class="switch" aria-label="Ativar ou desativar Moderacao" onclick="toggleModeracao()"></button>
+          </div>
+          <div id="moderacaoConfigMessage" class="message"></div>
+        </div>
       </section>
     </main>
   </div>
@@ -300,6 +374,8 @@
     let channelsByGuild = {};
     let selectedGuildId = null;
     let modoToscoSelectedChannels = new Set();
+    let rolesByGuild = {};
+    let moderationSelections = {};
 
     function setView(view) {
       const titles = {
@@ -349,6 +425,7 @@
       document.getElementById("modoToscoGuildSelect").innerHTML = options;
       document.getElementById("boasVindasGuildSelect").innerHTML = options;
       document.getElementById("saidasGuildSelect").innerHTML = options;
+      document.getElementById("moderacaoGuildSelect").innerHTML = options;
     }
 
     function setSelectedGuildId(guildId) {
@@ -362,6 +439,7 @@
       document.getElementById("modoToscoGuildSelect").value = selectedGuildId;
       document.getElementById("boasVindasGuildSelect").value = selectedGuildId;
       document.getElementById("saidasGuildSelect").value = selectedGuildId;
+      document.getElementById("moderacaoGuildSelect").value = selectedGuildId;
       console.log("GuildId selecionado no painel", selectedGuildId);
     }
 
@@ -412,6 +490,7 @@
       const modoToscoEnabled = guild?.config?.modoToscoEnabled === true;
       const boasVindasEnabled = guild?.config?.boasVindasEnabled === true;
       const saidasEnabled = guild?.config?.saidasEnabled === true;
+      const moderacaoEnabled = guild?.config?.moderacaoEnabled === true;
       document.getElementById("avatarToggle").classList.toggle("on", enabled);
       document.getElementById("avatarToggleText").textContent = enabled ? "Ativado" : "Desativado";
       document.getElementById("chamadasToggle").classList.toggle("on", chamadasEnabled);
@@ -422,11 +501,14 @@
       document.getElementById("boasVindasToggleText").textContent = boasVindasEnabled ? "Ativado" : "Desativado";
       document.getElementById("saidasToggle").classList.toggle("on", saidasEnabled);
       document.getElementById("saidasToggleText").textContent = saidasEnabled ? "Ativado" : "Desativado";
+      document.getElementById("moderacaoToggle").classList.toggle("on", moderacaoEnabled);
+      document.getElementById("moderacaoToggleText").textContent = moderacaoEnabled ? "Ativado" : "Desativado";
       document.getElementById("configMessage").textContent = "";
       document.getElementById("chamadasConfigMessage").textContent = "";
       document.getElementById("modoToscoConfigMessage").textContent = "";
       document.getElementById("boasVindasConfigMessage").textContent = "";
       document.getElementById("saidasConfigMessage").textContent = "";
+      document.getElementById("moderacaoConfigMessage").textContent = "";
     }
 
     function renderActiveFeatures() {
@@ -437,6 +519,7 @@
       const modoToscoEnabled = guild?.config?.modoToscoEnabled === true;
       const boasVindasEnabled = guild?.config?.boasVindasEnabled === true;
       const saidasEnabled = guild?.config?.saidasEnabled === true;
+      const moderacaoEnabled = guild?.config?.moderacaoEnabled === true;
 
       console.log("Valor retornado pela API ao carregar Painel", {
         guildId: guild?.id || null,
@@ -449,21 +532,24 @@
         boasVindasEnabled,
         boasVindasChannelId: guild?.config?.boasVindasChannelId || null,
         saidasEnabled,
-        saidasChannelId: guild?.config?.saidasChannelId || null
+        saidasChannelId: guild?.config?.saidasChannelId || null,
+        moderacaoEnabled
       });
 
-      if (!guild || (!avatarEnabled && !chamadasEnabled && !modoToscoEnabled && !boasVindasEnabled && !saidasEnabled)) {
+      if (!guild || (!avatarEnabled && !chamadasEnabled && !modoToscoEnabled && !boasVindasEnabled && !saidasEnabled && !moderacaoEnabled)) {
         container.innerHTML = "";
         document.getElementById("avatarConfig").classList.add("hidden");
         document.getElementById("chamadasConfig").classList.add("hidden");
         document.getElementById("modoToscoConfig").classList.add("hidden");
         document.getElementById("boasVindasConfig").classList.add("hidden");
         document.getElementById("saidasConfig").classList.add("hidden");
+        document.getElementById("moderacaoConfig").classList.add("hidden");
         updateAvatarConfigButton();
         updateChamadasConfigButton();
         updateModoToscoConfigButton();
         updateBoasVindasConfigButton();
         updateSaidasConfigButton();
+        updateModeracaoConfigButton();
         return;
       }
 
@@ -529,12 +615,25 @@
         document.getElementById("saidasConfig").classList.add("hidden");
       }
 
+      if (moderacaoEnabled) {
+        cards.push(`
+        <div class="feature">
+          <strong>Moderacao</strong>
+          <span>${guild.name}</span>
+          <button id="moderacaoConfigToggleButton" class="primary" onclick="toggleModeracaoConfig('${guild.id}')">Configurar</button>
+        </div>
+        `);
+      } else {
+        document.getElementById("moderacaoConfig").classList.add("hidden");
+      }
+
       container.innerHTML = cards.join("");
       updateAvatarConfigButton();
       updateChamadasConfigButton();
       updateModoToscoConfigButton();
       updateBoasVindasConfigButton();
       updateSaidasConfigButton();
+      updateModeracaoConfigButton();
     }
 
     async function toggleAvatarRoblox() {
@@ -709,6 +808,37 @@
       }
     }
 
+    async function toggleModeracao() {
+      const guild = selectedConfigGuild();
+      if (!guild) return;
+      setSelectedGuildId(guild.id);
+      await fetchGuildConfig(guild.id);
+
+      const enabled = guild.config?.moderacaoEnabled !== true;
+      const response = await fetch(`/api/clans/guilds/${guild.id}/config/moderacao`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...guild.config,
+          moderacaoEnabled: enabled
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) return alert(data.erro || "Erro ao salvar Moderacao");
+      guild.config = data.config;
+      console.log("Moderacao ativada/desativada", {
+        guildId: guild.id,
+        moderacaoEnabled: data.config?.moderacaoEnabled === true
+      });
+      setSelectedGuildId(guild.id);
+      renderConfigFeature();
+      renderActiveFeatures();
+
+      if (enabled) {
+        await openModeracaoConfig(guild.id);
+      }
+    }
+
     function updateAvatarConfigButton() {
       const button = document.getElementById("avatarConfigToggleButton");
       if (!button) return;
@@ -749,6 +879,14 @@
       button.textContent = isOpen ? "Fechar configuracao" : "Configurar";
     }
 
+    function updateModeracaoConfigButton() {
+      const button = document.getElementById("moderacaoConfigToggleButton");
+      if (!button) return;
+
+      const isOpen = !document.getElementById("moderacaoConfig").classList.contains("hidden");
+      button.textContent = isOpen ? "Fechar configuracao" : "Configurar";
+    }
+
     function closeAvatarConfig() {
       document.getElementById("avatarConfig").classList.add("hidden");
       document.getElementById("avatarSaveMessage").textContent = "";
@@ -777,6 +915,12 @@
       document.getElementById("saidasConfig").classList.add("hidden");
       document.getElementById("saidasSaveMessage").textContent = "";
       updateSaidasConfigButton();
+    }
+
+    function closeModeracaoConfig() {
+      document.getElementById("moderacaoConfig").classList.add("hidden");
+      document.getElementById("moderacaoSaveMessage").textContent = "";
+      updateModeracaoConfigButton();
     }
 
     async function toggleAvatarConfig(guildId) {
@@ -834,6 +978,17 @@
       await openSaidasConfig(guildId);
     }
 
+    async function toggleModeracaoConfig(guildId) {
+      const isOpen = !document.getElementById("moderacaoConfig").classList.contains("hidden");
+
+      if (isOpen && selectedGuildId === guildId) {
+        closeModeracaoConfig();
+        return;
+      }
+
+      await openModeracaoConfig(guildId);
+    }
+
     async function openAvatarConfig(guildId) {
       setView("inicio");
       document.getElementById("avatarConfig").classList.remove("hidden");
@@ -879,6 +1034,16 @@
       await loadSaidasFeatureConfig();
     }
 
+    async function openModeracaoConfig(guildId) {
+      setView("inicio");
+      document.getElementById("moderacaoConfig").classList.remove("hidden");
+      setSelectedGuildId(guildId);
+      updateModeracaoConfigButton();
+      delete channelsByGuild[guildId];
+      delete rolesByGuild[guildId];
+      await loadModeracaoFeatureConfig();
+    }
+
     async function loadChannels(guildId) {
       if (channelsByGuild[guildId]) return channelsByGuild[guildId];
       const response = await fetch(`/api/clans/guilds/${guildId}/channels`);
@@ -886,6 +1051,40 @@
       if (!response.ok) throw new Error(data.erro || "Erro ao carregar canais");
       channelsByGuild[guildId] = data;
       return data;
+    }
+
+    async function loadRoles(guildId) {
+      if (rolesByGuild[guildId]) return rolesByGuild[guildId];
+      const response = await fetch(`/api/clans/guilds/${guildId}/roles`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.erro || "Erro ao carregar cargos");
+      rolesByGuild[guildId] = data;
+      return data;
+    }
+
+    function fillSelect(id, items, selectedId) {
+      const select = document.getElementById(id);
+      select.innerHTML = `<option value="">Nao configurado</option>` + items.map(item => `<option value="${item.id}">${item.name ? `#${item.name}` : item.id}</option>`).join("");
+      select.value = selectedId || "";
+    }
+
+    function fillRoleSelect(id, roles, selectedId) {
+      const select = document.getElementById(id);
+      select.innerHTML = `<option value="">Nao configurado</option>` + roles.map(role => `<option value="${role.id}">@${role.name}</option>`).join("");
+      select.value = selectedId || "";
+    }
+
+    function renderTogglePicker(id, items, selectedSet, prefix) {
+      const picker = document.getElementById(id);
+      picker.innerHTML = items.map(item => `
+        <button type="button" class="channel-option ${selectedSet.has(item.id) ? "selected" : ""}" data-picker="${id}" data-item-id="${item.id}">
+          ${prefix}${item.name}
+        </button>
+      `).join("");
+    }
+
+    function selectedArray(key) {
+      return Array.from(moderationSelections[key] || []);
     }
 
     async function loadAvatarFeatureConfig() {
@@ -1217,6 +1416,121 @@
       await refreshGuildConfig(guildId);
     }
 
+    async function loadModeracaoFeatureConfig() {
+      setSelectedGuildId(document.getElementById("moderacaoGuildSelect").value);
+      const guildId = selectedGuildId;
+      const saveMessage = document.getElementById("moderacaoSaveMessage");
+      saveMessage.textContent = "";
+
+      const config = await fetchGuildConfig(guildId);
+      const channelResult = await loadChannels(guildId);
+      const roleResult = await loadRoles(guildId);
+      const channels = channelResult.channels || [];
+      const roles = roleResult.roles || [];
+
+      ["moderacaoLogsEnabled", "warnEnabled", "muteEnabled", "antiSpamEnabled", "antiLinkEnabled", "badWordsEnabled", "autoRoleEnabled", "autoRoleRemoveOnLeave", "verificationEnabled"].forEach(id => {
+        document.getElementById(id).checked = config[id] === true;
+      });
+      fillSelect("moderacaoLogsChannelId", channels, config.moderacaoLogsChannelId);
+      fillSelect("warnLogsChannelId", channels, config.warnLogsChannelId);
+      fillSelect("muteLogsChannelId", channels, config.muteLogsChannelId);
+      fillSelect("verificationChannelId", channels, config.verificationChannelId);
+      fillRoleSelect("autoRoleId", roles, config.autoRoleId);
+      fillRoleSelect("verificationRoleId", roles, config.verificationRoleId);
+
+      document.getElementById("warnMessage").value = config.warnMessage || "{user} recebeu uma advertencia. Motivo: {motivo}";
+      document.getElementById("muteMaxTime").value = config.muteMaxTime || 1440;
+      document.getElementById("muteMessage").value = config.muteMessage || "{user} foi silenciado por {tempo}. Motivo: {motivo}";
+      document.getElementById("unmuteMessage").value = config.unmuteMessage || "{user} teve o silencio removido. Motivo: {motivo}";
+      document.getElementById("antiSpamMaxMessages").value = config.antiSpamMaxMessages || 5;
+      document.getElementById("antiSpamIntervalSeconds").value = config.antiSpamIntervalSeconds || 5;
+      document.getElementById("antiSpamTimeoutMinutes").value = config.antiSpamTimeoutMinutes || 5;
+      document.getElementById("antiSpamAction").value = config.antiSpamAction || "delete";
+      document.getElementById("antiLinkAction").value = config.antiLinkAction || "delete";
+      document.getElementById("antiLinkAllowedDomains").value = (config.antiLinkAllowedDomains || []).join("\n");
+      document.getElementById("antiLinkMessage").value = config.antiLinkMessage || "{user}, links nao sao permitidos neste canal.";
+      document.getElementById("badWordsAction").value = config.badWordsAction || "delete";
+      document.getElementById("badWordsList").value = (config.badWordsList || []).join("\n");
+      document.getElementById("badWordsMessage").value = config.badWordsMessage || "{user}, sua mensagem foi removida por conter palavra proibida.";
+      document.getElementById("verificationMessage").value = config.verificationMessage || "Clique no botao abaixo para verificar sua conta e liberar acesso ao servidor.";
+
+      moderationSelections = {
+        antiSpamChannels: new Set(config.antiSpamChannels || []),
+        antiLinkChannels: new Set(config.antiLinkChannels || []),
+        badWordsChannels: new Set(config.badWordsChannels || []),
+        moderationStaffRoles: new Set(config.moderationStaffRoles || []),
+        antiSpamIgnoredRoles: new Set(config.antiSpamIgnoredRoles || []),
+        antiLinkAllowedRoles: new Set(config.antiLinkAllowedRoles || []),
+        badWordsIgnoredRoles: new Set(config.badWordsIgnoredRoles || [])
+      };
+      renderTogglePicker("antiSpamChannelsPicker", channels, moderationSelections.antiSpamChannels, "#");
+      renderTogglePicker("antiLinkChannelsPicker", channels, moderationSelections.antiLinkChannels, "#");
+      renderTogglePicker("badWordsChannelsPicker", channels, moderationSelections.badWordsChannels, "#");
+      renderTogglePicker("moderationStaffRolesPicker", roles, moderationSelections.moderationStaffRoles, "@");
+      renderTogglePicker("antiSpamIgnoredRolesPicker", roles, moderationSelections.antiSpamIgnoredRoles, "@");
+      renderTogglePicker("antiLinkAllowedRolesPicker", roles, moderationSelections.antiLinkAllowedRoles, "@");
+      renderTogglePicker("badWordsIgnoredRolesPicker", roles, moderationSelections.badWordsIgnoredRoles, "@");
+    }
+
+    async function saveModeracaoConfig() {
+      const guildId = document.getElementById("moderacaoGuildSelect").value;
+      const guild = guilds.find(item => item.id === guildId);
+      setSelectedGuildId(guildId);
+      const payload = {
+        moderacaoEnabled: true,
+        moderacaoLogsEnabled: document.getElementById("moderacaoLogsEnabled").checked,
+        moderacaoLogsChannelId: document.getElementById("moderacaoLogsChannelId").value || null,
+        warnEnabled: document.getElementById("warnEnabled").checked,
+        warnLogsChannelId: document.getElementById("warnLogsChannelId").value || null,
+        warnMessage: document.getElementById("warnMessage").value,
+        muteEnabled: document.getElementById("muteEnabled").checked,
+        muteLogsChannelId: document.getElementById("muteLogsChannelId").value || null,
+        muteMaxTime: document.getElementById("muteMaxTime").value,
+        muteMessage: document.getElementById("muteMessage").value,
+        unmuteMessage: document.getElementById("unmuteMessage").value,
+        antiSpamEnabled: document.getElementById("antiSpamEnabled").checked,
+        antiSpamChannels: selectedArray("antiSpamChannels"),
+        antiSpamIgnoredRoles: selectedArray("antiSpamIgnoredRoles"),
+        antiSpamMaxMessages: document.getElementById("antiSpamMaxMessages").value,
+        antiSpamIntervalSeconds: document.getElementById("antiSpamIntervalSeconds").value,
+        antiSpamAction: document.getElementById("antiSpamAction").value,
+        antiSpamTimeoutMinutes: document.getElementById("antiSpamTimeoutMinutes").value,
+        antiLinkEnabled: document.getElementById("antiLinkEnabled").checked,
+        antiLinkChannels: selectedArray("antiLinkChannels"),
+        antiLinkAllowedRoles: selectedArray("antiLinkAllowedRoles"),
+        antiLinkAllowedDomains: document.getElementById("antiLinkAllowedDomains").value,
+        antiLinkAction: document.getElementById("antiLinkAction").value,
+        antiLinkMessage: document.getElementById("antiLinkMessage").value,
+        badWordsEnabled: document.getElementById("badWordsEnabled").checked,
+        badWordsChannels: selectedArray("badWordsChannels"),
+        badWordsIgnoredRoles: selectedArray("badWordsIgnoredRoles"),
+        badWordsList: document.getElementById("badWordsList").value,
+        badWordsAction: document.getElementById("badWordsAction").value,
+        badWordsMessage: document.getElementById("badWordsMessage").value,
+        autoRoleEnabled: document.getElementById("autoRoleEnabled").checked,
+        autoRoleId: document.getElementById("autoRoleId").value || null,
+        autoRoleRemoveOnLeave: document.getElementById("autoRoleRemoveOnLeave").checked,
+        verificationEnabled: document.getElementById("verificationEnabled").checked,
+        verificationChannelId: document.getElementById("verificationChannelId").value || null,
+        verificationRoleId: document.getElementById("verificationRoleId").value || null,
+        verificationMessage: document.getElementById("verificationMessage").value,
+        moderationStaffRoles: selectedArray("moderationStaffRoles")
+      };
+
+      const response = await fetch(`/api/clans/guilds/${guildId}/config/moderacao`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+      if (!response.ok) return alert(data.erro || "Erro ao salvar Moderacao");
+      if (guild) guild.config = data.config;
+      document.getElementById("moderacaoSaveMessage").textContent = "Configuracao de Moderacao salva com sucesso.";
+      renderConfigFeature();
+      renderActiveFeatures();
+      await refreshGuildConfig(guildId);
+    }
+
     async function saveAvatarChannel() {
       const guildId = document.getElementById("avatarGuildSelect").value;
       const channelId = document.getElementById("avatarChannelSelect").value;
@@ -1285,7 +1599,8 @@
         guild.config?.chamadasEnabled === true ||
         guild.config?.modoToscoEnabled === true ||
         guild.config?.boasVindasEnabled === true ||
-        guild.config?.saidasEnabled === true
+        guild.config?.saidasEnabled === true ||
+        guild.config?.moderacaoEnabled === true
       );
       setSelectedGuildId(firstEnabledGuild?.id || guilds[0]?.id || null);
 
@@ -1304,6 +1619,30 @@
       if (!button) return;
       event.preventDefault();
       toggleModoToscoChannel(button.dataset.channelId);
+    });
+
+    document.getElementById("moderacaoConfig").addEventListener("click", event => {
+      const button = event.target.closest(".channel-option");
+      if (!button) return;
+      event.preventDefault();
+      const pickerMap = {
+        antiSpamChannelsPicker: "antiSpamChannels",
+        antiLinkChannelsPicker: "antiLinkChannels",
+        badWordsChannelsPicker: "badWordsChannels",
+        moderationStaffRolesPicker: "moderationStaffRoles",
+        antiSpamIgnoredRolesPicker: "antiSpamIgnoredRoles",
+        antiLinkAllowedRolesPicker: "antiLinkAllowedRoles",
+        badWordsIgnoredRolesPicker: "badWordsIgnoredRoles"
+      };
+      const key = pickerMap[button.dataset.picker];
+      if (!key) return;
+      if (!moderationSelections[key]) moderationSelections[key] = new Set();
+      if (moderationSelections[key].has(button.dataset.itemId)) {
+        moderationSelections[key].delete(button.dataset.itemId);
+      } else {
+        moderationSelections[key].add(button.dataset.itemId);
+      }
+      button.classList.toggle("selected", moderationSelections[key].has(button.dataset.itemId));
     });
 
     loadAccount();

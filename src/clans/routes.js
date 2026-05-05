@@ -14,7 +14,9 @@ const {
   DEFAULT_BOAS_VINDAS_TITLE,
   DEFAULT_BOAS_VINDAS_MESSAGE,
   DEFAULT_SAIDAS_MESSAGE,
+  DEFAULT_MODERACAO_CONFIG,
   listTextChannels,
+  listGuildRoles,
   findRobloxUser,
   findRobloxAvatar
 } = require("./features");
@@ -488,6 +490,22 @@ router.get("/clans/guilds/:guildId/channels", requireDatabase, requireClanAuth, 
   }
 });
 
+router.get("/clans/guilds/:guildId/roles", requireDatabase, requireClanAuth, async (req, res) => {
+  try {
+    const guild = findManageableGuild(req.clanAccount, req.params.guildId);
+
+    if (!guild) {
+      return res.status(403).json({ erro: "Voce nao tem permissao para configurar este servidor." });
+    }
+
+    const roles = await listGuildRoles(req.params.guildId);
+    return res.json({ roles });
+  } catch (err) {
+    console.error(err.response?.data || err);
+    return res.status(err.status || 500).json({ erro: err.message || "Erro ao listar cargos" });
+  }
+});
+
 router.get("/clans/guilds/:guildId/config", requireDatabase, requireClanAuth, async (req, res) => {
   const guild = findManageableGuild(req.clanAccount, req.params.guildId);
 
@@ -794,6 +812,166 @@ router.put("/clans/guilds/:guildId/config/saidas", requireDatabase, requireClanA
   return res.json({
     ok: true,
     mensagem: "Configuracao de Saidas salva com sucesso.",
+    config: publicGuildConfig(config)
+  });
+});
+
+function normalizeStringArray(value) {
+  if (Array.isArray(value)) {
+    return [...new Set(value.map(item => String(item || "").trim()).filter(Boolean))];
+  }
+
+  return String(value || "")
+    .split(/\r?\n|,/)
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+router.put("/clans/guilds/:guildId/config/moderacao", requireDatabase, requireClanAuth, async (req, res) => {
+  console.log("GuildId recebido em Configuracoes Moderacao:", req.params.guildId);
+  const guild = findManageableGuild(req.clanAccount, req.params.guildId);
+
+  if (!guild) {
+    return res.status(403).json({ erro: "Voce nao tem permissao para configurar este servidor." });
+  }
+
+  const channelFields = [
+    "moderacaoLogsChannelId",
+    "warnLogsChannelId",
+    "muteLogsChannelId",
+    "verificationChannelId"
+  ];
+  const channelArrayFields = [
+    "antiSpamChannels",
+    "antiLinkChannels",
+    "badWordsChannels"
+  ];
+  const roleFields = ["autoRoleId", "verificationRoleId"];
+  const roleArrayFields = [
+    "antiSpamIgnoredRoles",
+    "antiLinkAllowedRoles",
+    "badWordsIgnoredRoles",
+    "moderationStaffRoles"
+  ];
+  const channels = await listTextChannels(req.params.guildId);
+  const channelIds = new Set(channels.map(channel => channel.id));
+  const roles = await listGuildRoles(req.params.guildId);
+  const roleIds = new Set(roles.map(role => role.id));
+  const update = { guildId: req.params.guildId };
+
+  for (const key of [
+    "moderacaoEnabled",
+    "moderacaoLogsEnabled",
+    "warnEnabled",
+    "muteEnabled",
+    "antiSpamEnabled",
+    "antiLinkEnabled",
+    "badWordsEnabled",
+    "autoRoleEnabled",
+    "autoRoleRemoveOnLeave",
+    "verificationEnabled"
+  ]) {
+    update[key] = req.body[key] === true;
+  }
+
+  for (const key of channelFields) {
+    const value = req.body[key] ? String(req.body[key]) : null;
+    if (value && !channelIds.has(value)) return res.status(400).json({ erro: "Canal invalido para este servidor." });
+    update[key] = value;
+  }
+
+  for (const key of channelArrayFields) {
+    const values = normalizeStringArray(req.body[key]);
+    const invalid = values.find(value => !channelIds.has(value));
+    if (invalid) return res.status(400).json({ erro: "Um dos canais selecionados nao pertence a este servidor." });
+    update[key] = values;
+  }
+
+  for (const key of roleFields) {
+    const value = req.body[key] ? String(req.body[key]) : null;
+    if (value && !roleIds.has(value)) return res.status(400).json({ erro: "Cargo invalido para este servidor." });
+    update[key] = value;
+  }
+
+  for (const key of roleArrayFields) {
+    const values = normalizeStringArray(req.body[key]);
+    const invalid = values.find(value => !roleIds.has(value));
+    if (invalid) return res.status(400).json({ erro: "Um dos cargos selecionados nao pertence a este servidor." });
+    update[key] = values;
+  }
+
+  update.warnMessage = String(req.body.warnMessage || DEFAULT_MODERACAO_CONFIG.warnMessage).trim() || DEFAULT_MODERACAO_CONFIG.warnMessage;
+  update.muteMessage = String(req.body.muteMessage || DEFAULT_MODERACAO_CONFIG.muteMessage).trim() || DEFAULT_MODERACAO_CONFIG.muteMessage;
+  update.unmuteMessage = String(req.body.unmuteMessage || DEFAULT_MODERACAO_CONFIG.unmuteMessage).trim() || DEFAULT_MODERACAO_CONFIG.unmuteMessage;
+  update.antiLinkMessage = String(req.body.antiLinkMessage || DEFAULT_MODERACAO_CONFIG.antiLinkMessage).trim() || DEFAULT_MODERACAO_CONFIG.antiLinkMessage;
+  update.badWordsMessage = String(req.body.badWordsMessage || DEFAULT_MODERACAO_CONFIG.badWordsMessage).trim() || DEFAULT_MODERACAO_CONFIG.badWordsMessage;
+  update.verificationMessage = String(req.body.verificationMessage || DEFAULT_MODERACAO_CONFIG.verificationMessage).trim() || DEFAULT_MODERACAO_CONFIG.verificationMessage;
+  update.muteMaxTime = Math.max(1, Math.min(40320, Number(req.body.muteMaxTime || DEFAULT_MODERACAO_CONFIG.muteMaxTime)));
+  update.antiSpamMaxMessages = Math.max(1, Math.min(100, Number(req.body.antiSpamMaxMessages || DEFAULT_MODERACAO_CONFIG.antiSpamMaxMessages)));
+  update.antiSpamIntervalSeconds = Math.max(1, Math.min(3600, Number(req.body.antiSpamIntervalSeconds || DEFAULT_MODERACAO_CONFIG.antiSpamIntervalSeconds)));
+  update.antiSpamTimeoutMinutes = Math.max(1, Math.min(40320, Number(req.body.antiSpamTimeoutMinutes || DEFAULT_MODERACAO_CONFIG.antiSpamTimeoutMinutes)));
+  update.antiSpamAction = ["delete", "warn", "timeout"].includes(req.body.antiSpamAction) ? req.body.antiSpamAction : DEFAULT_MODERACAO_CONFIG.antiSpamAction;
+  update.antiLinkAction = ["delete", "warn", "timeout"].includes(req.body.antiLinkAction) ? req.body.antiLinkAction : DEFAULT_MODERACAO_CONFIG.antiLinkAction;
+  update.badWordsAction = ["delete", "warn", "timeout"].includes(req.body.badWordsAction) ? req.body.badWordsAction : DEFAULT_MODERACAO_CONFIG.badWordsAction;
+  update.antiLinkAllowedDomains = normalizeStringArray(req.body.antiLinkAllowedDomains).map(domain => domain.toLowerCase());
+  update.badWordsList = normalizeStringArray(req.body.badWordsList).map(word => word.toLowerCase());
+
+  const config = await ClanGuildConfig.findOneAndUpdate(
+    { guildId: req.params.guildId },
+    { $set: update },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  console.log("Config Moderacao salva:", {
+    guildId: config.guildId,
+    moderacaoEnabled: config.moderacaoEnabled === true,
+    logs: config.moderacaoLogsEnabled === true,
+    warn: config.warnEnabled === true,
+    mute: config.muteEnabled === true,
+    antiSpam: config.antiSpamEnabled === true,
+    antiLink: config.antiLinkEnabled === true,
+    badWords: config.badWordsEnabled === true
+  });
+
+  if (config.moderacaoEnabled === true && config.verificationEnabled === true && config.verificationChannelId && config.verificationRoleId) {
+    axios.post(
+      `https://discord.com/api/v10/channels/${config.verificationChannelId}/messages`,
+      {
+        content: config.verificationMessage || DEFAULT_MODERACAO_CONFIG.verificationMessage,
+        components: [
+          {
+            type: 1,
+            components: [
+              {
+                type: 2,
+                style: 1,
+                custom_id: "clan_verify",
+                label: "Verificar"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        headers: {
+          Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`,
+          "Content-Type": "application/json"
+        },
+        timeout: 10000
+      }
+    ).then(() => {
+      console.log("Mensagem de verificacao enviada:", {
+        guildId: config.guildId,
+        channelId: config.verificationChannelId
+      });
+    }).catch(err => {
+      console.error("Erro ao enviar mensagem de verificacao:", err.response?.data || err.message);
+    });
+  }
+
+  return res.json({
+    ok: true,
+    mensagem: "Configuracao de Moderacao salva com sucesso.",
     config: publicGuildConfig(config)
   });
 });
