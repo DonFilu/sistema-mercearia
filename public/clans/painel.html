@@ -238,57 +238,85 @@
           <label>Servidor
             <select id="moderacaoGuildSelect" onchange="loadModeracaoFeatureConfig()"></select>
           </label>
+          <h3>Logs</h3>
+          <p>Registra acontecimentos importantes do servidor, como mensagens apagadas/editadas, bans, alteracoes de canais e mudancas de cargos.</p>
           <div class="form-grid">
             <label><input id="moderacaoLogsEnabled" type="checkbox"> Logs ativos</label>
             <label>Canal de logs <select id="moderacaoLogsChannelId"></select></label>
+          </div>
+          <h3>Warns</h3>
+          <p>Permite que a equipe use /warn para registrar advertencias e consultar/remover historico quando precisar.</p>
+          <div class="form-grid">
             <label><input id="warnEnabled" type="checkbox"> Warns ativos</label>
             <label>Canal de warns <select id="warnLogsChannelId"></select></label>
+          </div>
+          <label>Mensagem de warn <textarea id="warnMessage"></textarea></label>
+          <h3>Timeout/Mute</h3>
+          <p>Permite silenciar membros temporariamente com /mute e remover o silencio com /unmute usando o timeout nativo do Discord.</p>
+          <div class="form-grid">
             <label><input id="muteEnabled" type="checkbox"> Timeout/Mute ativo</label>
             <label>Canal de mute <select id="muteLogsChannelId"></select></label>
           </div>
-          <label>Mensagem de warn <textarea id="warnMessage"></textarea></label>
           <div class="form-grid">
             <label>Tempo maximo de mute (min) <input id="muteMaxTime" type="number" min="1" value="1440"></label>
-            <label>Anti-spam max mensagens <input id="antiSpamMaxMessages" type="number" min="1" value="5"></label>
-            <label>Anti-spam intervalo (s) <input id="antiSpamIntervalSeconds" type="number" min="1" value="5"></label>
-            <label>Timeout anti-spam (min) <input id="antiSpamTimeoutMinutes" type="number" min="1" value="5"></label>
           </div>
           <label>Mensagem de mute <textarea id="muteMessage"></textarea></label>
           <label>Mensagem de unmute <textarea id="unmuteMessage"></textarea></label>
+          <h3>Anti-Spam</h3>
+          <p>Detecta muitas mensagens em pouco tempo nos canais escolhidos e aplica a acao configurada automaticamente.</p>
           <div class="form-grid">
             <label><input id="antiSpamEnabled" type="checkbox"> Anti-Spam</label>
+            <label>Anti-spam max mensagens <input id="antiSpamMaxMessages" type="number" min="1" value="5"></label>
+            <label>Anti-spam intervalo (s) <input id="antiSpamIntervalSeconds" type="number" min="1" value="5"></label>
+            <label>Timeout anti-spam (min) <input id="antiSpamTimeoutMinutes" type="number" min="1" value="5"></label>
             <label>Acao anti-spam
               <select id="antiSpamAction"><option value="delete">apagar mensagens</option><option value="warn">warn</option><option value="timeout">timeout</option></select>
             </label>
+          </div>
+          <p>Canais monitorados anti-spam</p><div id="antiSpamChannelsPicker" class="channel-picker"></div>
+          <p>Cargos ignorados anti-spam</p><div id="antiSpamIgnoredRolesPicker" class="channel-picker"></div>
+          <h3>Anti-Link</h3>
+          <p>Remove links nao permitidos nos canais monitorados, exceto dominios e cargos liberados.</p>
+          <div class="form-grid">
             <label><input id="antiLinkEnabled" type="checkbox"> Anti-Link</label>
             <label>Acao anti-link
               <select id="antiLinkAction"><option value="delete">apagar mensagem</option><option value="warn">warn</option><option value="timeout">timeout</option></select>
             </label>
+          </div>
+          <p>Canais monitorados anti-link</p><div id="antiLinkChannelsPicker" class="channel-picker"></div>
+          <p>Cargos permitidos anti-link</p><div id="antiLinkAllowedRolesPicker" class="channel-picker"></div>
+          <label>Dominios permitidos anti-link <textarea id="antiLinkAllowedDomains"></textarea></label>
+          <label>Mensagem anti-link <textarea id="antiLinkMessage"></textarea></label>
+          <h3>Palavras Proibidas</h3>
+          <p>Apaga mensagens que contenham termos bloqueados, sem diferenciar maiusculas e minusculas.</p>
+          <div class="form-grid">
             <label><input id="badWordsEnabled" type="checkbox"> Palavras proibidas</label>
             <label>Acao palavras
               <select id="badWordsAction"><option value="delete">apagar mensagem</option><option value="warn">warn</option><option value="timeout">timeout</option></select>
             </label>
           </div>
-          <label>Dominios permitidos anti-link <textarea id="antiLinkAllowedDomains"></textarea></label>
-          <label>Mensagem anti-link <textarea id="antiLinkMessage"></textarea></label>
+          <p>Canais monitorados palavras proibidas</p><div id="badWordsChannelsPicker" class="channel-picker"></div>
+          <p>Cargos ignorados palavras proibidas</p><div id="badWordsIgnoredRolesPicker" class="channel-picker"></div>
           <label>Palavras proibidas <textarea id="badWordsList"></textarea></label>
           <label>Mensagem palavras proibidas <textarea id="badWordsMessage"></textarea></label>
+          <h3>Cargos Automaticos</h3>
+          <p>Entrega um cargo automaticamente quando um membro entra no servidor.</p>
           <div class="form-grid">
             <label><input id="autoRoleEnabled" type="checkbox"> Cargos automaticos</label>
             <label>Cargo automatico <select id="autoRoleId"></select></label>
             <label><input id="autoRoleRemoveOnLeave" type="checkbox"> Remover ao sair</label>
+          </div>
+          <h3>Verificacao</h3>
+          <p>Envia uma mensagem com botao; ao clicar, o membro recebe o cargo de verificado.</p>
+          <div class="form-grid">
             <label><input id="verificationEnabled" type="checkbox"> Verificacao</label>
             <label>Canal verificacao <select id="verificationChannelId"></select></label>
             <label>Cargo verificado <select id="verificationRoleId"></select></label>
           </div>
           <label>Mensagem de verificacao <textarea id="verificationMessage"></textarea></label>
-          <p>Canais monitorados anti-spam</p><div id="antiSpamChannelsPicker" class="channel-picker"></div>
-          <p>Canais monitorados anti-link</p><div id="antiLinkChannelsPicker" class="channel-picker"></div>
-          <p>Canais monitorados palavras proibidas</p><div id="badWordsChannelsPicker" class="channel-picker"></div>
+          <h3>Permissoes / Staff</h3>
+          <p>Escolha cargos que podem usar comandos de moderacao. Se deixar vazio, o bot usa as permissoes do Discord.</p>
           <p>Cargos staff/moderacao</p><div id="moderationStaffRolesPicker" class="channel-picker"></div>
-          <p>Cargos ignorados anti-spam</p><div id="antiSpamIgnoredRolesPicker" class="channel-picker"></div>
-          <p>Cargos permitidos anti-link</p><div id="antiLinkAllowedRolesPicker" class="channel-picker"></div>
-          <p>Cargos ignorados palavras proibidas</p><div id="badWordsIgnoredRolesPicker" class="channel-picker"></div>
           <button class="primary" onclick="saveModeracaoConfig()">Salvar Moderacao</button>
           <div id="moderacaoSaveMessage" class="message"></div>
         </div>
@@ -312,7 +340,7 @@
         </div>
         <div class="feature">
           <strong>Avatar Roblox</strong>
-          <span>Permite usar /avatar username para mostrar o avatar Roblox de um jogador.</span>
+          <span>Libera o comando /avatar para mostrar a imagem atual de um jogador Roblox no canal escolhido.</span>
           <div class="toggle">
             <span id="avatarToggleText">Desativado</span>
             <button id="avatarToggle" class="switch" aria-label="Ativar ou desativar Avatar Roblox" onclick="toggleAvatarRoblox()"></button>
@@ -348,7 +376,7 @@
         </div>
         <div class="feature">
           <strong>Saidas</strong>
-          <span>Envia uma mensagem quando alguem sair do servidor.</span>
+          <span>Quando um membro sair, envia uma mensagem simples no canal escolhido usando o nome dele.</span>
           <div class="toggle">
             <span id="saidasToggleText">Desativado</span>
             <button id="saidasToggle" class="switch" aria-label="Ativar ou desativar Saidas" onclick="toggleSaidas()"></button>
@@ -357,7 +385,7 @@
         </div>
         <div class="feature">
           <strong>Moderacao</strong>
-          <span>Controle logs, advertencias, punicoes, anti-spam e seguranca do servidor.</span>
+          <span>Central de seguranca do servidor: logs, warns, mute, filtros, cargos automaticos e verificacao.</span>
           <div class="toggle">
             <span id="moderacaoToggleText">Desativado</span>
             <button id="moderacaoToggle" class="switch" aria-label="Ativar ou desativar Moderacao" onclick="toggleModeracao()"></button>
