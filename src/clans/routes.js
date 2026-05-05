@@ -933,6 +933,12 @@ router.put("/clans/guilds/:guildId/config/moderacao", requireDatabase, requireCl
     badWords: config.badWordsEnabled === true
   });
 
+  if (config.moderacaoEnabled === true) {
+    registerGuildAvatarCommand(req.params.guildId).catch(err => {
+      console.error("Erro ao registrar comandos de moderacao no servidor:", err.response?.data || err.message);
+    });
+  }
+
   if (config.moderacaoEnabled === true && config.verificationEnabled === true && config.verificationChannelId && config.verificationRoleId) {
     axios.post(
       `https://discord.com/api/v10/channels/${config.verificationChannelId}/messages`,

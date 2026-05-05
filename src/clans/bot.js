@@ -191,6 +191,8 @@ async function handleWarnCommand(interaction) {
   }
 
   const user = interaction.options.getUser("usuario");
+  if (!user || user.bot) return interaction.editReply("Escolha um usuario valido que nao seja bot.");
+  if (user.id === interaction.user.id) return interaction.editReply("Voce nao pode aplicar warn em si mesmo.");
   const motivo = interaction.options.getString("motivo") || "Sem motivo informado";
   const warnId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
   await ClanWarn.create({
@@ -270,10 +272,13 @@ async function handleMuteCommand(interaction) {
   const user = interaction.options.getUser("usuario");
   const target = await interaction.guild.members.fetch(user.id).catch(() => null);
   if (!target) return interaction.editReply("Usuario nao encontrado no servidor.");
+  if (!canModerateTarget(interaction.member, target) || target.moderatable !== true) {
+    return interaction.editReply("Nao consigo silenciar esse usuario. Verifique hierarquia de cargos e permissoes do bot.");
+  }
 
   const motivo = interaction.options.getString("motivo") || "Sem motivo informado";
   const requestedMinutes = Math.max(1, interaction.options.getInteger("tempo") || 1);
-  const minutes = Math.min(requestedMinutes, Math.max(1, Number(config.muteMaxTime || 1440)));
+  const minutes = Math.min(requestedMinutes, Math.max(1, Number(config.muteMaxTime || 1440)), 40320);
   await target.timeout(minutes * 60 * 1000, motivo);
   const content = replaceTemplate(config.muteMessage, {
     user: `<@${user.id}>`,
@@ -300,6 +305,9 @@ async function handleUnmuteCommand(interaction) {
   const user = interaction.options.getUser("usuario");
   const target = await interaction.guild.members.fetch(user.id).catch(() => null);
   if (!target) return interaction.editReply("Usuario nao encontrado no servidor.");
+  if (!target.moderatable) {
+    return interaction.editReply("Nao consigo remover o silencio desse usuario. Verifique hierarquia de cargos e permissoes do bot.");
+  }
 
   const motivo = interaction.options.getString("motivo") || "Sem motivo informado";
   await target.timeout(null, motivo);
@@ -352,6 +360,18 @@ function hasModerationStaffPermission(member, config, requiredPermissions = []) 
   if (isAdmin(member)) return true;
   if (hasAnyRole(member, config.moderationStaffRoles || [])) return true;
   return requiredPermissions.some(permission => member.permissions?.has(permission));
+}
+
+function canModerateTarget(moderator, target) {
+  if (!target) return false;
+  if (target.user?.bot) return false;
+  if (target.id === moderator?.id) return false;
+  if (target.permissions?.has(PermissionFlagsBits.Administrator)) return false;
+  if (!target.manageable && !target.moderatable) return false;
+  if (moderator && target.roles?.highest && moderator.roles?.highest) {
+    return target.roles.highest.position < moderator.roles.highest.position;
+  }
+  return true;
 }
 
 function channelAllowed(channelId, configuredChannels = []) {
@@ -1112,6 +1132,7 @@ async function startClanDiscordBot() {
     });
 
     client.on("interactionCreate", async interaction => {
+      try {
       if (interaction.isButton?.() && interaction.customId === "clan_verify") {
         const config = await loadModerationConfig(interaction.guildId);
         if (!config || config.verificationEnabled !== true || !config.verificationRoleId) {
@@ -1166,6 +1187,12 @@ async function startClanDiscordBot() {
 
       if (interaction.commandName === "unmute") {
         await handleUnmuteCommand(interaction);
+      }
+      } catch (err) {
+        console.error("[Moderacao] erro completo em interactionCreate:", err);
+        await safeEditReply(interaction, {
+          content: "Erro ao executar comando. Verifique permissões do bot e tente novamente."
+        });
       }
     });
 
