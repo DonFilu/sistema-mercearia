@@ -1,3 +1,5 @@
+const sharp = require("sharp");
+
 function escapeXml(value) {
   return String(value || "")
     .replace(/&/g, "&amp;")
@@ -73,7 +75,7 @@ function buildWelcomeSvg({
 </svg>`;
 }
 
-function createWelcomeImageBuffer(member, config) {
+async function createWelcomeImageBuffer(member, config) {
   const user = member.user;
   const avatarUrl = user.displayAvatarURL
     ? user.displayAvatarURL({ extension: "png", size: 256, forceStatic: true })
@@ -88,7 +90,11 @@ function createWelcomeImageBuffer(member, config) {
     dateText: formatSaoPauloDate()
   });
 
-  return Buffer.from(svg, "utf8");
+  return sharp(Buffer.from(svg, "utf8"), {
+    density: 144
+  })
+    .png()
+    .toBuffer();
 }
 
 module.exports = {

@@ -188,9 +188,19 @@ async function sendAvatarRobloxEmbed(interaction, username) {
       return;
     }
 
+    console.log("Roblox userId encontrado:", { username: user.name, userId: user.id });
     const avatarUrl = await findRobloxAvatar(user.id);
+
+    if (!avatarUrl) {
+      await updateDeferredInteraction(interaction, {
+        content: "Não consegui carregar o avatar do usuário.",
+        embeds: []
+      });
+      return;
+    }
+
     const profileUrl = `https://www.roblox.com/users/${user.id}/profile`;
-    console.log("Avatar Roblox encontrado com sucesso:", { username: user.name, userId: user.id });
+    console.log("Avatar Roblox encontrado com sucesso:", { username: user.name, userId: user.id, imageUrl: avatarUrl });
 
     await updateDeferredInteraction(interaction, {
       content: "",
@@ -212,7 +222,7 @@ async function sendAvatarRobloxEmbed(interaction, username) {
               inline: true
             }
           ],
-          image: avatarUrl ? { url: avatarUrl } : undefined,
+          image: { url: avatarUrl },
           footer: { text: "Clan Cidio" }
         }
       ]

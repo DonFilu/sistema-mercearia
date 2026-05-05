@@ -106,7 +106,15 @@ async function handleAvatarCommand(interaction) {
       return;
     }
 
+    console.log("Roblox userId encontrado:", { username: user.name, userId: user.id });
     const avatarUrl = await findRobloxAvatar(user.id);
+
+    if (!avatarUrl) {
+      console.log("Avatar Roblox sem imageUrl:", { username: user.name, userId: user.id });
+      await interaction.editReply({ content: "Não consegui carregar o avatar do usuário." });
+      return;
+    }
+
     const profileUrl = `https://www.roblox.com/users/${user.id}/profile`;
     const embed = new EmbedBuilder()
       .setTitle("Avatar Roblox")
@@ -119,7 +127,7 @@ async function handleAvatarCommand(interaction) {
       )
       .setFooter({ text: "Clan Cidio" });
 
-    if (avatarUrl) embed.setImage(avatarUrl);
+    embed.setImage(avatarUrl);
 
     await interaction.editReply({ embeds: [embed] });
     console.log("editReply enviado");
@@ -461,10 +469,10 @@ async function sendBoasVindasForMember(member, source = "manual") {
     let files = [];
 
     try {
-      const imageBuffer = createWelcomeImageBuffer(member, config);
+      const imageBuffer = await createWelcomeImageBuffer(member, config);
       files = [
         new AttachmentBuilder(imageBuffer, {
-          name: "boas-vindas.svg"
+          name: "boas-vindas.png"
         })
       ];
       console.log("[Boas-vindas] imagem gerada", {

@@ -232,7 +232,9 @@ async function findRobloxAvatar(userId) {
     }
   });
 
-  return response.data?.data?.[0]?.imageUrl || "";
+  const imageUrl = response.data?.data?.[0]?.imageUrl || "";
+  console.log("Roblox avatar imageUrl retornada:", { userId, imageUrl });
+  return imageUrl;
 }
 
 module.exports = {
