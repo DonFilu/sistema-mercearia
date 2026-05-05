@@ -1,46 +1,9 @@
 const axios = require("axios");
-const fs = require("fs");
-const { createCanvas, loadImage, GlobalFonts } = require("@napi-rs/canvas");
+const { createCanvas, loadImage } = require("@napi-rs/canvas");
 
 const WIDTH = 1200;
 const HEIGHT = 520;
-const FONT_FAMILY = "CidioWelcome";
-let fontsRegistered = false;
-
-function registerWelcomeFonts() {
-  if (fontsRegistered) return;
-  fontsRegistered = true;
-
-  if (!GlobalFonts || typeof GlobalFonts.registerFromPath !== "function") {
-    console.warn("[Boas-vindas] GlobalFonts indisponivel; usando fallback do canvas.");
-    return;
-  }
-
-  const candidates = [
-    "C:\\Windows\\Fonts\\arialbd.ttf",
-    "C:\\Windows\\Fonts\\Arial.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
-    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
-  ];
-
-  for (const file of candidates) {
-    try {
-      if (!fs.existsSync(file)) continue;
-      GlobalFonts.registerFromPath(file, FONT_FAMILY);
-      console.log("[Boas-vindas] fonte registrada:", file);
-      return;
-    } catch (err) {
-      console.warn("[Boas-vindas] erro ao registrar fonte:", {
-        file,
-        erro: err.message
-      });
-    }
-  }
-
-  console.warn("[Boas-vindas] nenhuma fonte local registrada; usando fallback do canvas.");
-}
+const FONT_FAMILY = "sans-serif";
 
 function isPublicImageUrl(value) {
   if (!value) return false;
@@ -75,12 +38,19 @@ function safeText(value, fallback = "") {
     .trim();
 }
 
+function displayText(value, fallback = "") {
+  return safeText(value, fallback)
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+}
+
 function fontWeight(value) {
   return value === "normal" ? "normal" : "bold";
 }
 
 function canvasFont(size, weight = "bold") {
-  return `${fontWeight(weight)} ${size}px ${FONT_FAMILY}, Arial, sans-serif`;
+  return `${fontWeight(weight)} ${size}px ${FONT_FAMILY}`;
 }
 
 async function loadImageFromUrl(url, label) {
@@ -241,9 +211,38 @@ function drawVisibleText(ctx, text, y, maxWidth, size) {
   }
 }
 
-async function createWelcomeImageBuffer(member, config) {
-  registerWelcomeFonts();
+function drawBannerText(ctx, text, y, maxWidth, size) {
+  try {
+    const value = safeText(text);
+    const finalSize = fitText(ctx, value, maxWidth, size, 16, "bold");
 
+    ctx.save();
+    ctx.font = canvasFont(finalSize, "bold");
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
+    ctx.miterLimit = 2;
+    ctx.strokeStyle = "rgba(0,0,0,0.98)";
+    ctx.lineWidth = Math.max(5, Math.round(finalSize / 8));
+    ctx.strokeText(value, WIDTH / 2, y);
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillText(value, WIDTH / 2, y);
+    console.log("[Boas-vindas] texto desenhado", {
+      texto: value,
+      x: WIDTH / 2,
+      y,
+      font: ctx.font
+    });
+    ctx.restore();
+  } catch (err) {
+    console.warn("[Boas-vindas] erro ao desenhar texto:", {
+      texto: text,
+      erro: err.message
+    });
+  }
+}
+
+async function createWelcomeImageBuffer(member, config) {
   const user = member.user;
   const canvas = createCanvas(WIDTH, HEIGHT);
   const ctx = canvas.getContext("2d");
@@ -251,9 +250,9 @@ async function createWelcomeImageBuffer(member, config) {
     loadBackground(config.boasVindasBackgroundUrl),
     loadDiscordAvatar(user)
   ]);
-  const title = safeText(config.boasVindasTitle, "BEM-VINDO(A)");
-  const username = safeText(user.username || member.displayName, "novo membro");
-  const message = safeText(
+  const title = displayText(config.boasVindasTitle, "BEM-VINDO(A)");
+  const username = displayText(user.username || member.displayName, "novo membro");
+  const message = displayText(
     config.boasVindasMessage,
     "QUE VOC\u00ca POSSA APROVEITAR AO M\u00c1XIMO A ALCATEIA!"
   );
@@ -279,6 +278,14 @@ async function createWelcomeImageBuffer(member, config) {
   ctx.fillStyle = bottomGradient;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
+  const textPanelGradient = ctx.createLinearGradient(0, 235, 0, 455);
+  textPanelGradient.addColorStop(0, "rgba(0, 0, 0, 0)");
+  textPanelGradient.addColorStop(0.28, "rgba(0, 0, 0, 0.58)");
+  textPanelGradient.addColorStop(1, "rgba(0, 0, 0, 0.72)");
+  ctx.fillStyle = textPanelGradient;
+  roundRect(ctx, 84, 245, 1032, 190, 18);
+  ctx.fill();
+
   ctx.save();
   ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
   ctx.beginPath();
@@ -297,9 +304,9 @@ async function createWelcomeImageBuffer(member, config) {
     data: { x: 80, y: 470 }
   });
 
-  drawVisibleText(ctx, title, 270, 980, 68);
-  drawVisibleText(ctx, username, 328, 940, 38);
-  drawVisibleText(ctx, message, 382, 1060, 32);
+  drawBannerText(ctx, title, 270, 980, 68);
+  drawBannerText(ctx, username, 328, 940, 38);
+  drawBannerText(ctx, message, 382, 1060, 32);
 
   const dateText = formatSaoPauloDate();
   ctx.save();
