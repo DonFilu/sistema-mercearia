@@ -529,6 +529,13 @@ function saoPauloNowParts() {
   };
 }
 
+function normalizeTimeKey(value) {
+  const match = String(value || "").trim().match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return "";
+
+  return `${match[1].padStart(2, "0")}:${match[2]}`;
+}
+
 async function sendChannelMessage(discordClient, channelId, content) {
   const channel = await discordClient.channels.fetch(channelId);
 
@@ -545,20 +552,52 @@ function buildChamadaMessage(config, question) {
 }
 
 async function runChamadasTick(discordClient) {
-  if (mongoose.connection.readyState !== 1) return;
+  if (mongoose.connection.readyState !== 1) {
+    console.log("[Chamadas] checagem ignorada: banco desconectado.", {
+      readyState: mongoose.connection.readyState
+    });
+    return;
+  }
 
   const { dateKey, timeKey } = saoPauloNowParts();
+  console.log("[Chamadas] checando chamadas", {
+    dataAtual: dateKey,
+    horaAtual: timeKey
+  });
+
   const configs = await ClanGuildConfig.find({
     chamadasEnabled: true
+  });
+  console.log("[Chamadas] configs ativas encontradas", {
+    total: configs.length
   });
 
   for (const config of configs) {
     try {
-      if (!config.chamadasChannelId) continue;
+      const startTime = normalizeTimeKey(config.chamadasTimeStart);
+      const endTime = normalizeTimeKey(config.chamadasTimeEnd);
 
-      if (config.chamadasTimeStart === timeKey && config.chamadasLastStartDate !== dateKey) {
+      console.log("[Chamadas] config carregada", {
+        guildId: config.guildId,
+        chamadasEnabled: config.chamadasEnabled === true,
+        chamadasChannelId: config.chamadasChannelId || null,
+        horaAtual: timeKey,
+        horaConfiguradaInicio: startTime,
+        horaConfiguradaFim: endTime,
+        lastStartDate: config.chamadasLastStartDate || null,
+        lastEndDate: config.chamadasLastEndDate || null
+      });
+
+      if (!config.chamadasChannelId) {
+        console.log("[Chamadas] ignorada: canal nao configurado.", {
+          guildId: config.guildId
+        });
+        continue;
+      }
+
+      if (startTime === timeKey && config.chamadasLastStartDate !== dateKey) {
         const question = chooseDailyQuestion(config.chamadasQuestions || [], config.chamadasLastQuestion);
-        console.log("Pergunta escolhida para Chamadas:", {
+        console.log("[Chamadas] pergunta escolhida", {
           guildId: config.guildId,
           question: question || null
         });
@@ -567,21 +606,25 @@ async function runChamadasTick(discordClient) {
         config.chamadasLastQuestion = question || config.chamadasLastQuestion || null;
         config.chamadasLastStartDate = dateKey;
         await config.save();
-        console.log("Chamada enviada:", { guildId: config.guildId, channelId: config.chamadasChannelId });
+        console.log("[Chamadas] chamada enviada", {
+          guildId: config.guildId,
+          channelId: config.chamadasChannelId
+        });
       }
 
-      if (config.chamadasTimeEnd === timeKey && config.chamadasLastEndDate !== dateKey) {
+      if (endTime === timeKey && config.chamadasLastEndDate !== dateKey) {
         const endMessage = config.chamadasEndMessage || DEFAULT_CHAMADAS_END_MESSAGE;
         await sendChannelMessage(discordClient, config.chamadasChannelId, endMessage);
         config.chamadasLastEndDate = dateKey;
         await config.save();
-        console.log("Encerramento de chamada enviado:", {
+        console.log("[Chamadas] encerramento enviado", {
           guildId: config.guildId,
           channelId: config.chamadasChannelId
         });
       }
     } catch (err) {
-      console.error("Erro no agendamento de Chamadas:", {
+      console.error("[Chamadas] erro completo no agendamento:", err);
+      console.error("[Chamadas] erro resumido no agendamento:", {
         guildId: config.guildId,
         channelId: config.chamadasChannelId,
         erro: err.message
@@ -591,18 +634,21 @@ async function runChamadasTick(discordClient) {
 }
 
 function startChamadasScheduler(discordClient) {
-  if (chamadasTimer) return;
+  if (chamadasTimer) {
+    console.log("[Chamadas] scheduler ja estava iniciado.");
+    return;
+  }
 
-  console.log("Agendador de Chamadas iniciado.");
+  console.log("[Chamadas] scheduler iniciado.");
   setTimeout(() => runChamadasTick(discordClient).catch(err => {
-    console.error("Erro no primeiro tick de Chamadas:", err);
+    console.error("[Chamadas] erro no primeiro tick:", err);
   }), 5000);
 
   chamadasTimer = setInterval(() => {
     runChamadasTick(discordClient).catch(err => {
-      console.error("Erro no tick de Chamadas:", err);
+      console.error("[Chamadas] erro no tick:", err);
     });
-  }, 60000);
+  }, 30000);
 }
 
 function createClanClient() {

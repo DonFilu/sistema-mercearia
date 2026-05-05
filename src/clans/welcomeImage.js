@@ -143,14 +143,20 @@ function drawCenteredText(ctx, text, y, maxWidth, startSize, minSize, color, wei
     const size = fitText(ctx, value, maxWidth, startSize, minSize, weight);
     ctx.save();
     ctx.font = `${fontWeight(weight)} ${size}px Arial`;
-    ctx.fillStyle = color;
-    ctx.shadowColor = "rgba(0, 0, 0, 0.95)";
-    ctx.shadowBlur = 10;
+    ctx.fillStyle = color || "#FFFFFF";
+    ctx.shadowColor = "rgba(0,0,0,0.9)";
+    ctx.shadowBlur = 8;
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 2;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(value, WIDTH / 2, y);
+    console.log("[Boas-vindas] texto desenhado", {
+      texto: value,
+      x: WIDTH / 2,
+      y,
+      font: ctx.font
+    });
     ctx.restore();
   } catch (err) {
     console.warn("[Boas-vindas] erro ao desenhar texto:", {
@@ -209,29 +215,43 @@ async function createWelcomeImageBuffer(member, config) {
   drawCoverImage(ctx, avatar, 514, 59, 172, 172);
   ctx.restore();
 
-  drawCenteredText(ctx, title, 288, 940, 56, 34, "#FFFFFF", "bold");
-  drawCenteredText(ctx, `@${username}`, 344, 940, 34, 24, "#FFFFFF", "bold");
+  console.log("[Boas-vindas] posicoes do texto", {
+    titulo: { x: canvas.width / 2, y: 250 },
+    username: { x: canvas.width / 2, y: 310 },
+    mensagem: { x: canvas.width / 2, y: 365 },
+    data: { x: canvas.width / 2, y: 430 }
+  });
+
+  drawCenteredText(ctx, title, 250, 940, 52, 34, "#FFFFFF", "bold");
+  drawCenteredText(ctx, `@${username}`, 310, 940, 38, 24, "#FFFFFF", "bold");
   drawCenteredText(
     ctx,
     message,
-    398,
+    365,
     980,
-    30,
+    32,
     20,
     "#FFFFFF",
     "bold"
   );
 
+  const dateText = formatSaoPauloDate();
   ctx.save();
   ctx.font = "bold 20px Arial";
   ctx.fillStyle = "#FFFFFF";
-  ctx.shadowColor = "rgba(0, 0, 0, 0.95)";
-  ctx.shadowBlur = 10;
+  ctx.shadowColor = "rgba(0,0,0,0.9)";
+  ctx.shadowBlur = 8;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 2;
-  ctx.textAlign = "right";
+  ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(formatSaoPauloDate(), 1100, 444);
+  ctx.fillText(dateText, canvas.width / 2, 430);
+  console.log("[Boas-vindas] texto desenhado", {
+    texto: dateText,
+    x: canvas.width / 2,
+    y: 430,
+    font: ctx.font
+  });
   ctx.restore();
   const buffer = canvas.toBuffer("image/png");
   console.log("[Boas-vindas] buffer PNG gerado com sucesso:", {
