@@ -593,6 +593,30 @@ function startChamadasScheduler(discordClient) {
   }, 60000);
 }
 
+function shouldEnableGuildMembersIntent() {
+  return process.env.DISCORD_ENABLE_GUILD_MEMBERS === "true" ||
+    process.env.DISCORD_ENABLE_GUILD_MEMBERS_INTENT === "true";
+}
+
+function createClanClient(enableGuildMembers = false) {
+  const intents = [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages
+  ];
+
+  if (enableGuildMembers) {
+    intents.push(GatewayIntentBits.GuildMembers);
+  }
+
+  console.log("Iniciando bot Clan Cidio com intents:", {
+    Guilds: true,
+    GuildMessages: true,
+    GuildMembers: enableGuildMembers
+  });
+
+  return new Client({ intents });
+}
+
 async function startClanDiscordBot() {
   if (client || starting) return client;
 
@@ -605,19 +629,18 @@ async function startClanDiscordBot() {
 
   try {
     await ensureDatabaseConnection();
-    await registerConfiguredGuildCommands();
 
-    client = new Client({
-      intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.GuildMembers
-      ]
-    });
+    try {
+      await registerConfiguredGuildCommands();
+    } catch (err) {
+      console.warn("Falha ao registrar comandos Clan Cidio; bot vai iniciar mesmo assim:", err.response?.data || err.message);
+    }
+
+    client = createClanClient(shouldEnableGuildMembersIntent());
 
     client.once("ready", () => {
       console.log(`Bot Clan Cidio online como ${client.user.tag}`);
-      console.log("Listeners Clan Cidio registrados. Intents: Guilds, GuildMessages, GuildMembers.");
+      console.log("Listeners Clan Cidio registrados.");
       startChamadasScheduler(client);
     });
 
